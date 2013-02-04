@@ -29,8 +29,9 @@
 
   <properties>
     <version.hbase>0.94.3</version.hbase>
-    <version.hadoop>2.0.0-cdh4.0.0</version.hadoop>
-    <version.zookeeper>3.4.3-cdh4.0.0</version.zookeeper>
+    <version.hadoop>1.1.1</version.hadoop>
+    <version.zookeeper>3.4.3</version.zookeeper>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
   <licenses>
@@ -51,6 +52,7 @@
   <modules>
     <module>api</module>
     <module>impl</module>
+    <module>demo</module>
   </modules>
 
   <dependencyManagement>
@@ -67,7 +69,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-common</artifactId>
+        <artifactId>hadoop-core</artifactId>
         <version>${version.hadoop}</version>
       </dependency>
       <dependency>
@@ -98,6 +100,16 @@
   </dependencyManagement>
 
   <repositories>
+    <repository>
+      <id>default</id>
+      <name>Maven Repository Switchboard</name>
+      <layout>default</layout>
+      <url>http://repo1.maven.org/maven2</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+
     <repository>
       <id>cdh.repo</id>
       <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
