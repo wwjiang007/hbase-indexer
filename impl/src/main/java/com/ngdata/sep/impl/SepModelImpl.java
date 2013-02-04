@@ -3,9 +3,8 @@ package com.ngdata.sep.impl;
 import java.io.IOException;
 import java.util.UUID;
 
-import com.ngdata.util.io.Closer;
-
 import com.ngdata.sep.SepModel;
+import com.ngdata.util.io.Closer;
 import com.ngdata.zookeeper.ZkUtil;
 import com.ngdata.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;

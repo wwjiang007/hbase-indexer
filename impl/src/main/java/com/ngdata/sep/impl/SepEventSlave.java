@@ -1,25 +1,29 @@
 package com.ngdata.sep.impl;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.ngdata.util.concurrent.WaitPolicy;
-
-import com.ngdata.util.io.Closer;
-
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
 import com.ngdata.sep.impl.SepHBaseSchema.RecordCf;
 import com.ngdata.sep.impl.SepHBaseSchema.RecordColumn;
+import com.ngdata.util.concurrent.WaitPolicy;
+import com.ngdata.util.io.Closer;
 import com.ngdata.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -52,7 +56,8 @@ public class SepEventSlave extends BaseHRegionServer {
     private Log log = LogFactory.getLog(getClass());
 
     /**
-     * @param subscriptionTimestamp timestamp of when the index subscription became active (or more accurately, not inactive)
+     * @param subscriptionTimestamp timestamp of when the index subscription became active (or more accurately, not
+     *        inactive)
      * @param listener listeners that will process the events
      * @param threadCnt number of worker threads that will handle incoming SEP events
      * @param hostName hostname to bind to
@@ -80,16 +85,11 @@ public class SepEventSlave extends BaseHRegionServer {
 
     public void start() throws IOException, InterruptedException, KeeperException {
         // TODO see same call in HBase's HRegionServer:
-        //   - should we do HBaseRPCErrorHandler ?
-        rpcServer = HBaseRPC.getServer(this,
-                new Class<?>[] { HRegionInterface.class },
-                hostName,
-                0, /* ephemeral port */
+        // - should we do HBaseRPCErrorHandler ?
+        rpcServer = HBaseRPC.getServer(this, new Class<?>[] { HRegionInterface.class }, hostName, 0, /* ephemeral port */
                 10, // TODO how many handlers do we need? make it configurable?
-                10,
-                false, // TODO make verbose flag configurable
-                hbaseConf,
-                0); // TODO need to check what this parameter is for
+                10, false, // TODO make verbose flag configurable
+                hbaseConf, 0); // TODO need to check what this parameter is for
 
         rpcServer.start();
 
@@ -101,7 +101,7 @@ public class SepEventSlave extends BaseHRegionServer {
         String serverName = hostName + "," + port + "," + System.currentTimeMillis();
         zkNodePath = SepModel.HBASE_ROOT + "/" + subscriptionId + "/rs/" + serverName;
         zk.create(zkNodePath, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-        
+
         this.running = true;
     }
 
@@ -120,44 +120,48 @@ public class SepEventSlave extends BaseHRegionServer {
                 }
             }
         }
-	    sepMetrics.shutdown();
+        sepMetrics.shutdown();
     }
-    
+
     public boolean isRunning() {
         return running;
     }
 
     @Override
     public void replicateLogEntries(HLog.Entry[] entries) throws IOException {
-        // TODO quickly hacked in the multi-threading: should maybe approach this differently
+
         List<Future<?>> futures = new ArrayList<Future<?>>();
 
         // TODO Recording of last processed timestamp won't work if two batches of log entries are sent out of order
         long lastProcessedTimestamp = -1;
-        
-        nextEntry: for (HLog.Entry entry : entries) {
-            HLogKey entryKey = entry.getKey();
-            if (!Bytes.equals(entryKey.getTablename(), SepHBaseSchema.RECORD_TABLE) || entryKey.getWriteTime() < subscriptionTimestamp) {
+
+        for (final HLog.Entry entry : entries) {
+            final HLogKey entryKey = entry.getKey();
+            if (entryKey.getWriteTime() < subscriptionTimestamp) {
                 continue;
             }
+            Multimap<ByteBuffer, KeyValue> keyValuesPerRowKey = ArrayListMultimap.create();
+            final Map<ByteBuffer, byte[]> payloadPerRowKey = Maps.newHashMap();
             for (final KeyValue kv : entry.getEdit().getKeyValues()) {
+                ByteBuffer rowKey = ByteBuffer.wrap(kv.getBuffer(), kv.getKeyOffset(), kv.getKeyLength());
                 if (kv.matchingColumn(RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes)) {
-                    // We don't want messages of the same row to be processed concurrently, therefore choose
-                    // a thread based on the hash of the row key
-                    int partition = (hashFunction.hashBytes(kv.getRow()).asInt() & Integer.MAX_VALUE) % threadCnt;
-                    Future<?> future = executors.get(partition).submit(new Runnable() {
-                        @Override
-                        public void run() {
-                            long before = System.currentTimeMillis();
-                            log.debug("Delivering message to listener");
-                            listener.processMessage(kv.getRow(), kv.getValue());
-                            sepMetrics.reportFilteredSepOperation(System.currentTimeMillis() - before);
-                        }
-                    });
-                    futures.add(future);
-                    lastProcessedTimestamp = Math.max(lastProcessedTimestamp, entry.getKey().getWriteTime());
-                    continue nextEntry;
+                    if (payloadPerRowKey.containsKey(rowKey)) {
+                        log.error("Multiple payloads encountered for row " + Bytes.toStringBinary(rowKey.array())
+                                + ", choosing " + Bytes.toStringBinary(payloadPerRowKey.get(rowKey)));
+                    } else {
+                        payloadPerRowKey.put(rowKey, kv.getValue());
+                    }
                 }
+                keyValuesPerRowKey.put(rowKey, kv);
+            }
+
+            for (final ByteBuffer rowKeyBuffer : keyValuesPerRowKey.keySet()) {
+                final List<KeyValue> keyValues = (List<KeyValue>)keyValuesPerRowKey.get(rowKeyBuffer);
+
+                final SepEvent sepEvent = new SepEvent(entry.getKey().getTablename(), keyValues.get(0).getRow(),
+                        keyValues, payloadPerRowKey.get(rowKeyBuffer));
+                futures.add(scheduleSepEvent(sepEvent));
+                lastProcessedTimestamp = Math.max(lastProcessedTimestamp, entry.getKey().getWriteTime());
             }
 
             if (log.isInfoEnabled()) {
@@ -166,6 +170,14 @@ public class SepEventSlave extends BaseHRegionServer {
             }
         }
 
+        waitOnSepEventCompletion(futures);
+
+        if (lastProcessedTimestamp > 0) {
+            sepMetrics.reportSepTimestamp(lastProcessedTimestamp);
+        }
+    }
+
+    private void waitOnSepEventCompletion(List<Future<?>> futures) throws IOException {
         // We should wait for all operations to finish before returning, because otherwise HBase might
         // deliver a next batch from the same HLog to a different server. This becomes even more important
         // if an exception has been thrown in the batch, as waiting for all futures increases the back-off that
@@ -181,14 +193,27 @@ public class SepEventSlave extends BaseHRegionServer {
                 exceptionsThrown.add(e);
             }
         }
-        
+
         if (!exceptionsThrown.isEmpty()) {
-            log.error("Encountered exceptions on " + exceptionsThrown.size() + " edits (out of " + futures.size() + " total edits)");
+            log.error("Encountered exceptions on " + exceptionsThrown.size() + " edits (out of " + futures.size()
+                    + " total edits)");
             throw new RuntimeException(exceptionsThrown.get(0));
         }
-        
-        if (lastProcessedTimestamp > 0) {
-            sepMetrics.reportSepTimestamp(lastProcessedTimestamp);
-        }
+    }
+
+    private Future<?> scheduleSepEvent(final SepEvent sepEvent) {
+        // We don't want messages of the same row to be processed concurrently, therefore choose
+        // a thread based on the hash of the row key
+        int partition = (hashFunction.hashBytes(sepEvent.getRow()).asInt() & Integer.MAX_VALUE) % threadCnt;
+        Future<?> future = executors.get(partition).submit(new Runnable() {
+            @Override
+            public void run() {
+                long before = System.currentTimeMillis();
+                log.debug("Delivering message to listener");
+                listener.processEvent(sepEvent);
+                sepMetrics.reportFilteredSepOperation(System.currentTimeMillis() - before);
+            }
+        });
+        return future;
     }
 }

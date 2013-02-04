@@ -1,6 +1,7 @@
 package com.ngdata.sep.demo;
 
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
 import com.ngdata.sep.impl.SepEventSlave;
 import com.ngdata.sep.impl.SepModelImpl;
@@ -35,8 +36,8 @@ public class DemoIndexer {
 
     private static class Indexer implements EventListener {
         @Override
-        public void processMessage(byte[] row, byte[] payload) {
-            System.out.println("Received event for row " + Bytes.toString(row));
+        public void processEvent(SepEvent sepEvent) {
+            System.out.println("Received event for row " + Bytes.toString(sepEvent.getRow()));
         }
     }
 }

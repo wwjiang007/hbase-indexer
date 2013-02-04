@@ -21,9 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.ngdata.sep.WALEditFilter;
 import com.ngdata.sep.WALEditFilterProvider;
-
 import com.ngdata.sep.impl.fork.ForkedReplicationSource;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;

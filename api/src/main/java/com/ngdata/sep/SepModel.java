@@ -4,12 +4,16 @@ import org.apache.zookeeper.KeeperException;
 
 import java.io.IOException;
 
+/**
+ * Defines methods for adding and removing subscriptions on the Side-Effect Processor (SEP).
+ */
 public interface SepModel {
+
     public static final String HBASE_ROOT = "/ngdata/sep/hbase-slave";
 
     /**
      * Adds a subscription.
-     *
+     * 
      * @throws IllegalStateException if a subscription by that name already exists.
      */
     void addSubscription(String name) throws InterruptedException, KeeperException, IOException;
@@ -21,7 +25,7 @@ public interface SepModel {
 
     /**
      * Removes a subscription.
-     *
+     * 
      * @throws IllegalStateException if no subscription by that name exists.
      */
     void removeSubscription(String name) throws IOException;

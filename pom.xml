@@ -28,6 +28,7 @@
   <url>http://www.ngdata.com/</url>
 
   <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <version.hbase>0.94.3</version.hbase>
     <version.hadoop>1.1.1</version.hadoop>
     <version.zookeeper>3.4.3</version.zookeeper>

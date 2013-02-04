@@ -15,9 +15,7 @@
  */
 package com.ngdata.sep.impl;
 
-import static org.junit.Assert.*;
-
-import com.ngdata.sep.impl.SepModelImpl;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 

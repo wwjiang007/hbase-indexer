@@ -23,15 +23,10 @@ import static org.mockito.Mockito.when;
 
 import java.util.NavigableMap;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.ngdata.sep.WALEditFilter;
 import com.ngdata.sep.WALEditFilterProvider;
-
-import com.ngdata.sep.impl.SepReplicationSource;
-
-
-import com.google.common.collect.Maps;
-
-import com.google.common.collect.Lists;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
 import org.apache.hadoop.hbase.util.Bytes;

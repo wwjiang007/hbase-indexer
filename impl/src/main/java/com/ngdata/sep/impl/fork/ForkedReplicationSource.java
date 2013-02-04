@@ -37,12 +37,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hadoop.hbase.zookeeper.ZKUtil;
-
-import org.apache.hadoop.hbase.zookeeper.ZooKeeperListener;
-
-import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -65,6 +59,9 @@ import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceManager
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceMetrics;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Threads;
+import org.apache.hadoop.hbase.zookeeper.ZKUtil;
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperListener;
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.zookeeper.KeeperException;
 
