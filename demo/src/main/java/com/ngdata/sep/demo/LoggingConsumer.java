@@ -11,7 +11,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.util.Bytes;
 
-public class DemoIndexer {
+/**
+ * A simple consumer that just logs the events.
+ */
+public class LoggingConsumer {
     public static void main(String[] args) throws Exception {
         Configuration conf = HBaseConfiguration.create();
         conf.setBoolean("hbase.replication", true);
@@ -19,11 +22,13 @@ public class DemoIndexer {
         ZooKeeperItf zk = ZkUtil.connect("localhost", 20000);
         SepModel sepModel = new SepModelImpl(zk, conf);
 
-        if (!sepModel.hasSubscription("index1")) {
-            sepModel.addSubscription("index1");
+        final String subscriptionName = "logger";
+
+        if (!sepModel.hasSubscription(subscriptionName)) {
+            sepModel.addSubscriptionSilent(subscriptionName);
         }
 
-        SepEventSlave eventSlave = new SepEventSlave("index1", System.currentTimeMillis(),
+        SepEventSlave eventSlave = new SepEventSlave(subscriptionName, System.currentTimeMillis(),
                 new Indexer(), 10, "localhost", zk, conf);
 
         eventSlave.start();
