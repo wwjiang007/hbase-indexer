@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.util.io;
+package com.ngdata.sep.util.io;
 
 import java.io.Closeable;
 import java.lang.reflect.Method;

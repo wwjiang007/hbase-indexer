@@ -3,10 +3,12 @@ package com.ngdata.sep.impl;
 import java.io.IOException;
 import java.util.UUID;
 
+import com.ngdata.sep.util.zookeeper.ZkUtil;
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+
+import com.ngdata.sep.util.io.Closer;
+
 import com.ngdata.sep.SepModel;
-import com.ngdata.util.io.Closer;
-import com.ngdata.zookeeper.ZkUtil;
-import com.ngdata.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;

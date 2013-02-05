@@ -23,10 +23,11 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+
 import com.google.common.collect.Lists;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
-import com.ngdata.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
