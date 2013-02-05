@@ -15,23 +15,24 @@
  */
 package com.ngdata.sep.impl;
 
-import static org.junit.Assert.assertTrue;
-import static org.mockito.AdditionalMatchers.aryEq;
-import static org.mockito.Matchers.any;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 
-import com.ngdata.sep.impl.SepHBaseSchema.RecordCf;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordColumn;
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class HBaseEventPublisherTest {
+    
+    private static final byte[] PAYLOAD_CF = Bytes.toBytes("payload column family");
+    private static final byte[] PAYLOAD_CQ = Bytes.toBytes("payload column qualifier");
 
     private HTableInterface recordTable;
     private HBaseEventPublisher eventPublisher;
@@ -39,38 +40,24 @@ public class HBaseEventPublisherTest {
     @Before
     public void setUp() {
         recordTable = mock(HTableInterface.class);
-        eventPublisher = new HBaseEventPublisher(recordTable);
+        eventPublisher = new HBaseEventPublisher(recordTable, PAYLOAD_CF, PAYLOAD_CQ);
     }
 
     @Test
-    public void testProcessMessage_RowInRepository() throws IOException {
-        byte[] messageRow = Bytes.toBytes("row-id");
-        byte[] messagePayload = Bytes.toBytes("payload");
+    public void testPublishEvent() throws IOException {
+        byte[] eventRow = Bytes.toBytes("row-id");
+        byte[] eventPayload = Bytes.toBytes("payload");
         
-        Put expectedPut = new Put(messageRow);
-        expectedPut.add(RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, messagePayload);
+        ArgumentCaptor<Put> putCaptor = ArgumentCaptor.forClass(Put.class);
         
-        when(recordTable.checkAndPut(aryEq(messageRow), aryEq(RecordCf.DATA.bytes), aryEq(RecordColumn.DELETED.bytes),
-                aryEq(Bytes.toBytes(false)), any(Put.class))).thenReturn(true);
+        eventPublisher.publishEvent(eventRow, eventPayload);
         
-        boolean publishResult = eventPublisher.publishMessage(messageRow, messagePayload);
-        assertTrue(publishResult);
-    }
-    
-    
-    @Test
-    public void testProcessMessage_RowNotInRepository() throws IOException {
-        byte[] messageRow = Bytes.toBytes("row-id");
-        byte[] messagePayload = Bytes.toBytes("payload");
+        verify(recordTable).put(putCaptor.capture());
+        Put put = putCaptor.getValue();
         
-        Put expectedPut = new Put(messageRow);
-        expectedPut.add(RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, messagePayload);
-        
-        when(recordTable.checkAndPut(aryEq(messageRow), aryEq(RecordCf.DATA.bytes), aryEq(RecordColumn.DELETED.bytes),
-                aryEq(Bytes.toBytes(false)), any(Put.class))).thenReturn(false);
-        
-        boolean publishResult = eventPublisher.publishMessage(messageRow, messagePayload);
-        assertTrue(!publishResult);
+        assertArrayEquals(eventRow, put.getRow());
+        assertEquals(1, put.size());
+        assertArrayEquals(eventPayload, put.get(PAYLOAD_CF, PAYLOAD_CQ).get(0).getValue());
     }
 
 }

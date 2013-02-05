@@ -26,11 +26,10 @@ import com.ngdata.sep.EventListener;
 public interface EventPublisher {
 
     /**
-     * Publish a message to be processed by the side-effect processor (SEP) system.
+     * Publish an event to be processed by the side-effect processor (SEP) system.
      * 
-     * @param row The row key for the record to which the message is related
+     * @param row The row key for the record to which the event is related
      * @param payload The content of the event message
-     * @return true if the message was successfully published, false otherwise
      */
-    boolean publishMessage(byte[] row, byte[] payload) throws IOException;
+    void publishEvent(byte[] row, byte[] payload) throws IOException;
 }

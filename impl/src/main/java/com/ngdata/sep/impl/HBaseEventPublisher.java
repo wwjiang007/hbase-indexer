@@ -18,31 +18,35 @@ package com.ngdata.sep.impl;
 import java.io.IOException;
 
 import com.ngdata.sep.EventPublisher;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordCf;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordColumn;
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
 
 /**
- * Publishes side-effect events directly to the HBase record table.
+ * Publishes side-effect payload data directly to an HBase table, for distribution via the SEP.
  */
 public class HBaseEventPublisher implements EventPublisher {
 
-    private static final byte[] FALSE_BYTES = Bytes.toBytes(false);
+    private final HTableInterface payloadTable;
+    private final byte[] payloadColumnFamily;
+    private final byte[] payloadColumnQualifier;
 
-    private HTableInterface recordTable;
-
-    public HBaseEventPublisher(HTableInterface recordTable) {
-        this.recordTable = recordTable;
+    /**
+     * Construct with the table and column information to which payload data will be written.
+     * 
+     * @param payloadTable table where payload data will be written
+     * @param payloadColumnFamily column family where payload data will be written
+     * @param payloadColumnQualifier column qualifier under which payload data will be written
+     */
+    public HBaseEventPublisher(HTableInterface payloadTable, byte[] payloadColumnFamily, byte[] payloadColumnQualifier) {
+        this.payloadTable = payloadTable;
+        this.payloadColumnFamily = payloadColumnFamily;
+        this.payloadColumnQualifier = payloadColumnQualifier;
     }
 
     @Override
-    public boolean publishMessage(byte[] row, byte[] payload) throws IOException {
-        Put messagePut = new Put(row);
-        messagePut.add(RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, 1L, payload);
-        return recordTable.checkAndPut(row, RecordCf.DATA.bytes, RecordColumn.DELETED.bytes, FALSE_BYTES,
-                messagePut);
+    public void publishEvent(byte[] row, byte[] payload) throws IOException {
+        Put eventPut = new Put(row);
+        eventPut.add(payloadColumnFamily, payloadColumnQualifier, payload);
+        payloadTable.put(eventPut);
     }
-
 }

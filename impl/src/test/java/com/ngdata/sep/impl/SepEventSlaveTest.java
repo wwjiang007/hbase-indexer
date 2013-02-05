@@ -26,8 +26,6 @@ import java.io.IOException;
 import com.google.common.collect.Lists;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordCf;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordColumn;
 import com.ngdata.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
@@ -42,6 +40,10 @@ import org.mockito.Mockito;
 public class SepEventSlaveTest {
 
     private static final long SUBSCRIPTION_TIMESTAMP = 100000;
+    
+    private static final byte[] TABLE_NAME = Bytes.toBytes("test_table");
+    private static final byte[] DATA_COLFAM = Bytes.toBytes("data");
+    private static final byte[] PAYLOAD_QUALIFIER = Bytes.toBytes("pl");
 
     private EventListener eventListener;
     private ZooKeeperItf zkItf;
@@ -51,8 +53,9 @@ public class SepEventSlaveTest {
     public void setUp() throws IOException, InterruptedException, KeeperException {
         eventListener = mock(EventListener.class);
         zkItf = mock(ZooKeeperItf.class);
+        PayloadExtractor payloadExtractor = new PayloadExtractor(TABLE_NAME, DATA_COLFAM, PAYLOAD_QUALIFIER);
         eventSlave = new SepEventSlave("subscriptionId", SUBSCRIPTION_TIMESTAMP, eventListener, 1, "localhost", zkItf,
-                HBaseConfiguration.create());
+                HBaseConfiguration.create(), payloadExtractor);
     }
 
     @After
@@ -78,12 +81,12 @@ public class SepEventSlaveTest {
         byte[] rowKey = Bytes.toBytes("rowkey");
         byte[] payloadData = Bytes.toBytes("payload");
 
-        HLog.Entry hlogEntry = createHlogEntry(SepHBaseSchema.RECORD_TABLE, new KeyValue(rowKey, RecordCf.DATA.bytes,
-                RecordColumn.PAYLOAD.bytes, payloadData));
+        HLog.Entry hlogEntry = createHlogEntry(TABLE_NAME, new KeyValue(rowKey, DATA_COLFAM,
+                PAYLOAD_QUALIFIER, payloadData));
 
         eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntry });
 
-        SepEvent expectedSepEvent = new SepEvent(SepHBaseSchema.RECORD_TABLE, rowKey,
+        SepEvent expectedSepEvent = new SepEvent(TABLE_NAME, rowKey,
                 hlogEntry.getEdit().getKeyValues(), payloadData);
 
         verify(eventListener).processEvent(expectedSepEvent);
@@ -96,20 +99,20 @@ public class SepEventSlaveTest {
         byte[] payloadDataOnTimestamp = Bytes.toBytes("payloadOnTimestamp");
         byte[] payloadDataAfterTimestamp = Bytes.toBytes("payloadAfterTimestamp");
 
-        HLog.Entry hlogEntryBeforeTimestamp = createHlogEntry(SepHBaseSchema.RECORD_TABLE, SUBSCRIPTION_TIMESTAMP - 1,
-                new KeyValue(rowKey, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, payloadDataBeforeTimestamp));
-        HLog.Entry hlogEntryOnTimestamp = createHlogEntry(SepHBaseSchema.RECORD_TABLE, SUBSCRIPTION_TIMESTAMP,
-                new KeyValue(rowKey, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, payloadDataOnTimestamp));
-        HLog.Entry hlogEntryAfterTimestamp = createHlogEntry(SepHBaseSchema.RECORD_TABLE, SUBSCRIPTION_TIMESTAMP + 1,
-                new KeyValue(rowKey, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, payloadDataAfterTimestamp));
+        HLog.Entry hlogEntryBeforeTimestamp = createHlogEntry(TABLE_NAME, SUBSCRIPTION_TIMESTAMP - 1,
+                new KeyValue(rowKey, DATA_COLFAM, PAYLOAD_QUALIFIER, payloadDataBeforeTimestamp));
+        HLog.Entry hlogEntryOnTimestamp = createHlogEntry(TABLE_NAME, SUBSCRIPTION_TIMESTAMP,
+                new KeyValue(rowKey, DATA_COLFAM, PAYLOAD_QUALIFIER, payloadDataOnTimestamp));
+        HLog.Entry hlogEntryAfterTimestamp = createHlogEntry(TABLE_NAME, SUBSCRIPTION_TIMESTAMP + 1,
+                new KeyValue(rowKey, DATA_COLFAM, PAYLOAD_QUALIFIER, payloadDataAfterTimestamp));
 
         eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntryBeforeTimestamp });
         eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntryOnTimestamp });
         eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntryAfterTimestamp });
 
-        SepEvent expectedEventOnTimestamp = new SepEvent(SepHBaseSchema.RECORD_TABLE, rowKey,
+        SepEvent expectedEventOnTimestamp = new SepEvent(TABLE_NAME, rowKey,
                 hlogEntryOnTimestamp.getEdit().getKeyValues(), payloadDataOnTimestamp);
-        SepEvent expectedEventAfterTimestamp = new SepEvent(SepHBaseSchema.RECORD_TABLE, rowKey,
+        SepEvent expectedEventAfterTimestamp = new SepEvent(TABLE_NAME, rowKey,
                 hlogEntryAfterTimestamp.getEdit().getKeyValues(), payloadDataAfterTimestamp);
 
         // Event should be published for data on or after the subscription timestamp, but not before
@@ -122,16 +125,16 @@ public class SepEventSlaveTest {
     public void testReplicateLogEntries_MultipleKeyValuesForSingleRow() throws Exception {
         byte[] rowKey = Bytes.toBytes("rowKey");
 
-        KeyValue kvA = new KeyValue(rowKey, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, Bytes.toBytes("A"));
-        KeyValue kvB = new KeyValue(rowKey, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, Bytes.toBytes("B"));
+        KeyValue kvA = new KeyValue(rowKey, DATA_COLFAM, PAYLOAD_QUALIFIER, Bytes.toBytes("A"));
+        KeyValue kvB = new KeyValue(rowKey, DATA_COLFAM, PAYLOAD_QUALIFIER, Bytes.toBytes("B"));
 
-        HLog.Entry entry = createHlogEntry(SepHBaseSchema.RECORD_TABLE, kvA, kvB);
+        HLog.Entry entry = createHlogEntry(TABLE_NAME, kvA, kvB);
 
         eventSlave.replicateLogEntries(new HLog.Entry[] { entry });
 
         // We should get the first payload in our event (and the second one will be ignored, although the KeyValue will
         // be present in the event
-        SepEvent expectedEvent = new SepEvent(SepHBaseSchema.RECORD_TABLE, rowKey, Lists.newArrayList(kvA, kvB),
+        SepEvent expectedEvent = new SepEvent(TABLE_NAME, rowKey, Lists.newArrayList(kvA, kvB),
                 Bytes.toBytes("A"));
 
         verify(eventListener).processEvent(expectedEvent);
@@ -146,16 +149,16 @@ public class SepEventSlaveTest {
         byte[] rowKeyB = Bytes.toBytes("B");
         byte[] data = Bytes.toBytes("data");
 
-        KeyValue kvA = new KeyValue(rowKeyA, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, data);
-        KeyValue kvB = new KeyValue(rowKeyB, RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes, data);
+        KeyValue kvA = new KeyValue(rowKeyA, DATA_COLFAM, PAYLOAD_QUALIFIER, data);
+        KeyValue kvB = new KeyValue(rowKeyB, DATA_COLFAM, PAYLOAD_QUALIFIER, data);
 
-        HLog.Entry entry = createHlogEntry(SepHBaseSchema.RECORD_TABLE, kvA, kvB);
+        HLog.Entry entry = createHlogEntry(TABLE_NAME, kvA, kvB);
 
         eventSlave.replicateLogEntries(new HLog.Entry[] { entry });
 
-        SepEvent expectedEventA = new SepEvent(SepHBaseSchema.RECORD_TABLE, rowKeyA, Lists.newArrayList(kvA),
+        SepEvent expectedEventA = new SepEvent(TABLE_NAME, rowKeyA, Lists.newArrayList(kvA),
                 Bytes.toBytes("data"));
-        SepEvent expectedEventB = new SepEvent(SepHBaseSchema.RECORD_TABLE, rowKeyB, Lists.newArrayList(kvB),
+        SepEvent expectedEventB = new SepEvent(TABLE_NAME, rowKeyB, Lists.newArrayList(kvB),
                 Bytes.toBytes("data"));
 
         verify(eventListener).processEvent(expectedEventA);

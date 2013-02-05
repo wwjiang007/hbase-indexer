@@ -20,8 +20,6 @@ import com.google.common.hash.Hashing;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordCf;
-import com.ngdata.sep.impl.SepHBaseSchema.RecordColumn;
 import com.ngdata.util.concurrent.WaitPolicy;
 import com.ngdata.util.io.Closer;
 import com.ngdata.zookeeper.ZooKeeperItf;
@@ -51,6 +49,7 @@ public class SepEventSlave extends BaseHRegionServer {
     private List<ThreadPoolExecutor> executors;
     private HashFunction hashFunction = Hashing.murmur3_32();
     private SepMetrics sepMetrics;
+    private final PayloadExtractor payloadExtractor;
     private String zkNodePath;
     boolean running = false;
     private Log log = LogFactory.getLog(getClass());
@@ -64,6 +63,19 @@ public class SepEventSlave extends BaseHRegionServer {
      */
     public SepEventSlave(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
             String hostName, ZooKeeperItf zk, Configuration hbaseConf) {
+        this(subscriptionId, subscriptionTimestamp, listener, threadCnt, hostName, zk, hbaseConf, null);
+    }
+
+    /**
+     * @param subscriptionTimestamp timestamp of when the index subscription became active (or more accurately, not
+     *        inactive)
+     * @param listener listeners that will process the events
+     * @param threadCnt number of worker threads that will handle incoming SEP events
+     * @param hostName hostname to bind to
+     * @param payloadExtractor extracts payloads to include in SepEvents
+     */
+    public SepEventSlave(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
+            String hostName, ZooKeeperItf zk, Configuration hbaseConf, PayloadExtractor payloadExtractor) {
         Preconditions.checkArgument(threadCnt > 0, "Thread count must be > 0");
         this.subscriptionId = SepModelImpl.toInternalSubscriptionName(subscriptionId);
         this.subscriptionTimestamp = subscriptionTimestamp;
@@ -81,6 +93,7 @@ public class SepEventSlave extends BaseHRegionServer {
             executors.add(executor);
         }
         this.sepMetrics = new SepMetrics(subscriptionId);
+        this.payloadExtractor = payloadExtractor;
     }
 
     public void start() throws IOException, InterruptedException, KeeperException {
@@ -140,16 +153,18 @@ public class SepEventSlave extends BaseHRegionServer {
             if (entryKey.getWriteTime() < subscriptionTimestamp) {
                 continue;
             }
+            byte[] tableName = entryKey.getTablename();
             Multimap<ByteBuffer, KeyValue> keyValuesPerRowKey = ArrayListMultimap.create();
             final Map<ByteBuffer, byte[]> payloadPerRowKey = Maps.newHashMap();
             for (final KeyValue kv : entry.getEdit().getKeyValues()) {
                 ByteBuffer rowKey = ByteBuffer.wrap(kv.getBuffer(), kv.getKeyOffset(), kv.getKeyLength());
-                if (kv.matchingColumn(RecordCf.DATA.bytes, RecordColumn.PAYLOAD.bytes)) {
+                byte[] payload;
+                if (payloadExtractor != null && (payload = payloadExtractor.extractPayload(tableName, kv)) != null) {
                     if (payloadPerRowKey.containsKey(rowKey)) {
-                        log.error("Multiple payloads encountered for row " + Bytes.toStringBinary(rowKey.array())
+                        log.error("Multiple payloads encountered for row " + Bytes.toStringBinary(kv.getRow())
                                 + ", choosing " + Bytes.toStringBinary(payloadPerRowKey.get(rowKey)));
                     } else {
-                        payloadPerRowKey.put(rowKey, kv.getValue());
+                        payloadPerRowKey.put(rowKey, payload);
                     }
                 }
                 keyValuesPerRowKey.put(rowKey, kv);
@@ -158,16 +173,12 @@ public class SepEventSlave extends BaseHRegionServer {
             for (final ByteBuffer rowKeyBuffer : keyValuesPerRowKey.keySet()) {
                 final List<KeyValue> keyValues = (List<KeyValue>)keyValuesPerRowKey.get(rowKeyBuffer);
 
-                final SepEvent sepEvent = new SepEvent(entry.getKey().getTablename(), keyValues.get(0).getRow(),
-                        keyValues, payloadPerRowKey.get(rowKeyBuffer));
+                final SepEvent sepEvent = new SepEvent(tableName, keyValues.get(0).getRow(), keyValues,
+                        payloadPerRowKey.get(rowKeyBuffer));
                 futures.add(scheduleSepEvent(sepEvent));
                 lastProcessedTimestamp = Math.max(lastProcessedTimestamp, entry.getKey().getWriteTime());
             }
 
-            if (log.isInfoEnabled()) {
-                // TODO this might not be unusual
-                log.info("No payload found in " + entry.toString());
-            }
         }
 
         waitOnSepEventCompletion(futures);
