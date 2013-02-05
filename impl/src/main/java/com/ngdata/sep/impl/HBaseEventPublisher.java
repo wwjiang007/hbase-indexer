@@ -50,7 +50,7 @@ public class HBaseEventPublisher implements EventPublisher {
         payloadTable.put(eventPut);
     }
     
-    HTableInterface getPayloadTable() {
+    protected HTableInterface getPayloadTable() {
         return this.payloadTable;
     }
 }
