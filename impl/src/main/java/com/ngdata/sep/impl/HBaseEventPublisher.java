@@ -49,4 +49,8 @@ public class HBaseEventPublisher implements EventPublisher {
         eventPut.add(payloadColumnFamily, payloadColumnQualifier, payload);
         payloadTable.put(eventPut);
     }
+    
+    HTableInterface getPayloadTable() {
+        return this.payloadTable;
+    }
 }
