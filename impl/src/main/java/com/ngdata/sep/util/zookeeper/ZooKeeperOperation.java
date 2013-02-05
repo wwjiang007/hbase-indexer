@@ -13,14 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.zookeeper;
+package com.ngdata.sep.util.zookeeper;
 
-public class ZkConnectException extends Exception {
-    public ZkConnectException(String message) {
-        super(message);
-    }
+import org.apache.zookeeper.KeeperException;
 
-    public ZkConnectException(String message, Exception cause) {
-        super(message, cause);
-    }
+
+//Disclaimer: this interface was copied from ZooKeeper's lock recipe and slightly altered.
+
+/**
+* A callback object which can be used for implementing retry-able operations, used by
+* {@link ZooKeeperItf#retryOperation}.
+*
+*/
+public interface ZooKeeperOperation<T> {
+ /**
+  * Performs the operation - which may be involved multiple times if the connection
+  * to ZooKeeper closes during this operation
+  *
+  */
+ public T execute() throws KeeperException, InterruptedException;
 }
