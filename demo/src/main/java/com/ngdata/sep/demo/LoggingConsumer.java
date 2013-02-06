@@ -10,6 +10,7 @@ import com.ngdata.sep.SepModel;
 import com.ngdata.sep.impl.SepModelImpl;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.util.Bytes;
 
 /**
@@ -30,7 +31,7 @@ public class LoggingConsumer {
         }
 
         SepConsumer sepConsumer = new SepConsumer(subscriptionName, System.currentTimeMillis(),
-                new Indexer(), 10, "localhost", zk, conf);
+                new EventLogger(), 1, "localhost", zk, conf);
 
         sepConsumer.start();
         System.out.println("Started");
@@ -40,10 +41,17 @@ public class LoggingConsumer {
         }
     }
 
-    private static class Indexer implements EventListener {
+    private static class EventLogger implements EventListener {
         @Override
         public void processEvent(SepEvent sepEvent) {
-            System.out.println("Received event for row " + Bytes.toString(sepEvent.getRow()));
+            System.out.println("Received event:");
+            System.out.println("  table = " + Bytes.toString(sepEvent.getTable()));
+            System.out.println("  row = " + Bytes.toString(sepEvent.getRow()));
+            System.out.println("  payload = " + Bytes.toString(sepEvent.getPayload()));
+            System.out.println("  key values = ");
+            for (KeyValue kv : sepEvent.getKeyValues()) {
+                System.out.println("    " + kv.toString());
+            }
         }
     }
 }

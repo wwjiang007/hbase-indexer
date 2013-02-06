@@ -5,6 +5,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,8 +33,11 @@ public class DemoIngester {
         final byte[] nameCq = Bytes.toBytes("name");
         final byte[] emailCq = Bytes.toBytes("email");
         final byte[] ageCq = Bytes.toBytes("age");
+        final byte[] payloadCq = Bytes.toBytes("payload");
 
         loadData();
+
+        ObjectMapper jsonMapper = new ObjectMapper();
 
         HTable htable = new HTable(conf, "sep-user-demo");
 
@@ -48,6 +52,10 @@ public class DemoIngester {
             put.add(infoCf, nameCq, Bytes.toBytes(name));
             put.add(infoCf, emailCq, Bytes.toBytes(email));
             put.add(infoCf, ageCq, Bytes.toBytes(age));
+
+            MyPayload payload = new MyPayload();
+            payload.setPartialUpdate(false);
+            put.add(infoCf, payloadCq, jsonMapper.writeValueAsBytes(payload));
 
             htable.put(put);
             System.out.println("Added row " + Bytes.toString(rowkey));
