@@ -1,12 +1,12 @@
 package com.ngdata.sep.demo;
 
+import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
-import com.ngdata.sep.impl.SepEventSlave;
 import com.ngdata.sep.impl.SepModelImpl;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -29,10 +29,10 @@ public class LoggingConsumer {
             sepModel.addSubscriptionSilent(subscriptionName);
         }
 
-        SepEventSlave eventSlave = new SepEventSlave(subscriptionName, System.currentTimeMillis(),
+        SepConsumer sepConsumer = new SepConsumer(subscriptionName, System.currentTimeMillis(),
                 new Indexer(), 10, "localhost", zk, conf);
 
-        eventSlave.start();
+        sepConsumer.start();
         System.out.println("Started");
 
         while (true) {

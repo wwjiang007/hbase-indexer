@@ -38,7 +38,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-public class SepEventSlaveTest {
+public class SepConsumerTest {
 
     private static final long SUBSCRIPTION_TIMESTAMP = 100000;
     
@@ -48,20 +48,20 @@ public class SepEventSlaveTest {
 
     private EventListener eventListener;
     private ZooKeeperItf zkItf;
-    private SepEventSlave eventSlave;
+    private SepConsumer sepConsumer;
 
     @Before
     public void setUp() throws IOException, InterruptedException, KeeperException {
         eventListener = mock(EventListener.class);
         zkItf = mock(ZooKeeperItf.class);
         PayloadExtractor payloadExtractor = new PayloadExtractor(TABLE_NAME, DATA_COLFAM, PAYLOAD_QUALIFIER);
-        eventSlave = new SepEventSlave("subscriptionId", SUBSCRIPTION_TIMESTAMP, eventListener, 1, "localhost", zkItf,
+        sepConsumer = new SepConsumer("subscriptionId", SUBSCRIPTION_TIMESTAMP, eventListener, 1, "localhost", zkItf,
                 HBaseConfiguration.create(), payloadExtractor);
     }
 
     @After
     public void tearDown() {
-        eventSlave.stop();
+        sepConsumer.stop();
     }
 
     private HLog.Entry createHlogEntry(byte[] tableName, KeyValue... keyValues) {
@@ -85,7 +85,7 @@ public class SepEventSlaveTest {
         HLog.Entry hlogEntry = createHlogEntry(TABLE_NAME, new KeyValue(rowKey, DATA_COLFAM,
                 PAYLOAD_QUALIFIER, payloadData));
 
-        eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntry });
+        sepConsumer.replicateLogEntries(new HLog.Entry[]{hlogEntry});
 
         SepEvent expectedSepEvent = new SepEvent(TABLE_NAME, rowKey,
                 hlogEntry.getEdit().getKeyValues(), payloadData);
@@ -107,9 +107,9 @@ public class SepEventSlaveTest {
         HLog.Entry hlogEntryAfterTimestamp = createHlogEntry(TABLE_NAME, SUBSCRIPTION_TIMESTAMP + 1,
                 new KeyValue(rowKey, DATA_COLFAM, PAYLOAD_QUALIFIER, payloadDataAfterTimestamp));
 
-        eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntryBeforeTimestamp });
-        eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntryOnTimestamp });
-        eventSlave.replicateLogEntries(new HLog.Entry[] { hlogEntryAfterTimestamp });
+        sepConsumer.replicateLogEntries(new HLog.Entry[]{hlogEntryBeforeTimestamp});
+        sepConsumer.replicateLogEntries(new HLog.Entry[]{hlogEntryOnTimestamp});
+        sepConsumer.replicateLogEntries(new HLog.Entry[]{hlogEntryAfterTimestamp});
 
         SepEvent expectedEventOnTimestamp = new SepEvent(TABLE_NAME, rowKey,
                 hlogEntryOnTimestamp.getEdit().getKeyValues(), payloadDataOnTimestamp);
@@ -131,7 +131,7 @@ public class SepEventSlaveTest {
 
         HLog.Entry entry = createHlogEntry(TABLE_NAME, kvA, kvB);
 
-        eventSlave.replicateLogEntries(new HLog.Entry[] { entry });
+        sepConsumer.replicateLogEntries(new HLog.Entry[]{entry});
 
         // We should get the first payload in our event (and the second one will be ignored, although the KeyValue will
         // be present in the event
@@ -155,7 +155,7 @@ public class SepEventSlaveTest {
 
         HLog.Entry entry = createHlogEntry(TABLE_NAME, kvA, kvB);
 
-        eventSlave.replicateLogEntries(new HLog.Entry[] { entry });
+        sepConsumer.replicateLogEntries(new HLog.Entry[]{entry});
 
         SepEvent expectedEventA = new SepEvent(TABLE_NAME, rowKeyA, Lists.newArrayList(kvA),
                 Bytes.toBytes("data"));

@@ -40,7 +40,17 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 
-public class SepEventSlave extends BaseHRegionServer {
+/**
+ * SepConsumer consumes the events for a certain SEP subscription and dispatches
+ * them to an EventListener (optionally multi-threaded). Multiple SepConsumer's
+ * can be started that take events from the same subscription: each consumer
+ * will receive a subset of the events.
+ *
+ * <p>On a more technical level, SepConsumer is the remote process (the "fake
+ * hbase regionserver") to which the regionservers in the hbase master cluster
+ * connect to replicate log entries.</p>
+ */
+public class SepConsumer extends BaseHRegionServer {
     private final String subscriptionId;
     private long subscriptionTimestamp;
     private final EventListener listener;
@@ -64,7 +74,7 @@ public class SepEventSlave extends BaseHRegionServer {
      * @param threadCnt number of worker threads that will handle incoming SEP events
      * @param hostName hostname to bind to
      */
-    public SepEventSlave(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
+    public SepConsumer(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
             String hostName, ZooKeeperItf zk, Configuration hbaseConf) {
         this(subscriptionId, subscriptionTimestamp, listener, threadCnt, hostName, zk, hbaseConf, null);
     }
@@ -77,7 +87,7 @@ public class SepEventSlave extends BaseHRegionServer {
      * @param hostName hostname to bind to
      * @param payloadExtractor extracts payloads to include in SepEvents
      */
-    public SepEventSlave(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
+    public SepConsumer(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
             String hostName, ZooKeeperItf zk, Configuration hbaseConf, PayloadExtractor payloadExtractor) {
         Preconditions.checkArgument(threadCnt > 0, "Thread count must be > 0");
         this.subscriptionId = SepModelImpl.toInternalSubscriptionName(subscriptionId);

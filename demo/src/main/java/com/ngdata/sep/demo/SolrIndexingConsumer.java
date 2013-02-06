@@ -3,7 +3,7 @@ package com.ngdata.sep.demo;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
-import com.ngdata.sep.impl.SepEventSlave;
+import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.impl.SepModelImpl;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
@@ -37,10 +37,10 @@ public class SolrIndexingConsumer {
         HttpSolrServer solr = new HttpSolrServer("http://localhost:8983/solr");
         TikaSolrCellHBaseMapper mapper = new TikaSolrCellHBaseMapper("http://localhost:8983/solr");
 
-        SepEventSlave eventSlave = new SepEventSlave("index1", System.currentTimeMillis(),
+        SepConsumer sepConsumer = new SepConsumer("index1", System.currentTimeMillis(),
                 new Indexer(solr, mapper), 10, "localhost", zk, conf);
 
-        eventSlave.start();
+        sepConsumer.start();
         System.out.println("Started");
 
         while (true) {
