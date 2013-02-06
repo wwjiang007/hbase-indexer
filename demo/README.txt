@@ -11,17 +11,93 @@ in a real-world scenario.
 
 ## Setup
 
-For now, start using launch-test-lily
+For the purpose of this demo, we will run HBase in standalone mode (zookeeper is embbeded,
+no hdfs is used). Note that by default, HBase stores its data in /tmp, which will be lost,
+see the HBase docs on how to change this.
 
-    launch-test-lily -hadoop -solr -s demo/schema.xml -c 2
+### Download HBase
 
-TODO: when replacing with real hbase, don't forget forkedreplicationsource & required hbase config
+Download HBase (0.94) from [http://hbase.apache.org/](http://hbase.apache.org/).
+
+### Configure HBase
+
+Edit conf/hbase-site.xml and add the following configuration:
+
+    <configuration>
+      <!-- SEP is basically replication, so enable it -->
+      <property>
+        <name>hbase.replication</name>
+        <value>true</value>
+      </property>
+      <!-- Source ratio of 100% makes sure that each SEP consumer is actually
+           used (otherwise, some can sit idle, especially with small clusters) -->
+      <property>
+        <name>replication.source.ratio</name>
+        <value>1.0</value>
+      </property>
+      <!-- Maximum number of hlog entries to replicate in one go. If this is
+           large, and a consumer takes a while to process the events, the
+           HBase rpc call will time out. -->
+      <property>
+        <name>replication.source.nb.capacity</name>
+        <value>1000</value>
+      </property>
+      <!-- A custom replication source that fixes a few things and adds
+           some functionality (doesn't interfere with normal replication
+           usage). -->
+      <property>
+        <name>replication.replicationsource.implementation</name>
+        <value>com.ngdata.sep.impl.SepReplicationSource</value>
+      </property>
+    </configuration>
+
+### Add sep libraries to HBase:
+
+This makes available the SepReplicationSource to HBase.
+
+    cp hbase-sep/impl/target/hbase-sep-impl-1.0-SNAPSHOT.jar hbase/lib/
+    cp hbase-sep/api/target/hbase-sep-api-1.0-SNAPSHOT.jar hbase/lib/
+
+### Start HBase
+
+    ./bin/start-hbase
+
+You can check HBase is running fine by browsing to
+[http://localhost:60010/](http://localhost:60010/)
+
+### Download Solr
+
+Solr is only required to run the SolrIndexingDemo.
+
+Download Solr (4.1) from [http://lucene.apache.org/](http://lucene.apache.org/)
+and extract the .tgz
+
+### Configure Solr
+
+Edit
+
+    example/solr/collection1/conf/solrconfig.xml
+
+and uncomment the &lt;autoSoftCommit> tag
+
+### Start Solr
+
+Start Solr as follows
+
+    cd example
+    java -Dsolr.solr.home=`cd solr; pwd` -jar start.jar
+
+The specification of solr home is necessary so that the demo code will be
+able to get the absolute filesystem location of your solr schema through
+the core admin api, which it needs for setting up Solr Cell.
 
 ## Demo
 
 Start by creating a schema:
 
     mvn exec:java -Dexec.mainClass=com.ngdata.sep.demo.DemoSchema
+
+Important in the code of DemoSchema is that we enable replication by calling setScope(1)!
 
 Start the indexing consumer:
 
@@ -35,7 +111,7 @@ Upload some content:
 
 Check it is indexed by querying Solr:
 
-    http://localhost:8983/solr
+    [http://localhost:8983/solr](http://localhost:8983/solr)
 
 To follow what's going on, you can use the hbase shell to insert an individual row:
 
@@ -71,6 +147,10 @@ In the HBase shell, add some more users:
 
 and check by the logging of the SolrIndexingConsumer's that only one of the indexing consumers
 processed each event.
+
+If you would do the same with the DemoIngester, you'll notice that only one of
+the consumers is working at a time, this is because there is only one region server,
+which only sends out one batch of events at a time.
 
 ### Multiple subscribers
 
