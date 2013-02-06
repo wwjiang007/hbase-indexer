@@ -80,6 +80,7 @@ public class TikaSolrCellHBaseMapper {
         cellParams.put("uprefix", "ignored_");
         cellParams.put("fmap.row", "id");
         cellParams.put("fmap.content", "ignored_field");
+        cellParams.put("fmap.payload", "ignored_field");
         SolrContentHandler handler = new SolrContentHandler(metadata, new MapSolrParams(cellParams), schema);
 
         // Convert the HBase Result to an InputStream to pass it to the Tika parser
