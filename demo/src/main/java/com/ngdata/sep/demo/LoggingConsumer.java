@@ -1,5 +1,6 @@
 package com.ngdata.sep.demo;
 
+import com.ngdata.sep.impl.PayloadExtractor;
 import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
@@ -30,8 +31,11 @@ public class LoggingConsumer {
             sepModel.addSubscriptionSilent(subscriptionName);
         }
 
+        PayloadExtractor payloadExtractor = new PayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
+                Bytes.toBytes("payload"));
+
         SepConsumer sepConsumer = new SepConsumer(subscriptionName, System.currentTimeMillis(),
-                new EventLogger(), 1, "localhost", zk, conf);
+                new EventLogger(), 1, "localhost", zk, conf, payloadExtractor);
 
         sepConsumer.start();
         System.out.println("Started");
