@@ -170,7 +170,7 @@ public class SepConsumer extends BaseHRegionServer {
             Multimap<ByteBuffer, KeyValue> keyValuesPerRowKey = ArrayListMultimap.create();
             final Map<ByteBuffer, byte[]> payloadPerRowKey = Maps.newHashMap();
             for (final KeyValue kv : entry.getEdit().getKeyValues()) {
-                ByteBuffer rowKey = ByteBuffer.wrap(kv.getBuffer(), kv.getKeyOffset(), kv.getKeyLength());
+                ByteBuffer rowKey = ByteBuffer.wrap(kv.getBuffer(), kv.getRowOffset(), kv.getRowLength());
                 byte[] payload;
                 if (payloadExtractor != null && (payload = payloadExtractor.extractPayload(tableName, kv)) != null) {
                     if (payloadPerRowKey.containsKey(rowKey)) {
