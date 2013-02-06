@@ -18,6 +18,7 @@ package com.ngdata.sep.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.Set;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
@@ -32,6 +34,11 @@ import com.ngdata.sep.util.zookeeper.ZkConnectException;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -41,6 +48,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.zookeeper.KeeperException;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -69,15 +77,17 @@ public class SepConsumerIT {
     private SepConsumer sepConsumerWithPayloads;
     private TestEventListener eventListener;
     private TestEventListener eventListenerWithPayloads;
-
+    
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
         clusterConf = HBaseConfiguration.create();
+        clusterConf.set(DataNode.DATA_DIR_PERMISSION_KEY, getDefaultUmask());
         clusterConf.setBoolean(HConstants.REPLICATION_ENABLE_KEY, true);
         clusterConf.setLong("replication.source.sleepforretries", 50);
         clusterConf.set("replication.replicationsource.implementation", SepReplicationSource.class.getName());
 
         hbaseTestUtil = new HBaseTestingUtility(clusterConf);
+        
         hbaseTestUtil.startMiniZKCluster(1);
         hbaseTestUtil.startMiniCluster(1);
 
@@ -203,6 +213,18 @@ public class SepConsumerIT {
         
         assertNull(eventWithoutPayload.getPayload());
         assertEquals("payload", Bytes.toString(eventWithPayload.getPayload()));
+    }
+    
+    static String getDefaultUmask() throws IOException {
+        // Hack to get around the test DFS cluster only wanting to start up if the
+        // umask is set to the expected value (i.e. 022)
+        File tmpDir = Files.createTempDir();
+        LocalFileSystem local = FileSystem.getLocal(new Configuration());
+        FileStatus stat = local.getFileStatus(new Path(tmpDir.getAbsolutePath()));
+        FsPermission permission = stat.getPermission();
+        String permString = Integer.toString(permission.toShort(), 8);
+        tmpDir.delete();
+        return permString;
     }
 
     private void waitForEvents(TestEventListener listener, int expectedNumEvents) throws IOException {
