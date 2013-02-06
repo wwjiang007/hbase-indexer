@@ -9,6 +9,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.mime.MediaType;
 import org.apache.tika.parser.AbstractParser;
 import org.apache.tika.parser.ParseContext;
+import org.apache.tika.sax.XHTMLContentHandler;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -50,9 +51,9 @@ public class HBaseParser extends AbstractParser {
                 }
             }
 
-            // do the SAX thing (TODO: figure out if this is actually required)
-            handler.startDocument();
-            handler.endDocument();
+            XHTMLContentHandler xhtml = new XHTMLContentHandler(handler, metadata);
+            xhtml.startDocument();
+            xhtml.endDocument();
         } catch (Exception e) {
             // TODO: it seems like the full stack trace is nowhere printed (this is an exception thrown
             // to the sep and then to hbase), therefore I added this for now
