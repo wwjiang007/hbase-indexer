@@ -232,10 +232,15 @@ public class SepConsumer extends BaseHRegionServer {
         Future<?> future = executors.get(partition).submit(new Runnable() {
             @Override
             public void run() {
-                long before = System.currentTimeMillis();
-                log.debug("Delivering message to listener");
-                listener.processEvent(sepEvent);
-                sepMetrics.reportFilteredSepOperation(System.currentTimeMillis() - before);
+                try {
+                    long before = System.currentTimeMillis();
+                    log.debug("Delivering message to listener");
+                    listener.processEvent(sepEvent);
+                    sepMetrics.reportFilteredSepOperation(System.currentTimeMillis() - before);
+                } catch (RuntimeException e) {
+                    log.error("Error while processing event", e);
+                    throw e;
+                }
             }
         });
         return future;
