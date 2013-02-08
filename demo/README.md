@@ -159,5 +159,24 @@ For example, start the logging consumer:
 
     mvn exec:java -Dexec.mainClass=com.ngdata.sep.demo.LoggingConsumer
 
-Again, create a record using the shell, and notice how it is processed by both one of the indexing
+Again, create a row using the shell, and notice how it is processed by both one of the indexing
 consumers and the logging consumer, since these have registered two different subscriptions.
+
+### Coping with failures
+
+It is interesting to show how the SolrIndexingConsumer deals with the following
+kinds of failures:
+
+ (1) Solr being stopped: HBase will, with increasing back-off, try to redeliver the
+     events. Once Solr is started again, this will succeed. So it will not lead to
+     either rows being skipped, or log files being flooded with exceptions.
+     (note: to avoid any row loss in case Solr is killed, rather than cleanly
+     stopped, the Solr updatelog should be enabled)
+
+ (2) The HBase region server being killed. Some updates might have been applied
+     to HBase but are not yet indexed in Solr. After starting the region server
+     again, the indexing of remaining rows will continue (or in a cluster:
+     another region server will automatically take over the work)
+
+One can verify, by doing a row count on both HBase and Solr, that the number
+of rows match.
