@@ -59,6 +59,8 @@ public class TikaSolrCellHBaseMapper {
         // Solr Cell needs a Solr IndexSchema object, for this we just figure out the location on the filesystem
         // of the default core and assume we can access these files locally.
         // TODO we can't make these assumptions
+        // TODO instead of relying on local file system access to the solr conf dir, we can fetch the contents
+        //      of the conf dir by querying http://localhost:8983/solr/collection1/admin/file
         String coresUrl = solrUrl + "/admin/cores?wt=json";
         ObjectNode node = new ObjectMapper().readValue(new URL(coresUrl), ObjectNode.class);
         String instanceDir = node.get("status").get(node.get("defaultCoreName").getTextValue()).get("instanceDir").getTextValue();
