@@ -1,4 +1,4 @@
-#sep-demo
+# HBase-SEP Demo Project 
 
 This project contains some sample code making use of the SEP.
 
@@ -109,9 +109,7 @@ Upload some content:
 
 (this continues forever, interrupt with ctrl+c)
 
-Check it is indexed by querying Solr:
-
-    [http://localhost:8983/solr](http://localhost:8983/solr)
+Check it is indexed by querying Solr at [http://localhost:8983/solr](http://localhost:8983/solr) in your favourite browser.
 
 To follow what's going on, you can use the hbase shell to insert an individual row:
 

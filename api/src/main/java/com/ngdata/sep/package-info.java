@@ -13,16 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.sep.demo;
 
-public class MyPayload {
-    boolean partialUpdate = false;
+/**
+ * Definition of the HBase Side-Effect processor API for registering and implementing event handlers,
+ * as well as server-side filtering.
+ */
+package com.ngdata.sep;
 
-    public boolean isPartialUpdate() {
-        return partialUpdate;
-    }
-
-    public void setPartialUpdate(boolean partialUpdate) {
-        this.partialUpdate = partialUpdate;
-    }
-}
