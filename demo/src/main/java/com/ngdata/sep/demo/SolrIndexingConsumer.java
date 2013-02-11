@@ -64,8 +64,8 @@ public class SolrIndexingConsumer {
         PayloadExtractor payloadExtractor = new PayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
                 Bytes.toBytes("payload"));
 
-        SepConsumer sepConsumer = new SepConsumer("index1", System.currentTimeMillis(),
-                new Indexer(solr, mapper, conf), 10, "localhost", zk, conf, payloadExtractor);
+        SepConsumer sepConsumer = new SepConsumer("index1", 0, new Indexer(solr, mapper, conf), 10, "localhost", zk,
+                conf, payloadExtractor);
 
         sepConsumer.start();
         System.out.println("Started");

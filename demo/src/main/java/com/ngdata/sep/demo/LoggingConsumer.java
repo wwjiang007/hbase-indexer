@@ -49,8 +49,8 @@ public class LoggingConsumer {
         PayloadExtractor payloadExtractor = new PayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
                 Bytes.toBytes("payload"));
 
-        SepConsumer sepConsumer = new SepConsumer(subscriptionName, System.currentTimeMillis(),
-                new EventLogger(), 1, "localhost", zk, conf, payloadExtractor);
+        SepConsumer sepConsumer = new SepConsumer(subscriptionName, 0, new EventLogger(), 1, "localhost", zk, conf,
+                payloadExtractor);
 
         sepConsumer.start();
         System.out.println("Started");
