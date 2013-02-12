@@ -722,7 +722,9 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                     do {
                         down = isSlaveDown();
                         if (down) {
-                            if (sleepForRetries("Since we are unable to replicate", sleepMultiplier)) {
+                            // SEP change - re-choose sinks if there has been an update to the list of peer nodes
+                            if ((sinkListUpdateTimestamp <= sinkListReadTimetamp)
+                                    && sleepForRetries("Since we are unable to replicate", sleepMultiplier)) {
                                 sleepMultiplier++;
                             } else {
                                 chooseSinks();
@@ -890,6 +892,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         @Override
         public synchronized void nodeChildrenChanged(String path) {
             if (path.equals(watcher.rsZNode)) {
+                LOG.info("Peer regionserver children changed at " + path);
                 sinkListUpdateTimestamp = System.currentTimeMillis();
                 watchNode();
             }
