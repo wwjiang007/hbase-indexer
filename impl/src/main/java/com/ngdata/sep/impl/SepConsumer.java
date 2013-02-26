@@ -25,12 +25,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
-
-import com.ngdata.sep.util.io.Closer;
-
-import com.ngdata.sep.util.concurrent.WaitPolicy;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -39,8 +33,12 @@ import com.google.common.collect.Multimap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
+import com.ngdata.sep.util.concurrent.WaitPolicy;
+import com.ngdata.sep.util.io.Closer;
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;

@@ -23,11 +23,11 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 
-import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
-
 import com.google.common.collect.Lists;
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
@@ -54,7 +54,7 @@ public class SepConsumerTest {
     public void setUp() throws IOException, InterruptedException, KeeperException {
         eventListener = mock(EventListener.class);
         zkItf = mock(ZooKeeperItf.class);
-        PayloadExtractor payloadExtractor = new PayloadExtractor(TABLE_NAME, DATA_COLFAM, PAYLOAD_QUALIFIER);
+        PayloadExtractor payloadExtractor = new BasePayloadExtractor(TABLE_NAME, DATA_COLFAM, PAYLOAD_QUALIFIER);
         sepConsumer = new SepConsumer("subscriptionId", SUBSCRIPTION_TIMESTAMP, eventListener, 1, "localhost", zkItf,
                 HBaseConfiguration.create(), payloadExtractor);
     }

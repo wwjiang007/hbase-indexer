@@ -15,10 +15,14 @@
  */
 package com.ngdata.sep.demo;
 
+import java.io.IOException;
+import java.util.List;
+
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
-import com.ngdata.sep.impl.PayloadExtractor;
+import com.ngdata.sep.impl.BasePayloadExtractor;
 import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.impl.SepModelImpl;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
@@ -35,9 +39,6 @@ import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.common.SolrInputDocument;
 import org.codehaus.jackson.map.ObjectMapper;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * A consumer that indexes to Solr.
@@ -61,7 +62,7 @@ public class SolrIndexingConsumer {
         HttpSolrServer solr = new HttpSolrServer("http://localhost:8983/solr");
         TikaSolrCellHBaseMapper mapper = new TikaSolrCellHBaseMapper("http://localhost:8983/solr");
 
-        PayloadExtractor payloadExtractor = new PayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
+        PayloadExtractor payloadExtractor = new BasePayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
                 Bytes.toBytes("payload"));
 
         SepConsumer sepConsumer = new SepConsumer("index1", 0, new Indexer(solr, mapper, conf), 10, "localhost", zk,

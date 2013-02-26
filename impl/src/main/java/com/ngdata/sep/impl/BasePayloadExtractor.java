@@ -15,10 +15,10 @@
  */
 package com.ngdata.sep.impl;
 
-import org.apache.hadoop.hbase.util.Bytes;
-
 import com.google.common.base.Preconditions;
+import com.ngdata.sep.PayloadExtractor;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * Extracts payload data from incoming row mutation events that have been distributed via the SEP.
@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.KeyValue;
  * Payload data can be included in a row mutation event to allow specific processing to occur as a result of the
  * mutation.
  */
-public class PayloadExtractor {
+public class BasePayloadExtractor implements PayloadExtractor {
 
     private final byte[] tableName;
     private final byte[] columnFamily;
@@ -39,7 +39,7 @@ public class PayloadExtractor {
      * @param columnFamily column family that will include payload data
      * @param columnQualifier column qualifier of the cell from which the payload data will be extracted
      */
-    public PayloadExtractor(byte[] tableName, byte[] columnFamily, byte[] columnQualifier) {
+    public BasePayloadExtractor(byte[] tableName, byte[] columnFamily, byte[] columnQualifier) {
         Preconditions.checkNotNull(tableName, "tableName cannot be null");
         Preconditions.checkNotNull(columnFamily, "columnFamily cannot be null");
         Preconditions.checkNotNull(columnQualifier, "columnQualifier cannot be null");
@@ -59,6 +59,7 @@ public class PayloadExtractor {
      * @param keyValue contains a (partial) row mutation which may include payload data
      * @return the extracted payload data, or null if no payload data is included in the supplied {@code KeyValue}
      */
+    @Override
     public byte[] extractPayload(byte[] tableName, KeyValue keyValue) {
         if (Bytes.equals(this.tableName, tableName) && keyValue.matchingColumn(columnFamily, columnQualifier)) {
             return keyValue.getValue();

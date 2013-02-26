@@ -23,7 +23,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
-public class PayloadExtractorTest {
+public class BasePayloadExtractorTest {
 
     private static final byte[] TABLE_NAME = Bytes.toBytes("table_name");
     private static final byte[] ROW = Bytes.toBytes("row_key");
@@ -31,11 +31,11 @@ public class PayloadExtractorTest {
     private static final byte[] COLUMN_QUALIFIER = Bytes.toBytes("column_qualifier");
     private static final byte[] PAYLOAD_DATA = Bytes.toBytes("payload");
 
-    private PayloadExtractor extractor;
+    private BasePayloadExtractor extractor;
 
     @Before
     public void setUp() {
-        extractor = new PayloadExtractor(TABLE_NAME, COLUMN_FAMILY, COLUMN_QUALIFIER);
+        extractor = new BasePayloadExtractor(TABLE_NAME, COLUMN_FAMILY, COLUMN_QUALIFIER);
     }
 
     @Test

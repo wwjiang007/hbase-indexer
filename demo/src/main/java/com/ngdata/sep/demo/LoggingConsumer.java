@@ -15,15 +15,15 @@
  */
 package com.ngdata.sep.demo;
 
-import com.ngdata.sep.impl.PayloadExtractor;
-import com.ngdata.sep.impl.SepConsumer;
-import com.ngdata.sep.util.zookeeper.ZkUtil;
-import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
-
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
+import com.ngdata.sep.impl.BasePayloadExtractor;
+import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.impl.SepModelImpl;
+import com.ngdata.sep.util.zookeeper.ZkUtil;
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
@@ -46,7 +46,7 @@ public class LoggingConsumer {
             sepModel.addSubscriptionSilent(subscriptionName);
         }
 
-        PayloadExtractor payloadExtractor = new PayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
+        PayloadExtractor payloadExtractor = new BasePayloadExtractor(Bytes.toBytes("sep-user-demo"), Bytes.toBytes("info"),
                 Bytes.toBytes("payload"));
 
         SepConsumer sepConsumer = new SepConsumer(subscriptionName, 0, new EventLogger(), 1, "localhost", zk, conf,

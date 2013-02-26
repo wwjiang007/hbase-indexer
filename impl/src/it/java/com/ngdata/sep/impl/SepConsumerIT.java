@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.ngdata.sep.EventListener;
+import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
 import com.ngdata.sep.util.zookeeper.ZkConnectException;
@@ -120,7 +121,7 @@ public class SepConsumerIT {
         eventListenerWithPayloads = new TestEventListener();
         sepConsumer = new SepConsumer(SUBSCRIPTION_NAME, System.currentTimeMillis(), eventListener, 3, "localhost",
                 zkItf, clusterConf);
-        PayloadExtractor payloadExtractor = new PayloadExtractor(TABLE_NAME, PAYLOAD_COL_FAMILY, PAYLOAD_COL_QUALIFIER);
+        PayloadExtractor payloadExtractor = new BasePayloadExtractor(TABLE_NAME, PAYLOAD_COL_FAMILY, PAYLOAD_COL_QUALIFIER);
         sepConsumerWithPayloads = new SepConsumer(SUBSCRIPTION_WITH_PAYLOADS_NAME, System.currentTimeMillis(), eventListenerWithPayloads, 3, "localhost", zkItf, clusterConf, payloadExtractor);
         sepConsumer.start();
         sepConsumerWithPayloads.start();
