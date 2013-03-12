@@ -82,7 +82,6 @@ public class SepConsumerIT {
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
         clusterConf = HBaseConfiguration.create();
-        clusterConf.set(DataNode.DATA_DIR_PERMISSION_KEY, getDefaultUmask());
         clusterConf.setBoolean(HConstants.REPLICATION_ENABLE_KEY, true);
         clusterConf.setLong("replication.source.sleepforretries", 50);
         clusterConf.set("replication.replicationsource.implementation", SepReplicationSource.class.getName());
