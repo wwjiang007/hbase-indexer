@@ -23,21 +23,41 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Lists;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
+import com.ngdata.sep.util.concurrent.WaitPolicy;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 public class SepEventExecutorTest {
 
     private SepMetrics sepMetrics;
+    private List<ThreadPoolExecutor> executors;
 
     @Before
     public void setUp() {
         sepMetrics = mock(SepMetrics.class);
+        executors = Lists.newArrayListWithCapacity(10);
+        for (int i = 0; i < 10; i++) {
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<Runnable>(100));
+            executor.setRejectedExecutionHandler(new WaitPolicy());
+            executors.add(executor);
+        }
+    }
+    
+    @After
+    public void tearDown() {
+        for (ThreadPoolExecutor executor : executors) {
+            executor.shutdownNow();
+        }
     }
 
     private SepEvent createSepEvent(int row) {
@@ -45,11 +65,15 @@ public class SepEventExecutorTest {
         when(sepEvent.getRow()).thenReturn(String.valueOf(row).getBytes());
         return sepEvent;
     }
+    
+    private List<ThreadPoolExecutor> getExecutors(int numThreads) {
+        return executors.subList(0, numThreads);
+    }
 
     @Test
     public void testScheduleSepEvent() throws InterruptedException {
         RecordingEventListener eventListener = new RecordingEventListener();
-        SepEventExecutor executor = new SepEventExecutor(eventListener, 2, 1, sepMetrics);
+        SepEventExecutor executor = new SepEventExecutor(eventListener, getExecutors(2), 1, sepMetrics);
         final int NUM_EVENTS = 10;
         for (int i = 0; i < NUM_EVENTS; i++) {
             executor.scheduleSepEvent(createSepEvent(i));
@@ -68,7 +92,7 @@ public class SepEventExecutorTest {
     @Test
     public void testScheduleSepEvent_NotFullBatch() throws InterruptedException {
         RecordingEventListener eventListener = new RecordingEventListener();
-        SepEventExecutor executor = new SepEventExecutor(eventListener, 2, 100, sepMetrics);
+        SepEventExecutor executor = new SepEventExecutor(eventListener, getExecutors(2), 100, sepMetrics);
         final int NUM_EVENTS = 10;
         for (int i = 0; i < NUM_EVENTS; i++) {
             executor.scheduleSepEvent(createSepEvent(i));
@@ -94,7 +118,7 @@ public class SepEventExecutorTest {
     @Test
     public void testScheduleSepEvent_EventOverflow() throws InterruptedException {
         DelayingEventListener eventListener = new DelayingEventListener();
-        SepEventExecutor executor = new SepEventExecutor(eventListener, 1, 1, sepMetrics);
+        SepEventExecutor executor = new SepEventExecutor(eventListener, getExecutors(1), 1, sepMetrics);
         final int NUM_EVENTS = 50;
         for (int i = 0; i < NUM_EVENTS; i++) {
             executor.scheduleSepEvent(createSepEvent(i));
@@ -116,17 +140,6 @@ public class SepEventExecutorTest {
 
         assertEquals(NUM_EVENTS, eventListener.receivedEvents.size());
 
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testScheduleEvent_OnStoppedExecutor() {
-        DelayingEventListener eventListener = new DelayingEventListener();
-        SepEventExecutor executor = new SepEventExecutor(eventListener, 1, 5, sepMetrics);
-
-        executor.stop();
-
-        // This should fail with an IllegalStateException
-        executor.scheduleSepEvent(createSepEvent(1));
     }
 
     static class RecordingEventListener implements EventListener {

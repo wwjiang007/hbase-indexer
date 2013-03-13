@@ -16,10 +16,8 @@
 package com.ngdata.sep.impl;
 
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -28,7 +26,6 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
-import com.ngdata.sep.util.concurrent.WaitPolicy;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -55,18 +52,12 @@ public class SepEventExecutor {
     private HashFunction hashFunction = Hashing.murmur3_32();
     private boolean stopped = false;
 
-    public SepEventExecutor(EventListener eventListener, int numThreads, int batchSize, SepMetrics sepMetrics) {
+    public SepEventExecutor(EventListener eventListener, List<ThreadPoolExecutor> executors, int batchSize, SepMetrics sepMetrics) {
         this.eventListener = eventListener;
-        this.numThreads = numThreads;
+        this.executors = executors;
+        this.numThreads = executors.size();
         this.batchSize = batchSize;
         this.sepMetrics = sepMetrics;
-        this.executors = Lists.newArrayListWithCapacity(numThreads);
-        for (int i = 0; i < numThreads; i++) {
-            ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
-                    new ArrayBlockingQueue<Runnable>(100));
-            executor.setRejectedExecutionHandler(new WaitPolicy());
-            executors.add(executor);
-        }
         eventBuffers = ArrayListMultimap.create(numThreads, batchSize);
         futures = Lists.newArrayList();
     }
@@ -129,16 +120,6 @@ public class SepEventExecutor {
         eventBuffers.clear();
         List<Future<?>> flushedFutures = Lists.newArrayList(futures);
         return flushedFutures;
-    }
-
-    /**
-     * Stop all execution of events by this executor.
-     */
-    public void stop() {
-        for (ThreadPoolExecutor executor : executors) {
-            executor.shutdown();
-        }
-        stopped = true;
     }
 
 }
