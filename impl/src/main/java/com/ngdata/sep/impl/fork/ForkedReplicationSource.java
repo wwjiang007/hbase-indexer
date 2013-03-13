@@ -567,7 +567,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
             // TODO HBASE-7122 can't be cleanly applied here, so we'll have to deal with the extra stack traces for now
             // if (ioe instanceof EOFException && position == 0L) {
             //     Return true;
-            // }
+            //  }
             // End SEP change
 
             LOG.warn(peerClusterZnode + " Got: ", ioe);

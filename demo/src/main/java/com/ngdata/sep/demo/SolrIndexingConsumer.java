@@ -91,7 +91,13 @@ public class SolrIndexingConsumer {
         }
 
         @Override
-        public void processEvent(SepEvent event) {
+        public void processEvents(List<SepEvent> events) {
+            for (SepEvent sepEvent : events) {
+                processEvent(sepEvent);
+            }
+        }
+        
+        private void processEvent(SepEvent event) {
             try {
                 if (!Bytes.equals(event.getTable(), tableName)) {
                     System.out.println("Got an event for a table we're not interested in: " +

@@ -90,7 +90,7 @@ public class SepConsumerTest {
         SepEvent expectedSepEvent = new SepEvent(TABLE_NAME, rowKey,
                 hlogEntry.getEdit().getKeyValues(), payloadData);
 
-        verify(eventListener).processEvent(expectedSepEvent);
+        verify(eventListener).processEvents(Lists.newArrayList(expectedSepEvent));
     }
 
     @Test
@@ -117,8 +117,8 @@ public class SepConsumerTest {
                 hlogEntryAfterTimestamp.getEdit().getKeyValues(), payloadDataAfterTimestamp);
 
         // Event should be published for data on or after the subscription timestamp, but not before
-        verify(eventListener, times(1)).processEvent(expectedEventOnTimestamp);
-        verify(eventListener, times(1)).processEvent(expectedEventAfterTimestamp);
+        verify(eventListener, times(1)).processEvents(Lists.newArrayList(expectedEventOnTimestamp));
+        verify(eventListener, times(1)).processEvents(Lists.newArrayList(expectedEventAfterTimestamp));
         verifyNoMoreInteractions(eventListener);
     }
 
@@ -138,7 +138,7 @@ public class SepConsumerTest {
         SepEvent expectedEvent = new SepEvent(TABLE_NAME, rowKey, Lists.newArrayList(kvA, kvB),
                 Bytes.toBytes("A"));
 
-        verify(eventListener).processEvent(expectedEvent);
+        verify(eventListener).processEvents(Lists.newArrayList(expectedEvent));
     }
 
     // A multi-put could result in updates to multiple rows being included in a single WALEdit.
@@ -162,7 +162,6 @@ public class SepConsumerTest {
         SepEvent expectedEventB = new SepEvent(TABLE_NAME, rowKeyB, Lists.newArrayList(kvB),
                 Bytes.toBytes("data"));
 
-        verify(eventListener).processEvent(expectedEventA);
-        verify(eventListener).processEvent(expectedEventB);
+        verify(eventListener).processEvents(Lists.newArrayList(expectedEventA, expectedEventB));
     }
 }

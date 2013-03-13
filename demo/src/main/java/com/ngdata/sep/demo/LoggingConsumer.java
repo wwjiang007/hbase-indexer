@@ -15,6 +15,8 @@
  */
 package com.ngdata.sep.demo;
 
+import java.util.List;
+
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
@@ -62,14 +64,16 @@ public class LoggingConsumer {
 
     private static class EventLogger implements EventListener {
         @Override
-        public void processEvent(SepEvent sepEvent) {
-            System.out.println("Received event:");
-            System.out.println("  table = " + Bytes.toString(sepEvent.getTable()));
-            System.out.println("  row = " + Bytes.toString(sepEvent.getRow()));
-            System.out.println("  payload = " + Bytes.toString(sepEvent.getPayload()));
-            System.out.println("  key values = ");
-            for (KeyValue kv : sepEvent.getKeyValues()) {
-                System.out.println("    " + kv.toString());
+        public void processEvents(List<SepEvent> sepEvents) {
+            for (SepEvent sepEvent : sepEvents) {
+                System.out.println("Received event:");
+                System.out.println("  table = " + Bytes.toString(sepEvent.getTable()));
+                System.out.println("  row = " + Bytes.toString(sepEvent.getRow()));
+                System.out.println("  payload = " + Bytes.toString(sepEvent.getPayload()));
+                System.out.println("  key values = ");
+                for (KeyValue kv : sepEvent.getKeyValues()) {
+                    System.out.println("    " + kv.toString());
+                }
             }
         }
     }

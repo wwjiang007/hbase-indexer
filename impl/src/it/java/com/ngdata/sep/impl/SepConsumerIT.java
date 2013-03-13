@@ -49,7 +49,6 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hdfs.server.datanode.DataNode;
 import org.apache.zookeeper.KeeperException;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -248,8 +247,8 @@ public class SepConsumerIT {
         private List<SepEvent> sepEvents = Collections.synchronizedList(Lists.<SepEvent> newArrayList());
 
         @Override
-        public void processEvent(SepEvent event) {
-            sepEvents.add(event);
+        public synchronized void processEvents(List<SepEvent> events) {
+            sepEvents.addAll(events);
         }
 
         public List<SepEvent> getEvents() {

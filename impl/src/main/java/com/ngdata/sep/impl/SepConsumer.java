@@ -17,26 +17,19 @@ package com.ngdata.sep.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
-import com.ngdata.sep.util.concurrent.WaitPolicy;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
@@ -66,17 +59,14 @@ import org.apache.zookeeper.ZooDefs;
 public class SepConsumer extends BaseHRegionServer {
     private final String subscriptionId;
     private long subscriptionTimestamp;
-    private final EventListener listener;
     private final String hostName;
     private final ZooKeeperItf zk;
     private final Configuration hbaseConf;
     private RpcServer rpcServer;
-    private final int threadCnt;
-    private List<ThreadPoolExecutor> executors;
-    private HashFunction hashFunction = Hashing.murmur3_32();
     private SepMetrics sepMetrics;
     private final PayloadExtractor payloadExtractor;
     private String zkNodePath;
+    private SepEventExecutor eventExecutor;
     boolean running = false;
     private Log log = LogFactory.getLog(getClass());
 
@@ -105,21 +95,12 @@ public class SepConsumer extends BaseHRegionServer {
         Preconditions.checkArgument(threadCnt > 0, "Thread count must be > 0");
         this.subscriptionId = SepModelImpl.toInternalSubscriptionName(subscriptionId);
         this.subscriptionTimestamp = subscriptionTimestamp;
-        this.listener = listener;
         this.hostName = hostName;
         this.zk = zk;
         this.hbaseConf = hbaseConf;
-        this.threadCnt = threadCnt;
-
-        this.executors = new ArrayList<ThreadPoolExecutor>(threadCnt);
-        for (int i = 0; i < threadCnt; i++) {
-            ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
-                    new ArrayBlockingQueue<Runnable>(100));
-            executor.setRejectedExecutionHandler(new WaitPolicy());
-            executors.add(executor);
-        }
         this.sepMetrics = new SepMetrics(subscriptionId);
         this.payloadExtractor = payloadExtractor;
+        this.eventExecutor = new SepEventExecutor(listener, threadCnt, 100, sepMetrics);
     }
 
     public void start() throws IOException, InterruptedException, KeeperException {
@@ -147,6 +128,7 @@ public class SepConsumer extends BaseHRegionServer {
     public void stop() {
         if (running) {
             running = false;
+            eventExecutor.stop();
             Closer.close(rpcServer);
             try {
                 // This ZK node will likely already be gone if the index has been removed
@@ -168,8 +150,6 @@ public class SepConsumer extends BaseHRegionServer {
 
     @Override
     public void replicateLogEntries(HLog.Entry[] entries) throws IOException {
-
-        List<Future<?>> futures = new ArrayList<Future<?>>();
 
         // TODO Recording of last processed timestamp won't work if two batches of log entries are sent out of order
         long lastProcessedTimestamp = -1;
@@ -201,12 +181,12 @@ public class SepConsumer extends BaseHRegionServer {
 
                 final SepEvent sepEvent = new SepEvent(tableName, keyValues.get(0).getRow(), keyValues,
                         payloadPerRowKey.get(rowKeyBuffer));
-                futures.add(scheduleSepEvent(sepEvent));
+                eventExecutor.scheduleSepEvent(sepEvent);
                 lastProcessedTimestamp = Math.max(lastProcessedTimestamp, entry.getKey().getWriteTime());
             }
 
         }
-
+        List<Future<?>> futures = eventExecutor.flush();
         waitOnSepEventCompletion(futures);
 
         if (lastProcessedTimestamp > 0) {
@@ -238,24 +218,4 @@ public class SepConsumer extends BaseHRegionServer {
         }
     }
 
-    private Future<?> scheduleSepEvent(final SepEvent sepEvent) {
-        // We don't want messages of the same row to be processed concurrently, therefore choose
-        // a thread based on the hash of the row key
-        int partition = (hashFunction.hashBytes(sepEvent.getRow()).asInt() & Integer.MAX_VALUE) % threadCnt;
-        Future<?> future = executors.get(partition).submit(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    long before = System.currentTimeMillis();
-                    log.debug("Delivering message to listener");
-                    listener.processEvent(sepEvent);
-                    sepMetrics.reportFilteredSepOperation(System.currentTimeMillis() - before);
-                } catch (RuntimeException e) {
-                    log.error("Error while processing event", e);
-                    throw e;
-                }
-            }
-        });
-        return future;
-    }
 }
