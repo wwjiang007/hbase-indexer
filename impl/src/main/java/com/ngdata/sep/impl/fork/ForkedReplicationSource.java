@@ -564,15 +564,10 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         } catch (IOException ioe) {
             // SEP change - Don't log anything if nothing has been flushed to the
             // HLog yet -- this is handled in HBASE-7122
-            long position = -1L;
-            try {
-                position = reader.getPosition();
-            } catch (IOException ioe2) {
-                // Just ignore this, as we're only trying to get the position to avoid logging extra warnings
-            }
-            if (ioe instanceof EOFException && position == 0L) {
-                return true;
-            }
+            // TODO HBASE-7122 can't be cleanly applied here, so we'll have to deal with the extra stack traces for now
+            // if (ioe instanceof EOFException && position == 0L) {
+            //     Return true;
+            // }
             // End SEP change
 
             LOG.warn(peerClusterZnode + " Got: ", ioe);
