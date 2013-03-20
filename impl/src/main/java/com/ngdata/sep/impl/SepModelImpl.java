@@ -39,11 +39,13 @@ public class SepModelImpl implements SepModel {
     
     private final ZooKeeperItf zk;
     private final Configuration hbaseConf;
+    private final String baseZkPath;
     private Log log = LogFactory.getLog(getClass());
 
     public SepModelImpl(ZooKeeperItf zk, Configuration hbaseConf) {
         this.zk = zk;
         this.hbaseConf = hbaseConf;
+        this.baseZkPath = hbaseConf.get(ZK_ROOT_NODE_CONF_KEY, DEFAULT_ZK_ROOT_NODE);
     }
 
     @Override
@@ -62,7 +64,7 @@ public class SepModelImpl implements SepModel {
                 return false;
             }
 
-            String basePath = HBASE_ROOT + "/" + internalName;
+            String basePath = baseZkPath + "/" + internalName;
             UUID uuid = UUID.nameUUIDFromBytes(Bytes.toBytes(internalName)); // always gives the same uuid for the same name
             ZkUtil.createPath(zk, basePath + "/hbaseid", Bytes.toBytes(uuid.toString()));
             ZkUtil.createPath(zk, basePath + "/rs");
@@ -111,7 +113,7 @@ public class SepModelImpl implements SepModel {
                     throw e;
                 }
             }
-            String basePath = HBASE_ROOT + "/" + internalName;
+            String basePath = baseZkPath + "/" + internalName;
             try {
                 ZkUtil.deleteNode(zk, basePath + "/hbaseid");
                 for (String child : zk.getChildren(basePath + "/rs", false)) {

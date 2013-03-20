@@ -132,7 +132,8 @@ public class SepConsumer extends BaseHRegionServer {
         // See HBase ServerName class: format of server name is: host,port,startcode
         // Startcode is to distinguish restarted servers on same hostname/port
         String serverName = hostName + "," + port + "," + System.currentTimeMillis();
-        zkNodePath = SepModel.HBASE_ROOT + "/" + subscriptionId + "/rs/" + serverName;
+        zkNodePath = hbaseConf.get(SepModel.ZK_ROOT_NODE_CONF_KEY, SepModel.DEFAULT_ZK_ROOT_NODE)
+                + "/" + subscriptionId + "/rs/" + serverName;
         zk.create(zkNodePath, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
         this.running = true;

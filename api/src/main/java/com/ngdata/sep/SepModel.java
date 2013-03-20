@@ -24,7 +24,11 @@ import java.io.IOException;
  */
 public interface SepModel {
 
-    public static final String HBASE_ROOT = "/ngdata/sep/hbase-slave";
+    /** Configuration key for storing the path of the root ZooKeeper node. */
+    public static final String ZK_ROOT_NODE_CONF_KEY = "hbasesep.zookeeper.znode.parent";
+    
+    /** Default root ZooKeeper node */
+    public static final String DEFAULT_ZK_ROOT_NODE = "/ngdata/sep/hbase-slave";
 
     /**
      * Adds a subscription.
