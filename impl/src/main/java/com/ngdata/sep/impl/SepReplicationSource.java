@@ -15,6 +15,8 @@
  */
 package com.ngdata.sep.impl;
 
+import static com.ngdata.sep.impl.SepModelImpl.toExternalSubscriptionName;
+
 import java.io.IOException;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,7 +52,7 @@ public class SepReplicationSource extends ForkedReplicationSource {
 
     WALEditFilter loadEditFilter(String peerClusterId, Iterable<WALEditFilterProvider> editFilterProviders) {
         for (WALEditFilterProvider editFilterProvider : editFilterProviders) {
-            WALEditFilter editFilter = editFilterProvider.getWALEditFilter(peerClusterId);
+            WALEditFilter editFilter = editFilterProvider.getWALEditFilter(toExternalSubscriptionName(peerClusterId));
             if (editFilter != null) {
                 log.debug("Loaded WALEditFilter " + editFilter);
                 return editFilter;

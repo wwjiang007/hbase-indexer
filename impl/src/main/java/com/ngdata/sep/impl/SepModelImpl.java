@@ -151,4 +151,8 @@ public class SepModelImpl implements SepModel {
         }
         return subscriptionName.replace('-', INTERNAL_HYPHEN_REPLACEMENT);
     }
+
+    static String toExternalSubscriptionName(String subscriptionName) {
+        return subscriptionName.replace(INTERNAL_HYPHEN_REPLACEMENT, '-');
+    }
 }
