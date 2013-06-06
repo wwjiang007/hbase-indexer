@@ -81,7 +81,10 @@ public class SepConsumer extends BaseHRegionServer {
      *        inactive)
      * @param listener listeners that will process the events
      * @param threadCnt number of worker threads that will handle incoming SEP events
-     * @param hostName hostname to bind to
+     * @param hostName hostname, this is published in ZooKeeper and will be used by HBase to connect to this
+     *                 consumer, so there should be only one SepConsumer instance for a (subscriptionId, host)
+     *                 combination, and the hostname should definitely not be "localhost". This is also the hostname
+     *                 that the RPC will bind to.
      */
     public SepConsumer(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
             String hostName, ZooKeeperItf zk, Configuration hbaseConf) {
