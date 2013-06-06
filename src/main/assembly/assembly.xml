@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<assembly>
+  <id>dist</id>
+
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+
+  <files>
+    <file>
+      <source>${basedir}/target/dist-scripts/sep-replication-status</source>
+      <outputDirectory>bin</outputDirectory>
+    </file>
+  </files>
+
+  <!-- Include project's own artifact.-->
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>lib/com/ngdata/${artifact.artifactId}/${artifact.version}/</outputDirectory>
+      <unpack>false</unpack>
+      <scope>runtime</scope>
+      <includes>
+        <include>${artifact.groupId}:${artifact.artifactId}</include>
+      </includes>
+    </dependencySet>
+  </dependencySets>
+
+  <repositories>
+    <repository>
+      <includeMetadata>false</includeMetadata>
+      <scope>runtime</scope>
+      <outputDirectory>lib</outputDirectory>
+    </repository>
+  </repositories>
+
+</assembly>
+
