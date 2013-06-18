@@ -354,6 +354,11 @@ public class SepMonitoringTool {
         long getTotalHLogSize() {
             long totalSize = 0;
             for (HLogInfo hlog : hlogs) {
+                if (hlog.size == -1) {
+                    // if the size of one of the hlog's could not be read from hdfs,
+                    // report -1 (unknown) as size.
+                    return -1;
+                }
                 totalSize += hlog.size;
                 if (hlog.position != -1) {
                     // we arrived at the current hlog
