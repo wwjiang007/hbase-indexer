@@ -1,8 +1,28 @@
+/*
+ * Copyright 2013 NGDATA nv
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.ngdata.sep.monitoring;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+import joptsimple.OptionException;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import joptsimple.OptionSpec;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -18,12 +38,19 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.PropertyConfigurator;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 
+import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,18 +62,43 @@ import java.util.TreeSet;
 
 
 public class SepMonitoringTool {
-    private Map<String, Map<String, Status>> statusByPeerAndServer = Maps.newHashMap();
+    private ZooKeeperItf zk;
     private FileSystem fileSystem;
     private Path hbaseRootDir;
     private Path hbaseOldLogDir;
-
+    private static final int HBASE_JMX_PORT = 10102;
 
     public static void main(String[] args) throws Exception {
-        new SepMonitoringTool().run();
+        new SepMonitoringTool().run(args);
     }
 
-    public void run() throws Exception {
-        ZooKeeperItf zk = ZkUtil.connect("localhost", 30000);
+    public void run(String[] args) throws Exception {
+        LogManager.resetConfiguration();
+        PropertyConfigurator.configure(SepMonitoringTool.class.getResource("log4j.properties"));
+
+        OptionParser parser =  new OptionParser();
+        OptionSpec enableJmxOption = parser.accepts("enable-jmx",
+                "use JMX to retrieve info from HBase regionservers (port " + HBASE_JMX_PORT + ")");
+        OptionSpec<String> zkOption = parser
+                .acceptsAll(Lists.newArrayList("z"), "ZooKeeper connection string, defaults to localhost")
+                .withRequiredArg().ofType(String.class)
+                .defaultsTo("localhost");
+
+        OptionSet options = null;
+        try {
+            options = parser.parse(args);
+        } catch (OptionException e) {
+            System.out.println("Error parsing command line options:");
+            System.out.println(e.getMessage());
+            parser.printHelpOn(System.out);
+            System.exit(1);
+        }
+
+        boolean enableJmx = options.has(enableJmxOption);
+        String zkConnectString = options.valueOf(zkOption);
+
+        System.out.println("Connecting to Zookeeper " + zkConnectString + "...");
+        zk = ZkUtil.connect(zkConnectString, 30000);
 
         Configuration conf = getHBaseConf(zk);
 
@@ -58,6 +110,67 @@ public class SepMonitoringTool {
         fileSystem = FileSystem.get(conf);
         hbaseRootDir = FSUtils.getRootDir(conf);
         hbaseOldLogDir = new Path(hbaseRootDir, HConstants.HREGION_OLDLOGDIR_NAME);
+
+        Map<String, Map<String, Status>> statusByPeerAndServer = collectStatusFromZooKeepeer();
+
+        if (statusByPeerAndServer.size() == 0) {
+            System.out.println("There are no peer clusters.");
+            return;
+        }
+
+        if (enableJmx) {
+            addStatusFromJmx(statusByPeerAndServer);
+        } else {
+            System.out.println();
+            System.out.println("Hint: use --enable-jmx to retrieve more info from HBase regionservers");
+            System.out.println("      For this, you need to start HBase regionservers with:");
+            System.out.println("      -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=10102");
+            System.out.println();
+        }
+
+        printReport(statusByPeerAndServer);
+    }
+
+    private void printReport(Map<String, Map<String, Status>> statusByPeerAndServer) {
+        String columnFormat = "  | %1$-50.50s | %2$-15.15s | %3$-15.15s | %4$-15.15s | %5$-15.15s |\n";
+
+        System.out.println();
+        System.out.println("Some notes on the displayed information:");
+        System.out.println(" * we don't know the size, and hence the progress, of the HLog which is");
+        System.out.println("   currently being written. But, if the queue always stays at size 1, you");
+        System.out.println("   are in pretty good shape.");
+        System.out.println(" * age of last shipped op: this is the age of the last shipped wal entry,");
+        System.out.println("   at the time it was shipped. If there is no further activity on HBase,");
+        System.out.println("   this value will stay constant.");
+        System.out.println(" * not all entries in the HLogs are of interest to every peer: therefore,");
+        System.out.println("   a large and slowly progressing queue might suddenly quickly shrink to 1.");
+        System.out.println();
+
+        System.out.format(columnFormat, "Host", "Queue size",      "Size all HLogs",  "Current HLog", "Age last");
+        System.out.format(columnFormat, "",     "(incl. current)", "(excl. current)", "progress",     "shipped op");
+
+        for (Map.Entry<String, Map<String, Status>> peerEntry : statusByPeerAndServer.entrySet()) {
+            System.out.println();
+            String peerId = peerEntry.getKey();
+            if (peerId.contains("-")) {
+                // For recovered queues, there is a zk node with the format "peerId(-servername)+"
+                System.out.println("Recovered queue: " + peerEntry.getKey());
+            } else {
+                System.out.println("Peer cluster: " + peerEntry.getKey());
+            }
+            System.out.println();
+            for (Map.Entry<String, Status> serverEntry : peerEntry.getValue().entrySet()) {
+                Status status = serverEntry.getValue();
+                System.out.format(columnFormat, serverEntry.getKey(),
+                        String.valueOf(status.getHLogCount()), formatAsMB(status.getTotalHLogSize()),
+                        formatProgress(status.getProgressOnCurrentHLog()), formatDuration(status.ageOfLastShippedOp));
+            }
+        }
+        System.out.println();
+    }
+
+    private Map<String, Map<String, Status>> collectStatusFromZooKeepeer() throws Exception {
+        Map<String, Map<String, Status>> statusByPeerAndServer = Maps.newHashMap();
 
         String regionServerPath = "/hbase/replication/rs";
         List<String> regionServers = zk.getChildren(regionServerPath, false);
@@ -101,31 +214,33 @@ public class SepMonitoringTool {
             }
         }
 
-        if (statusByPeerAndServer.size() == 0) {
-            System.out.println("There are no peer clusters.");
-            return;
-        }
+        return statusByPeerAndServer;
+    }
 
-        System.out.println("Hint: a peer cluster name suffixed with a server name is a recovered queue.");
-        System.out.println();
-
-        String columnFormat = "  | %1$-50.50s | %2$-15.15s | %3$-15.15s | %4$-15.15s |\n";
-
-        System.out.format(columnFormat, "Host", "Queue size", "HLog size", "Current HLog");
-        System.out.format(columnFormat, "", "", "(excl. current)", "progress");
+    private void addStatusFromJmx(Map<String, Map<String, Status>> statusByPeerAndServer) throws Exception {
+        JmxConnections jmxConnections = new JmxConnections();
 
         for (Map.Entry<String, Map<String, Status>> peerEntry : statusByPeerAndServer.entrySet()) {
-            System.out.println();
-            System.out.println("Peer cluster: " + peerEntry.getKey());
-            System.out.println();
+            String peerId = peerEntry.getKey();
             for (Map.Entry<String, Status> serverEntry : peerEntry.getValue().entrySet()) {
+                String server = serverEntry.getKey();
                 Status status = serverEntry.getValue();
-                System.out.format(columnFormat, serverEntry.getKey(),
-                        String.valueOf(status.getHLogCount()), formatAsMB(status.getTotalHLogSize()),
-                        formatProgress(status.getProgressOnCurrentHLog()));
+                String hostName = ServerName.parseHostname(server);
+
+                MBeanServerConnection connection = jmxConnections.getConnector(hostName, HBASE_JMX_PORT).getMBeanServerConnection();
+
+                ObjectName replSourceBean = new ObjectName("hadoop:service=Replication,name=ReplicationSource for " + URLEncoder.encode(peerId, "UTF8"));
+                try {
+                    status.ageOfLastShippedOp = (Long)connection.getAttribute(replSourceBean, "ageOfLastShippedOp");
+                } catch (AttributeNotFoundException e) {
+                    // could be the case if the queue disappeared since we read info from ZK
+                } catch (InstanceNotFoundException e) {
+                    // could be the case if the queue disappeared since we read info from ZK
+                }
             }
         }
-        System.out.println();
+
+        jmxConnections.close();
     }
 
     private Configuration getHBaseConf(ZooKeeperItf zk) throws KeeperException, InterruptedException, IOException {
@@ -135,7 +250,7 @@ public class SepMonitoringTool {
         String hbaseMasterHostName = ServerName.parseVersionedServerName(masterServerName).getHostname();
 
         String url = "http://" + hbaseMasterHostName + ":60010/conf";
-        System.out.println("Reading hbase configuration from " + url);
+        System.out.println("Reading HBase configuration from " + url);
         byte[] data = readUrl(url);
 
         Configuration conf = new Configuration();
@@ -157,7 +272,7 @@ public class SepMonitoringTool {
             if (response.getEntity() != null) {
                 EntityUtils.consume(response.getEntity());
             }
-            //httpGet.releaseConnection();
+            httpGet.releaseConnection();
         }
     }
 
@@ -177,6 +292,23 @@ public class SepMonitoringTool {
             DecimalFormat format = new DecimalFormat("0 %");
             return format.format(progress);
         }
+    }
+
+    private String formatDuration(Long millis) {
+        if (millis == null) {
+            return "(enable jmx)";
+        }
+
+        long millisOverflow = millis % 1000;
+        long seconds = (millis - millisOverflow) / 1000;
+        long secondsOverflow = seconds % 60;
+        long minutes = (seconds - secondsOverflow) / 60;
+        long minutesOverflow = minutes % 60;
+        long hours = (minutes - minutesOverflow) / 60;
+        int days = (int)Math.floor((double)hours / 24d);
+
+        return String.format("%1$sd %2$02d:%3$02d:%4$02d.%5$03d",
+                days, hours, minutesOverflow, secondsOverflow, millisOverflow);
     }
 
     /**
@@ -203,6 +335,7 @@ public class SepMonitoringTool {
 
     public static class Status {
         List<HLogInfo> hlogs = new ArrayList<HLogInfo>();
+        Long ageOfLastShippedOp;
 
         int getHLogCount() {
             int count = 0;
@@ -245,9 +378,9 @@ public class SepMonitoringTool {
     }
 
     public static class HLogInfo {
+        String name;
         /** Currently reached position in the file, -1 if unstarted. */
         long position;
-        String name;
         /** Size of the HLog. Note that for files being written, this only includes the size of completed blocks. */
         long size;
 
@@ -261,6 +394,7 @@ public class SepMonitoringTool {
     private static final int ID_LENGTH_OFFSET = MAGIC_SIZE;
     private static final int ID_LENGTH_SIZE =  Bytes.SIZEOF_INT;
 
+    /** This method was copied from RecoverableZooKeeper in the HBase 0.94 source tree. */
     public byte[] removeMetaData(byte[] data) {
         if(data == null || data.length == 0) {
             return data;
