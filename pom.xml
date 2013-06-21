@@ -199,6 +199,13 @@
     </repository>
 
     <repository>
+      <id>lilyproject.release</id>
+      <name>Lily Maven release repository</name>
+      <url>http://lilyproject.org/maven/maven2/deploy/</url>
+    </repository>
+
+
+    <repository>
       <id>default</id>
       <name>Maven Repository Switchboard</name>
       <layout>default</layout>
