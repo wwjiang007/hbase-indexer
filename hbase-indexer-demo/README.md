@@ -11,7 +11,7 @@ There is a demo for row and for column based indexing.
 ##Row-based indexing demo
 
 Add an indexer (as usual with "hbase-indexer add-indexer") using the
-configuration message_indexer.xml
+configuration user_indexer.xml
 
 Start the data upload process (this will also create the schema in hbase)
 with:
