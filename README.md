@@ -1,6 +1,9 @@
 HBase Indexer
 =============
 
+HBase Indexer allows you to easily and quickly index HBase rows into Solr. Usage documentation can be found on the hbase-indexer Wiki - http://github.com/NGDATA/hbase-indexer/wiki.
+
+
 ## Building the binary distribution
 
 Use the following command to build the binary distribution (.tar.gz):
