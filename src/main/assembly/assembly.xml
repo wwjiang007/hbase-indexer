@@ -11,6 +11,10 @@
       <source>${basedir}/target/dist-scripts/sep-replication-status</source>
       <outputDirectory>bin</outputDirectory>
     </file>
+    <file>
+      <source>${basedir}/target/dist-scripts/sep-replication-wait</source>
+      <outputDirectory>bin</outputDirectory>
+    </file>
   </files>
 
   <!-- Include project's own artifact.-->

@@ -54,7 +54,11 @@
           <scripts>
             <script>
               <basename>sep-replication-status</basename>
-              <mainClass>com.ngdata.sep.monitoring.SepMonitoringTool</mainClass>
+              <mainClass>com.ngdata.sep.monitoring.ReplicationStatusCli</mainClass>
+            </script>
+            <script>
+              <basename>sep-replication-wait</basename>
+              <mainClass>com.ngdata.sep.monitoring.ReplicationWaitCli</mainClass>
             </script>
           </scripts>
         </configuration>
