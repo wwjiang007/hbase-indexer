@@ -139,20 +139,24 @@ public class ReplicationStatusRetriever {
                         statusByServer.put(server, status);
                     }
 
-                    Stat stat = new Stat();
-                    byte[] data = zk.getData(hlogsPath + "/" + log, false, stat);
+                    try {
+                        Stat stat = new Stat();
+                        byte[] data = zk.getData(hlogsPath + "/" + log, false, stat);
 
-                    // Determine position in hlog, if already started on the hlog
-                    long position = -1;
-                    if (data != null && data.length > 0) {
-                        data = removeMetaData(data);
-                        position = Long.parseLong(new String(data, "UTF-8"));
+                        // Determine position in hlog, if already started on the hlog
+                        long position = -1;
+                        if (data != null && data.length > 0) {
+                            data = removeMetaData(data);
+                            position = Long.parseLong(new String(data, "UTF-8"));
+                        }
+
+                        HLogInfo hlogInfo = new HLogInfo(log);
+                        hlogInfo.size = getLogFileSize(server, log);
+                        hlogInfo.position = position;
+                        status.hlogs.add(hlogInfo);
+                    } catch (KeeperException.NoNodeException e) {
+                        // fine, node was removed since we called getChildren
                     }
-
-                    HLogInfo hlogInfo = new HLogInfo(log);
-                    hlogInfo.size = getLogFileSize(server, log);
-                    hlogInfo.position = position;
-                    status.hlogs.add(hlogInfo);
                 }
             }
         }
