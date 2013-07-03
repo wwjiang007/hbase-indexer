@@ -222,6 +222,8 @@ public class ForkedReplicationSource extends Thread
 
         // Finally look if this is a recovered queue
         this.checkIfQueueRecovered(peerClusterZnode);
+
+        registerPeerClusterListener();
     }
 
     /**
