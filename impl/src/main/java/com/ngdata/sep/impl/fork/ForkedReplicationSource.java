@@ -22,9 +22,11 @@ package com.ngdata.sep.impl.fork;
 import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -47,6 +49,7 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.Stoppable;
+import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HConnectionManager;
 import org.apache.hadoop.hbase.ipc.HRegionInterface;
@@ -57,9 +60,9 @@ import org.apache.hadoop.hbase.replication.ReplicationZookeeper;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationHLogReaderManager;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceInterface;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceManager;
-import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceMetrics;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Threads;
+import org.apache.hadoop.hbase.zookeeper.ClusterId;
 import org.apache.hadoop.hbase.zookeeper.ZKUtil;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperListener;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
@@ -67,15 +70,18 @@ import org.apache.hadoop.ipc.RemoteException;
 import org.apache.zookeeper.KeeperException;
 
 /**
- * /** Forked version of org.apache.hadoop.hbase.replication.regionserver.ReplicationSource. Updated to be more
+ * Forked version of org.apache.hadoop.hbase.replication.regionserver.ReplicationSource. Updated to be more
  * responsive to changes in the number of regionservers in peer clusters, as well as logging fewer errors. Once
- * HBASE-7634, HBASE-7325, and HBASE-7122 are in place then this class can be removed.
- * 
+ * HBASE-7634 and HBASE-7325 are in place then this class can be removed.
+ *
+ * Current fork is based on: HBase 0.94.8 (though we use this in combo with CDH 4.2.0 which contains an older
+ * HBase)
+ *
  * All SEP-specific changes are marked with "SEP change".
  *
  * If a new version of HBase is used (and the patches listed above are not available in it), the changes marked with
  * "SEP change" should be applied to the new forked version of the class.
- * 
+ *
  * Class that handles the source of a replication stream. Currently does not handle more than 1 slave For each slave
  * cluster it selects a random number of peers using a replication ratio. For example, if replication ration = 0.1 and
  * slave cluster has 100 region servers, 10 will be selected.
@@ -83,9 +89,10 @@ import org.apache.zookeeper.KeeperException;
  * A stream is considered down when we cannot contact a region server on the peer cluster for more than 55 seconds by
  * default.
  * <p/>
- * 
+ *
  */
-public class ForkedReplicationSource extends Thread implements ReplicationSourceInterface {
+public class ForkedReplicationSource extends Thread
+        implements ReplicationSourceInterface {
 
     // SEP change
     private static final Log LOG = LogFactory.getLog(ForkedReplicationSource.class);
@@ -134,7 +141,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     // Indicates if this queue is recovered (and will be deleted when depleted)
     private boolean queueRecovered;
     // List of all the dead region servers that had this queue (if recovered)
-    private String[] deadRegionServers;
+    private List<String> deadRegionServers = new ArrayList<String>();
     // Maximum number of retries before taking bold actions
     private int maxRetriesMultiplier;
     // Socket timeouts require even bolder actions since we don't want to DDOS
@@ -161,30 +168,39 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * Instantiation method used by region servers
-     * 
+     *
      * @param conf configuration to use
      * @param fs file system to use
      * @param manager replication manager to ping to
-     * @param stopper the atomic boolean to use to stop the regionserver
+     * @param stopper     the atomic boolean to use to stop the regionserver
      * @param replicating the atomic boolean that starts/stops replication
      * @param peerClusterZnode the name of our znode
      * @throws IOException
      */
-    @Override
-    public void init(final Configuration conf, final FileSystem fs, final ReplicationSourceManager manager,
-            final Stoppable stopper, final AtomicBoolean replicating, final String peerClusterZnode) throws IOException {
+    public void init(final Configuration conf,
+            final FileSystem fs,
+            final ReplicationSourceManager manager,
+            final Stoppable stopper,
+            final AtomicBoolean replicating,
+            final String peerClusterZnode)
+            throws IOException {
         this.stopper = stopper;
         this.conf = conf;
-        this.replicationQueueSizeCapacity = this.conf.getLong("replication.source.size.capacity", 1024 * 1024 * 64);
-        this.replicationQueueNbCapacity = this.conf.getInt("replication.source.nb.capacity", 25000);
+        this.replicationQueueSizeCapacity =
+                this.conf.getLong("replication.source.size.capacity", 1024*1024*64);
+        this.replicationQueueNbCapacity =
+                this.conf.getInt("replication.source.nb.capacity", 25000);
         this.entriesArray = new HLog.Entry[this.replicationQueueNbCapacity];
         for (int i = 0; i < this.replicationQueueNbCapacity; i++) {
             this.entriesArray[i] = new HLog.Entry();
         }
         this.maxRetriesMultiplier = this.conf.getInt("replication.source.maxretriesmultiplier", 10);
-        this.socketTimeoutMultiplier = maxRetriesMultiplier * maxRetriesMultiplier;
-        this.queue = new PriorityBlockingQueue<Path>(conf.getInt("hbase.regionserver.maxlogs", 32),
-                new LogsComparator());
+        this.socketTimeoutMultiplier = this.conf.getInt("replication.source.socketTimeoutMultiplier",
+                maxRetriesMultiplier * maxRetriesMultiplier);
+        this.queue =
+                new PriorityBlockingQueue<Path>(
+                        conf.getInt("hbase.regionserver.maxlogs", 32),
+                        new LogsComparator());
         this.conn = HConnectionManager.getConnection(conf);
         this.zkHelper = manager.getRepZkWrapper();
         this.ratio = this.conf.getFloat("replication.source.ratio", 0.1f);
@@ -192,7 +208,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         this.random = new Random();
         this.replicating = replicating;
         this.manager = manager;
-        this.sleepForRetries = this.conf.getLong("replication.source.sleepforretries", 1000);
+        this.sleepForRetries =
+                this.conf.getLong("replication.source.sleepforretries", 1000);
         this.fs = fs;
         // SEP change
         this.metrics = new ForkedReplicationSourceMetrics(peerClusterZnode);
@@ -209,7 +226,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * SEP change - This method is added to allow being more responsive to peer cluster regionserver changes.
-     * 
+     *
      * @throws IOException
      */
     private void registerPeerClusterListener() throws IOException {
@@ -223,16 +240,71 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     // The passed znode will be either the id of the peer cluster or
     // the handling story of that queue in the form of id-servername-*
-    private void checkIfQueueRecovered(String peerClusterZnode) {
-        String[] parts = peerClusterZnode.split("-");
+    //
+    // package access for testing
+    void checkIfQueueRecovered(String peerClusterZnode) {
+        String[] parts = peerClusterZnode.split("-", 2);
         this.queueRecovered = parts.length != 1;
-        this.peerId = this.queueRecovered ? parts[0] : peerClusterZnode;
+        this.peerId = this.queueRecovered ?
+                parts[0] : peerClusterZnode;
         this.peerClusterZnode = peerClusterZnode;
-        this.deadRegionServers = new String[parts.length - 1];
-        // Extract all the places where we could find the hlogs
-        for (int i = 1; i < parts.length; i++) {
-            this.deadRegionServers[i - 1] = parts[i];
+
+        if (parts.length < 2) {
+            // not queue recovered situation
+            return;
         }
+
+        // extract dead servers
+        extractDeadServersFromZNodeString(parts[1], this.deadRegionServers);
+    }
+
+    /**
+     * for tests only
+     */
+    List<String> getDeadRegionServers() {
+        return Collections.unmodifiableList(this.deadRegionServers);
+    }
+
+    /**
+     * Parse dead server names from znode string servername can contain "-" such as
+     * "ip-10-46-221-101.ec2.internal", so we need skip some "-" during parsing for the following
+     * cases: 2-ip-10-46-221-101.ec2.internal,52170,1364333181125-<server name>-...
+     */
+    private static void
+    extractDeadServersFromZNodeString(String deadServerListStr, List<String> result) {
+
+        if (deadServerListStr == null || result == null || deadServerListStr.isEmpty()) return;
+
+        // valid server name delimiter "-" has to be after "," in a server name
+        int seenCommaCnt = 0;
+        int startIndex = 0;
+        int len = deadServerListStr.length();
+
+        for (int i = 0; i < len; i++) {
+            switch (deadServerListStr.charAt(i)) {
+                case ',':
+                    seenCommaCnt += 1;
+                    break;
+                case '-':
+                    if (seenCommaCnt >= 2) {
+                        if (i > startIndex) {
+                            result.add(deadServerListStr.substring(startIndex, i));
+                            startIndex = i + 1;
+                        }
+                        seenCommaCnt = 0;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // add tail
+        if (startIndex < len - 1) {
+            result.add(deadServerListStr.substring(startIndex, len));
+        }
+
+        LOG.debug("Found dead servers:" + result);
     }
 
     /**
@@ -242,8 +314,9 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         this.currentPeers.clear();
         List<ServerName> addresses = this.zkHelper.getSlavesAddresses(peerId);
         Set<ServerName> setOfAddr = new HashSet<ServerName>();
-        int nbPeers = (int)(Math.ceil(addresses.size() * ratio));
-        LOG.info("Getting " + nbPeers + " rs from peer cluster # " + peerId);
+        int nbPeers = (int) (Math.ceil(addresses.size() * ratio));
+        LOG.info("Getting " + nbPeers +
+                " rs from peer cluster # " + peerId);
         for (int i = 0; i < nbPeers; i++) {
             ServerName sn;
             // Make sure we get one address that we don't already have
@@ -284,16 +357,17 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         // resetting to 1 to reuse later
         sleepMultiplier = 1;
 
-        LOG.info("Replicating " + clusterId + " -> " + peerClusterId);
+        LOG.info("Replicating "+clusterId + " -> " + peerClusterId);
 
         // If this is recovered, the queue is already full and the first log
         // normally has a position (unless the RS failed between 2 logs)
         if (this.queueRecovered) {
             try {
-                this.repLogReader.setPosition(this.zkHelper.getHLogRepPosition(this.peerClusterZnode,
-                        this.queue.peek().getName()));
+                this.repLogReader.setPosition(this.zkHelper.getHLogRepPosition(
+                        this.peerClusterZnode, this.queue.peek().getName()));
             } catch (KeeperException e) {
-                this.terminate("Couldn't get the position of this recovered queue " + peerClusterZnode, e);
+                this.terminate("Couldn't get the position of this recovered queue " +
+                        peerClusterZnode, e);
             }
         }
         // Loop until we close down
@@ -305,13 +379,13 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                 }
                 continue;
             }
-            Path oldPath = getCurrentPath(); // note that in the current scenario,
-                                             // oldPath will be null when a log roll
-                                             // happens.
+            Path oldPath = getCurrentPath(); //note that in the current scenario,
+            //oldPath will be null when a log roll
+            //happens.
             // Get a new path
             boolean hasCurrentPath = getNextPath();
             if (getCurrentPath() != null && oldPath == null) {
-                sleepMultiplier = 1; // reset the sleepMultiplier on a path change
+                sleepMultiplier = 1; //reset the sleepMultiplier on a path change
             }
             if (!hasCurrentPath) {
                 if (sleepForRetries("No log to process", sleepMultiplier)) {
@@ -320,14 +394,14 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                 continue;
             }
             boolean currentWALisBeingWrittenTo = false;
-            // For WAL files we own (rather than recovered), take a snapshot of whether the
-            // current WAL file (this.currentPath) is in use (for writing) NOW!
-            // Since the new WAL paths are enqueued only after the prev WAL file
-            // is 'closed', presence of an element in the queue means that
-            // the previous WAL file was closed, else the file is in use (currentPath)
-            // We take the snapshot now so that we are protected against races
-            // where a new file gets enqueued while the current file is being processed
-            // (and where we just finished reading the current file).
+            //For WAL files we own (rather than recovered), take a snapshot of whether the
+            //current WAL file (this.currentPath) is in use (for writing) NOW!
+            //Since the new WAL paths are enqueued only after the prev WAL file
+            //is 'closed', presence of an element in the queue means that
+            //the previous WAL file was closed, else the file is in use (currentPath)
+            //We take the snapshot now so that we are protected against races
+            //where a new file gets enqueued while the current file is being processed
+            //(and where we just finished reading the current file).
             if (!this.queueRecovered && queue.size() == 0) {
                 currentWALisBeingWrittenTo = true;
             }
@@ -347,6 +421,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
             }
 
             boolean gotIOE = false;
+            currentNbOperations = 0;
             currentNbEntries = 0;
             currentSize = 0;
             try {
@@ -370,18 +445,21 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                             LOG.warn(peerClusterZnode + " Got while getting file size: ", e);
                         }
                     } else if (currentNbEntries != 0) {
-                        LOG.warn(peerClusterZnode + " Got EOF while reading, " + "looks like this file is broken? "
-                                + currentPath);
+                        LOG.warn(peerClusterZnode + " Got EOF while reading, " +
+                                "looks like this file is broken? " + currentPath);
                         considerDumping = true;
                         currentNbEntries = 0;
                     }
 
-                    if (considerDumping && sleepMultiplier == this.maxRetriesMultiplier && processEndOfFile()) {
+                    if (considerDumping &&
+                            sleepMultiplier == this.maxRetriesMultiplier &&
+                            processEndOfFile()) {
                         continue;
                     }
                 }
             } finally {
                 try {
+                    this.reader = null;
                     this.repLogReader.closeReader();
                 } catch (IOException e) {
                     gotIOE = true;
@@ -394,8 +472,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
             // But if we need to stop, don't bother sleeping
             if (this.isActive() && (gotIOE || currentNbEntries == 0)) {
                 if (this.lastLoggedPosition != this.repLogReader.getPosition()) {
-                    this.manager.logPositionAndCleanOldLogs(this.currentPath, this.peerClusterZnode,
-                            this.repLogReader.getPosition(), queueRecovered, currentWALisBeingWrittenTo);
+                    this.manager.logPositionAndCleanOldLogs(this.currentPath,
+                            this.peerClusterZnode, this.repLogReader.getPosition(), queueRecovered, currentWALisBeingWrittenTo);
                     this.lastLoggedPosition = this.repLogReader.getPosition();
                 }
 
@@ -425,17 +503,19 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     }
 
     /**
-     * Read all the entries from the current log files and retain those that need to be replicated. Else, process the
-     * end of the current file.
-     * 
+     * Read all the entries from the current log files and retain those
+     * that need to be replicated. Else, process the end of the current file.
      * @param currentWALisBeingWrittenTo is the current WAL being written to
-     * @return true if we got nothing and went to the next file, false if we got entries
+     * @return true if we got nothing and went to the next file, false if we got
+     * entries
      * @throws IOException
      */
-    protected boolean readAllEntriesToReplicateOrNextFile(boolean currentWALisBeingWrittenTo) throws IOException {
+    protected boolean readAllEntriesToReplicateOrNextFile(boolean currentWALisBeingWrittenTo)
+            throws IOException{
         long seenEntries = 0;
         this.repLogReader.seek();
-        HLog.Entry entry = this.repLogReader.readNextAndSetPosition(this.entriesArray, this.currentNbEntries);
+        HLog.Entry entry =
+                this.repLogReader.readNextAndSetPosition(this.entriesArray, this.currentNbEntries);
         while (entry != null) {
             WALEdit edit = entry.getEdit();
             this.metrics.logEditsReadRate.inc(1);
@@ -447,9 +527,9 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                 removeNonReplicableEdits(edit);
                 // Don't replicate catalog entries, if the WALEdit wasn't
                 // containing anything to replicate and if we're currently not set to replicate
-                if (!(Bytes.equals(logKey.getTablename(), HConstants.ROOT_TABLE_NAME) || Bytes.equals(
-                        logKey.getTablename(), HConstants.META_TABLE_NAME))
-                        && edit.size() != 0 && replicating.get()) {
+                if (!(Bytes.equals(logKey.getTablename(), HConstants.ROOT_TABLE_NAME) ||
+                        Bytes.equals(logKey.getTablename(), HConstants.META_TABLE_NAME)) &&
+                        edit.size() != 0 && replicating.get()) {
                     // Only set the clusterId if is a local key.
                     // This ensures that the originator sets the cluster id
                     // and all replicas retain the initial cluster id.
@@ -465,10 +545,10 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                 }
             }
             // Stop if too many entries or too big
-            if (currentSize >= this.replicationQueueSizeCapacity || currentNbEntries >= this.replicationQueueNbCapacity) {
+            if (currentSize >= this.replicationQueueSizeCapacity ||
+                    currentNbEntries >= this.replicationQueueNbCapacity) {
                 break;
             }
-
             try {
                 entry = this.repLogReader.readNextAndSetPosition(this.entriesArray, this.currentNbEntries);
             } catch (IOException ie) {
@@ -476,6 +556,9 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                 break;
             }
         }
+        LOG.debug("currentNbOperations:" + currentNbOperations +
+                " and seenEntries:" + seenEntries +
+                " and size: " + this.currentSize);
         if (currentWALisBeingWrittenTo) {
             return false;
         }
@@ -485,21 +568,22 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     }
 
     private void connectToPeers() {
+        int sleepMultiplier = 1;
+
         // Connect to peer cluster first, unless we have to stop
         while (this.isActive() && this.currentPeers.size() == 0) {
 
-            try {
-                chooseSinks();
-                Thread.sleep(this.sleepForRetries);
-            } catch (InterruptedException e) {
-                LOG.error("Interrupted while trying to connect to sinks", e);
+            chooseSinks();
+            if (this.isActive() && this.currentPeers.size() == 0) {
+                if (sleepForRetries("Waiting for peers", sleepMultiplier)) {
+                    sleepMultiplier++;
+                }
             }
         }
     }
 
     /**
      * Poll for the next path
-     * 
      * @return true if a path was obtained, false if not
      */
     protected boolean getNextPath() {
@@ -516,12 +600,14 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * Open a reader on the current path
-     * 
+     *
      * @param sleepMultiplier by how many times the default sleeping time is augmented
      * @return true if we should continue with that file, false if we are over with it
      */
     protected boolean openReader(int sleepMultiplier) {
         try {
+            LOG.debug("Opening log for replication " + this.currentPath.getName() +
+                    " at " + this.repLogReader.getPosition());
             try {
                 this.reader = repLogReader.openReader(this.currentPath);
             } catch (FileNotFoundException fnfe) {
@@ -529,17 +615,21 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                     // We didn't find the log in the archive directory, look if it still
                     // exists in the dead RS folder (there could be a chain of failures
                     // to look at)
-                    LOG.info("NB dead servers : " + deadRegionServers.length);
-                    for (int i = this.deadRegionServers.length - 1; i >= 0; i--) {
-
-                        Path deadRsDirectory = new Path(manager.getLogDir().getParent(), this.deadRegionServers[i]);
-                        Path[] locs = new Path[] { new Path(deadRsDirectory, currentPath.getName()),
-                                new Path(deadRsDirectory.suffix(HLog.SPLITTING_EXT), currentPath.getName()), };
+                    LOG.info("NB dead servers : " + deadRegionServers.size());
+                    for (String curDeadServerName : deadRegionServers) {
+                        Path deadRsDirectory =
+                                new Path(manager.getLogDir().getParent(), curDeadServerName);
+                        Path[] locs = new Path[] {
+                                new Path(deadRsDirectory, currentPath.getName()),
+                                new Path(deadRsDirectory.suffix(HLog.SPLITTING_EXT),
+                                        currentPath.getName()),
+                        };
                         for (Path possibleLogLocation : locs) {
                             LOG.info("Possible location " + possibleLogLocation.toUri().toString());
                             if (this.manager.getFs().exists(possibleLogLocation)) {
                                 // We found the right new location
-                                LOG.info("Log " + this.currentPath + " still exists at " + possibleLogLocation);
+                                LOG.info("Log " + this.currentPath + " still exists at " +
+                                        possibleLogLocation);
                                 // Breaking here will make us sleep since reader is null
                                 return true;
                             }
@@ -552,13 +642,16 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                     // such that the znode pointing to a log exists but the log was
                     // deleted a long time ago.
                     // For the moment, we'll throw the IO and processEndOfFile
-                    throw new IOException("File from recovered queue is " + "nowhere to be found", fnfe);
+                    throw new IOException("File from recovered queue is " +
+                            "nowhere to be found", fnfe);
                 } else {
                     // If the log was archived, continue reading from there
-                    Path archivedLogLocation = new Path(manager.getOldLogDir(), currentPath.getName());
+                    Path archivedLogLocation =
+                            new Path(manager.getOldLogDir(), currentPath.getName());
                     if (this.manager.getFs().exists(archivedLogLocation)) {
                         currentPath = archivedLogLocation;
-                        LOG.info("Log " + this.currentPath + " was moved to " + archivedLogLocation);
+                        LOG.info("Log " + this.currentPath + " was moved to " +
+                                archivedLogLocation);
                         // Open the log at the new location
                         this.openReader(sleepMultiplier);
 
@@ -567,29 +660,36 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                 }
             }
         } catch (IOException ioe) {
-            // SEP change - Don't log anything if nothing has been flushed to the
-            // HLog yet -- this is handled in HBASE-7122
-            // TODO HBASE-7122 can't be cleanly applied here, so we'll have to deal with the extra stack traces for now
-            // if (ioe instanceof EOFException && position == 0L) {
-            //     Return true;
-            //  }
-            // End SEP change
-
+            if (ioe instanceof EOFException && isCurrentLogEmpty()) return true;
             LOG.warn(peerClusterZnode + " Got: ", ioe);
             this.reader = null;
-            // TODO Need a better way to determinate if a file is really gone but
-            // TODO without scanning all logs dir
-            if (sleepMultiplier == this.maxRetriesMultiplier) {
+            if (ioe.getCause() instanceof NullPointerException) {
+                // Workaround for race condition in HDFS-4380
+                // which throws a NPE if we open a file before any data node has the most recent block
+                // Just sleep and retry.  Will require re-reading compressed HLogs for compressionContext.
+                LOG.warn("Got NPE opening reader, will retry.");
+            } else if (sleepMultiplier == this.maxRetriesMultiplier) {
+                // TODO Need a better way to determine if a file is really gone but
+                // TODO without scanning all logs dir
                 LOG.warn("Waited too long for this file, considering dumping");
-                // return !processEndOfFile();
+                return !processEndOfFile();
             }
         }
         return true;
     }
 
+    /*
+     * Checks whether the current log file is empty, and it is not a recovered queue. This is to
+     * handle scenario when in an idle cluster, there is no entry in the current log and we keep on
+     * trying to read the log file and get EOFEception. In case of a recovered queue the last log file
+     * may be empty, and we don't want to retry that.
+     */
+    private boolean isCurrentLogEmpty() {
+        return (this.repLogReader.getPosition() == 0 && !queueRecovered && queue.size() == 0);
+    }
+
     /**
      * Do the sleeping logic
-     * 
      * @param msg Why we sleep
      * @param sleepMultiplier by how many times the default sleeping time is augmented
      * @return True if <code>sleepMultiplier</code> is &lt; <code>maxRetriesMultiplier</code>
@@ -606,13 +706,12 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * We only want KVs that are scoped other than local
-     * 
      * @param edit The KV to check for replication
      */
     protected void removeNonReplicableEdits(WALEdit edit) {
         NavigableMap<byte[], Integer> scopes = edit.getScopes();
         List<KeyValue> kvs = edit.getKeyValues();
-        for (int i = edit.size() - 1; i >= 0; i--) {
+        for (int i = edit.size()-1; i >= 0; i--) {
             KeyValue kv = kvs.get(i);
             // The scope will be null or empty if
             // there's nothing to replicate in that WALEdit
@@ -623,9 +722,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     }
 
     /**
-     * Count the number of different row keys in the given edit because of mini-batching. We assume that there's at
-     * least one KV in the WALEdit.
-     * 
+     * Count the number of different row keys in the given edit because of
+     * mini-batching. We assume that there's at least one KV in the WALEdit.
      * @param edit edit to count row keys from
      * @return number of different row keys
      */
@@ -643,8 +741,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * Do the shipping logic
-     * 
-     * @param currentWALisBeingWrittenTo was the current WAL being (seemingly) written to when this method was called
+     * @param currentWALisBeingWrittenTo was the current WAL being (seemingly)
+     * written to when this method was called
      */
     protected void shipEdits(boolean currentWALisBeingWrittenTo) {
         int sleepMultiplier = 1;
@@ -669,39 +767,52 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
             }
             try {
                 HRegionInterface rrs = getRS();
+                LOG.debug("Replicating " + currentNbEntries);
                 rrs.replicateLogEntries(Arrays.copyOf(this.entriesArray, currentNbEntries));
                 if (this.lastLoggedPosition != this.repLogReader.getPosition()) {
-                    this.manager.logPositionAndCleanOldLogs(this.currentPath, this.peerClusterZnode,
-                            this.repLogReader.getPosition(), queueRecovered, currentWALisBeingWrittenTo);
+                    this.manager.logPositionAndCleanOldLogs(this.currentPath,
+                            this.peerClusterZnode, this.repLogReader.getPosition(), queueRecovered, currentWALisBeingWrittenTo);
                     this.lastLoggedPosition = this.repLogReader.getPosition();
                 }
                 this.totalReplicatedEdits += currentNbEntries;
                 this.metrics.shippedBatchesRate.inc(1);
-                this.metrics.shippedOpsRate.inc(this.currentNbOperations);
-                this.metrics.setAgeOfLastShippedOp(this.entriesArray[currentNbEntries - 1].getKey().getWriteTime());
+                this.metrics.shippedOpsRate.inc(
+                        this.currentNbOperations);
+                this.metrics.setAgeOfLastShippedOp(
+                        this.entriesArray[currentNbEntries - 1].getKey().getWriteTime());
+                LOG.debug("Replicated in total: " + this.totalReplicatedEdits);
                 break;
 
             } catch (IOException ioe) {
                 // Didn't ship anything, but must still age the last time we did
                 this.metrics.refreshAgeOfLastShippedOp();
                 if (ioe instanceof RemoteException) {
-                    ioe = ((RemoteException)ioe).unwrapRemoteException();
+                    ioe = ((RemoteException) ioe).unwrapRemoteException();
                     LOG.warn("Can't replicate because of an error on the remote cluster: ", ioe);
+                    if (ioe instanceof TableNotFoundException) {
+                        if (sleepForRetries("A table is missing in the peer cluster. "
+                                + "Replication cannot proceed without losing data.", sleepMultiplier)) {
+                            sleepMultiplier++;
+                        }
+                    }
                 } else {
                     if (ioe instanceof SocketTimeoutException) {
                         // This exception means we waited for more than 60s and nothing
                         // happened, the cluster is alive and calling it right away
                         // even for a test just makes things worse.
-                        sleepForRetries("Encountered a SocketTimeoutException. Since the"
-                                + "call to the remote cluster timed out, which is usually "
-                                + "caused by a machine failure or a massive slowdown", this.socketTimeoutMultiplier);
+                        sleepForRetries("Encountered a SocketTimeoutException. Since the " +
+                                "call to the remote cluster timed out, which is usually " +
+                                "caused by a machine failure or a massive slowdown",
+                                this.socketTimeoutMultiplier);
+                    } else if (ioe instanceof ConnectException) {
+                        LOG.warn("Peer is unavailable, rechecking all sinks: ", ioe);
+                        chooseSinks();
                     } else {
                         LOG.warn("Can't replicate because of a local or network error: ", ioe);
                     }
                 }
 
                 try {
-
                     // SEP change - do an initial sleep here, because we're doing retries based on exceptions in the
                     // underlying
                     // SEP message processing, so the "is the host down" check below will rarely matter
@@ -722,7 +833,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                                 chooseSinks();
                             }
                         }
-                    } while (this.isActive() && down);
+                    } while (this.isActive() && down );
                 } catch (InterruptedException e) {
                     LOG.debug("Interrupted while trying to contact the peer cluster");
                 }
@@ -732,7 +843,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * check whether the peer is enabled or not
-     * 
+     *
      * @return true if the peer is enabled, otherwise false
      */
     protected boolean isPeerEnabled() {
@@ -740,10 +851,11 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     }
 
     /**
-     * If the queue isn't empty, switch to the next one Else if this is a recovered queue, it means we're done! Else
-     * we'll just continue to try reading the log file
-     * 
-     * @return true if we're done with the current file, false if we should continue trying to read from it
+     * If the queue isn't empty, switch to the next one
+     * Else if this is a recovered queue, it means we're done!
+     * Else we'll just continue to try reading the log file
+     * @return true if we're done with the current file, false if we should
+     * continue trying to read from it
      */
     protected boolean processEndOfFile() {
         if (this.queue.size() != 0) {
@@ -760,30 +872,31 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         return false;
     }
 
-    @Override
     public void startup() {
         String n = Thread.currentThread().getName();
-        Thread.UncaughtExceptionHandler handler = new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(final Thread t, final Throwable e) {
-                LOG.error("Unexpected exception in ReplicationSource," + toString(), e);
-            }
-        };
-        Threads.setDaemonThreadRunning(this, n + ".replicationSource," + peerClusterZnode, handler);
+        Thread.UncaughtExceptionHandler handler =
+                new Thread.UncaughtExceptionHandler() {
+                    public void uncaughtException(final Thread t, final Throwable e) {
+                        LOG.error("Unexpected exception in ReplicationSource," +
+                                " currentPath=" + currentPath, e);
+                    }
+                };
+        Threads.setDaemonThreadRunning(
+                this, n + ".replicationSource," + peerClusterZnode, handler);
     }
 
-    @Override
     public void terminate(String reason) {
         terminate(reason, null);
     }
 
-    @Override
     public void terminate(String reason, Exception cause) {
         if (cause == null) {
-            LOG.info("Closing source " + this.peerClusterZnode + " because: " + reason);
+            LOG.info("Closing source "
+                    + this.peerClusterZnode + " because: " + reason);
 
         } else {
-            LOG.error("Closing source " + this.peerClusterZnode + " because an error occurred: " + reason, cause);
+            LOG.error("Closing source " + this.peerClusterZnode
+                    + " because an error occurred: " + reason, cause);
         }
         this.running = false;
         // Only wait for the thread to die if it's not us
@@ -794,7 +907,6 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
 
     /**
      * Get a new region server at random from this peer
-     * 
      * @return
      * @throws IOException
      */
@@ -802,20 +914,19 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         if (this.currentPeers.size() == 0) {
             throw new IOException(this.peerClusterZnode + " has 0 region servers");
         }
-        ServerName address = currentPeers.get(random.nextInt(this.currentPeers.size()));
+        ServerName address =
+                currentPeers.get(random.nextInt(this.currentPeers.size()));
         return this.conn.getHRegionConnection(address.getHostname(), address.getPort());
     }
 
     /**
      * Check if the slave is down by trying to establish a connection
-     * 
      * @return true if down, false if up
      * @throws InterruptedException
      */
     public boolean isSlaveDown() throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
         Thread pingThread = new Thread() {
-            @Override
             public void run() {
                 try {
                     HRegionInterface rrs = getRS();
@@ -824,7 +935,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
                     latch.countDown();
                 } catch (IOException ex) {
                     if (ex instanceof RemoteException) {
-                        ex = ((RemoteException)ex).unwrapRemoteException();
+                        ex = ((RemoteException) ex).unwrapRemoteException();
                     }
                     LOG.info("Slave cluster looks down: " + ex.getMessage());
                 }
@@ -832,22 +943,19 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         };
         pingThread.start();
         // awaits returns true if countDown happened
-        boolean down = !latch.await(this.sleepForRetries, TimeUnit.MILLISECONDS);
+        boolean down = ! latch.await(this.sleepForRetries, TimeUnit.MILLISECONDS);
         pingThread.interrupt();
         return down;
     }
 
-    @Override
     public String getPeerClusterZnode() {
         return this.peerClusterZnode;
     }
 
-    @Override
     public String getPeerClusterId() {
         return this.peerId;
     }
 
-    @Override
     public Path getCurrentPath() {
         return this.currentPath;
     }
@@ -859,7 +967,7 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     /**
      * SEP change - this class is added to allow being more responsive to changes in the list of region servers in a
      * peer cluster.
-     * 
+     *
      * Simply listens for changes to the list of region servers in the peer cluster and notifies the enclosing
      * ReplicationSource when a change occurs.
      */
@@ -912,17 +1020,18 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         }
 
         /**
-         * Split a path to get the start time For example: 10.20.20.171%3A60020.1277499063250
-         * 
+         * Split a path to get the start time
+         * For example: 10.20.20.171%3A60020.1277499063250
          * @param p path to split
          * @return start time
          */
         private long getTS(Path p) {
             String[] parts = p.getName().split("\\.");
-            return Long.parseLong(parts[parts.length - 1]);
+            return Long.parseLong(parts[parts.length-1]);
         }
     }
 
+    // SEP change: needed because we use replicationsource from 0.94.8 with older hbase in cdh 4.2.0
     @Override
     public String getStats() {
         return "Total replicated edits: " + totalReplicatedEdits + ", currently replicating from: " + this.currentPath
