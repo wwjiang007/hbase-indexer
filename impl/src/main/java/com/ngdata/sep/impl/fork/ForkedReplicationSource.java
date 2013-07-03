@@ -72,7 +72,7 @@ import org.apache.zookeeper.KeeperException;
  * HBASE-7634, HBASE-7325, and HBASE-7122 are in place then this class can be removed.
  * 
  * All SEP-specific changes are marked with "SEP change".
- * 
+ *
  * If a new version of HBase is used (and the patches listed above are not available in it), the changes marked with
  * "SEP change" should be applied to the new forked version of the class.
  * 
@@ -87,6 +87,7 @@ import org.apache.zookeeper.KeeperException;
  */
 public class ForkedReplicationSource extends Thread implements ReplicationSourceInterface {
 
+    // SEP change
     private static final Log LOG = LogFactory.getLog(ForkedReplicationSource.class);
     // Queue of logs to process
     private PriorityBlockingQueue<Path> queue;
@@ -147,7 +148,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
     // Indicates if this particular source is running
     private volatile boolean running = true;
     // Metrics for this source
-    private ReplicationSourceMetrics metrics;
+    // SEP change
+    private ForkedReplicationSourceMetrics metrics;
     // Handle on the log reader helper
     private ReplicationHLogReaderManager repLogReader;
 
@@ -192,7 +194,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
         this.manager = manager;
         this.sleepForRetries = this.conf.getLong("replication.source.sleepforretries", 1000);
         this.fs = fs;
-        this.metrics = new ReplicationSourceMetrics(peerClusterZnode);
+        // SEP change
+        this.metrics = new ForkedReplicationSourceMetrics(peerClusterZnode);
         this.repLogReader = new ReplicationHLogReaderManager(this.fs, this.conf);
         try {
             this.clusterId = zkHelper.getUUIDForCluster(zkHelper.getZookeeperWatcher());
@@ -251,6 +254,8 @@ public class ForkedReplicationSource extends Thread implements ReplicationSource
             setOfAddr.add(sn);
         }
         this.currentPeers.addAll(setOfAddr);
+        // SEP change
+        this.metrics.setSelectedPeerCount(currentPeers.size());
     }
 
     @Override
