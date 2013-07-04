@@ -3,7 +3,7 @@
 
   <properties>
     <version.lily>2.4-SNAPSHOT</version.lily>
-    <version.sep>1.0-SNAPSHOT</version.sep>
+    <version.sep>1.1-SNAPSHOT</version.sep>
     <version.zookeeper>3.4.5-cdh4.2.0</version.zookeeper>
     <version.hadoop>2.0.0-cdh4.2.0</version.hadoop>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
