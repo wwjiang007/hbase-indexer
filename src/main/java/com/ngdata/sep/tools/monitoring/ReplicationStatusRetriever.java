@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.sep.monitoring;
+package com.ngdata.sep.tools.monitoring;
 
 import com.google.common.collect.Maps;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
@@ -50,8 +50,8 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import static com.ngdata.sep.monitoring.ReplicationStatus.HLogInfo;
-import static com.ngdata.sep.monitoring.ReplicationStatus.Status;
+import static com.ngdata.sep.tools.monitoring.ReplicationStatus.HLogInfo;
+import static com.ngdata.sep.tools.monitoring.ReplicationStatus.Status;
 
 /**
  * Collects replication status information.

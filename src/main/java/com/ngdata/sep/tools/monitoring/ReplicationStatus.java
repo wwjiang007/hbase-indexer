@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.sep.monitoring;
+package com.ngdata.sep.tools.monitoring;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;

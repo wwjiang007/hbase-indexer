@@ -11,7 +11,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.ngdata</groupId>
-  <artifactId>hbase-sep-monitoring</artifactId>
+  <artifactId>hbase-sep-tools</artifactId>
   <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
 
@@ -54,11 +54,11 @@
           <scripts>
             <script>
               <basename>sep-replication-status</basename>
-              <mainClass>com.ngdata.sep.monitoring.ReplicationStatusCli</mainClass>
+              <mainClass>com.ngdata.sep.tools.monitoring.ReplicationStatusCli</mainClass>
             </script>
             <script>
               <basename>sep-replication-wait</basename>
-              <mainClass>com.ngdata.sep.monitoring.ReplicationWaitCli</mainClass>
+              <mainClass>com.ngdata.sep.tools.monitoring.ReplicationWaitCli</mainClass>
             </script>
           </scripts>
         </configuration>

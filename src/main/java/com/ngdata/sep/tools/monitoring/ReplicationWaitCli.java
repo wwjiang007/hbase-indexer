@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.sep.monitoring;
+package com.ngdata.sep.tools.monitoring;
 
 import com.google.common.collect.Lists;
 import com.ngdata.sep.util.io.Closer;
@@ -31,7 +31,7 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 import org.joda.time.DateTime;
 
-import static com.ngdata.sep.monitoring.ReplicationStatus.Status;
+import static com.ngdata.sep.tools.monitoring.ReplicationStatus.Status;
 
 /**
  * Tool to wait until HBase replication is done, assuming there is no external write activity on HBase

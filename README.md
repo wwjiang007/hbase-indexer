@@ -1,5 +1,5 @@
-hbase-sep-monitoring
-====================
+hbase-sep-tools
+===============
 
 Monitoring tool for the HBase SEP or HBase replication in general. It is based on reading
 information from ZooKeeper, HDFS (to get hlog file sizes) and HBase JMX (optional, to get
