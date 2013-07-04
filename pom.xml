@@ -162,6 +162,52 @@
               </descriptors>
             </configuration>
           </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>rpm-maven-plugin</artifactId>
+            <version>2.1-alpha-2</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>rpm</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <name>hbase-sep-tools</name>
+              <copyright>Copyright 2013 NGDATA nv</copyright>
+              <group>Development/Libraries</group>
+              <mappings>
+                <mapping>
+                  <directory>/usr/lib/hbase-sep-tools/lib</directory>
+                  <filemode>644</filemode>
+                  <username>root</username>
+                  <groupname>root</groupname>
+                  <sources>
+                    <source>
+                      <!-- This directory is created by the assembly plugin -->
+                      <location>${project.basedir}/target/archive-tmp/lib</location>
+                    </source>
+                  </sources>
+                </mapping>
+                <mapping>
+                  <directory>/usr/lib/hbase-sep-tools/bin</directory>
+                  <filemode>755</filemode>
+                  <username>root</username>
+                  <groupname>root</groupname>
+                  <sources>
+                    <source>
+                      <location>${project.basedir}/target/dist-scripts/sep-replication-status</location>
+                    </source>
+                    <source>
+                      <location>${project.basedir}/target/dist-scripts/sep-replication-wait</location>
+                    </source>
+                  </sources>
+                </mapping>
+              </mappings>
+            </configuration>
+          </plugin>
         </plugins>
       </build>
     </profile>
