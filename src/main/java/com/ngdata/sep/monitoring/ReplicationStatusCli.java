@@ -16,6 +16,7 @@
 package com.ngdata.sep.monitoring;
 
 import com.google.common.collect.Lists;
+import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import joptsimple.OptionException;
@@ -73,5 +74,7 @@ public class ReplicationStatusCli {
         }
 
         ReplicationStatusReport.printReport(replicationStatus, System.out);
+
+        Closer.close(zk);
     }
 }
