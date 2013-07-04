@@ -205,7 +205,7 @@
               <mappings>
                 <mapping>
                   <directory>/usr/lib/hbase-sep-tools/lib</directory>
-                  <filemode>644</filemode>
+                  <filemode>755</filemode>
                   <username>root</username>
                   <groupname>root</groupname>
                   <sources>
