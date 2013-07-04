@@ -81,6 +81,8 @@ public class ReplicationStatus {
     public static class Status {
         List<HLogInfo> hlogs = new ArrayList<HLogInfo>();
         Long ageOfLastShippedOp;
+        Long timestampOfLastShippedOp;
+        Integer selectedPeerCount;
 
         int getHLogCount() {
             int count = 0;

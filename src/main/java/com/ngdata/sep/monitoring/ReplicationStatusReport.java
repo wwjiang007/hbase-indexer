@@ -15,6 +15,8 @@
  */
 package com.ngdata.sep.monitoring;
 
+import org.joda.time.DateTime;
+
 import java.io.PrintStream;
 import java.text.DecimalFormat;
 
@@ -28,7 +30,7 @@ public class ReplicationStatusReport {
             return;
         }
 
-        String columnFormat = "  | %1$-50.50s | %2$-15.15s | %3$-15.15s | %4$-15.15s | %5$-15.15s |\n";
+        String columnFormat = "  | %1$-50.50s | %2$-15.15s | %3$-15.15s | %4$-15.15s | %5$-15.15s | %6$-30.30s | %7$-5.5s |\n";
 
         out.println();
         out.println("Some notes on the displayed information:");
@@ -40,10 +42,14 @@ public class ReplicationStatusReport {
         out.println("   this value will stay constant.");
         out.println(" * not all entries in the HLogs are of interest to every peer: therefore,");
         out.println("   a large and slowly progressing queue might suddenly quickly shrink to 1.");
+        out.println(" * The 'TS last shipped op' and 'Peer count' are only available when using");
+        out.println("   the SEP's ForkedReplicationSource (and using --enable-jmx).");
+        out.println(" * Peer count is only updated when edits are being shipped, i.e. when there");
+        out.println("   is activity.");
         out.println();
 
-        out.format(columnFormat, "Host", "Queue size",      "Size all HLogs",  "Current HLog", "Age last");
-        out.format(columnFormat, "",     "(incl. current)", "(excl. current)", "progress",     "shipped op");
+        out.format(columnFormat, "Host", "Queue size",      "Size all HLogs",  "Current HLog", "Age last",   "TS last",    "Peer");
+        out.format(columnFormat, "",     "(incl. current)", "(excl. current)", "progress",     "shipped op", "shipped op", "count");
 
         for (String peerId : replicationStatus.getPeersAndRecoveredQueues()) {
             out.println();
@@ -57,7 +63,8 @@ public class ReplicationStatusReport {
                 ReplicationStatus.Status status = replicationStatus.getStatus(peerId, server);
                 out.format(columnFormat, server,
                         String.valueOf(status.getHLogCount()), formatAsMB(status.getTotalHLogSize()),
-                        formatProgress(status.getProgressOnCurrentHLog()), formatDuration(status.ageOfLastShippedOp));
+                        formatProgress(status.getProgressOnCurrentHLog()), formatDuration(status.ageOfLastShippedOp),
+                        formatTimestamp(status.timestampOfLastShippedOp), formatInt(status.selectedPeerCount));
             }
         }
         out.println();
@@ -96,5 +103,25 @@ public class ReplicationStatusReport {
 
         return String.format("%1$sd %2$02d:%3$02d:%4$02d.%5$03d",
                 days, hours, minutesOverflow, secondsOverflow, millisOverflow);
+    }
+
+    private static String formatTimestamp(Long timestamp) {
+        if (timestamp == null) {
+            return "unknown";
+        }
+
+        if (timestamp <= 0) {
+            return "no activity yet";
+        }
+
+        return new DateTime(timestamp).toString();
+    }
+
+    private static String formatInt(Integer value) {
+        if (value == null) {
+            return "unknown";
+        }
+
+        return String.valueOf(value);
     }
 }

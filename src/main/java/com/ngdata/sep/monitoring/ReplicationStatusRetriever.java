@@ -182,6 +182,23 @@ public class ReplicationStatusRetriever {
                 } catch (InstanceNotFoundException e) {
                     // could be the case if the queue disappeared since we read info from ZK
                 }
+
+                // The following metrics are only available when using NGDATA's ForkedReplicationSource
+                try {
+                    status.selectedPeerCount = (Integer)connection.getAttribute(replSourceBean, "ngdata_selectedPeerCount");
+                } catch (AttributeNotFoundException e) {
+                    // could be the case if the queue disappeared since we read info from ZK
+                } catch (InstanceNotFoundException e) {
+                    // could be the case if the queue disappeared since we read info from ZK
+                }
+
+                try {
+                    status.timestampOfLastShippedOp = (Long)connection.getAttribute(replSourceBean, "ngdata_timestampLastShippedOp");
+                } catch (AttributeNotFoundException e) {
+                    // could be the case if the queue disappeared since we read info from ZK
+                } catch (InstanceNotFoundException e) {
+                    // could be the case if the queue disappeared since we read info from ZK
+                }
             }
         }
 
@@ -204,6 +221,7 @@ public class ReplicationStatusRetriever {
             try {
                 return fileSystem.getFileStatus(oldLogPath).getLen();
             } catch (FileNotFoundException e2) {
+                // TODO there is still another place to look for log files, cfr dead region servers, see openReader in replicationsource
                 System.err.println("HLog not found at : " + path + " or " + oldLogPath);
                 return -1;
             }
