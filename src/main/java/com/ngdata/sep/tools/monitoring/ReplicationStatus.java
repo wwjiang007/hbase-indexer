@@ -83,6 +83,9 @@ public class ReplicationStatus {
         Long ageOfLastShippedOp;
         Long timestampOfLastShippedOp;
         Integer selectedPeerCount;
+        String sleepReason;
+        Integer sleepMultiplier;
+        Long timestampLastSleep;
 
         int getHLogCount() {
             int count = 0;

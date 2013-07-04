@@ -31,6 +31,7 @@ public class ReplicationStatusReport {
         }
 
         String columnFormat = "  | %1$-50.50s | %2$-15.15s | %3$-15.15s | %4$-15.15s | %5$-15.15s | %6$-30.30s | %7$-5.5s |\n";
+        String columnFormatWide = "  | %1$-50.50s | %2$-110.110s |\n";
 
         out.println();
         out.println("Some notes on the displayed information:");
@@ -65,6 +66,11 @@ public class ReplicationStatusReport {
                         String.valueOf(status.getHLogCount()), formatAsMB(status.getTotalHLogSize()),
                         formatProgress(status.getProgressOnCurrentHLog()), formatDuration(status.ageOfLastShippedOp),
                         formatTimestamp(status.timestampOfLastShippedOp), formatInt(status.selectedPeerCount));
+                if (status.timestampLastSleep != null) {
+                    long sleepAge = System.currentTimeMillis() - status.timestampLastSleep;
+                    out.format(columnFormatWide, "", "Last slept " + formatDuration(sleepAge) + " ago (muliplier: "
+                            + status.sleepMultiplier + "): " + status.sleepReason);
+                }
             }
         }
         out.println();

@@ -183,21 +183,19 @@ public class ReplicationStatusRetriever {
                     // could be the case if the queue disappeared since we read info from ZK
                 }
 
-                // The following metrics are only available when using NGDATA's ForkedReplicationSource
+                // The following mbean is only available when using NGDATA's ForkedReplicationSource
+                ObjectName replSourceInfoBean = new ObjectName("hadoop:service=Replication,name=ReplicationSourceInfo for " + URLEncoder.encode(peerId, "UTF8"));
                 try {
-                    status.selectedPeerCount = (Integer)connection.getAttribute(replSourceBean, "ngdata_selectedPeerCount");
+                    status.selectedPeerCount = (Integer)connection.getAttribute(replSourceInfoBean, "SelectedPeerCount");
+                    status.timestampOfLastShippedOp = (Long)connection.getAttribute(replSourceInfoBean, "TimestampLastShippedOp");
+                    status.sleepReason = (String)connection.getAttribute(replSourceInfoBean, "SleepReason");
+                    status.sleepMultiplier = (Integer)connection.getAttribute(replSourceInfoBean, "SleepMultiplier");
+                    status.timestampLastSleep = (Long)connection.getAttribute(replSourceInfoBean, "TimestampLastSleep");
                 } catch (AttributeNotFoundException e) {
                     // could be the case if the queue disappeared since we read info from ZK
                 } catch (InstanceNotFoundException e) {
                     // could be the case if the queue disappeared since we read info from ZK
-                }
-
-                try {
-                    status.timestampOfLastShippedOp = (Long)connection.getAttribute(replSourceBean, "ngdata_timestampLastShippedOp");
-                } catch (AttributeNotFoundException e) {
-                    // could be the case if the queue disappeared since we read info from ZK
-                } catch (InstanceNotFoundException e) {
-                    // could be the case if the queue disappeared since we read info from ZK
+                    // or the ForkedReplicationSource isn't used
                 }
             }
         }
