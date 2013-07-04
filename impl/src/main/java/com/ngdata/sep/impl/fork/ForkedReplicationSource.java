@@ -22,8 +22,11 @@ package com.ngdata.sep.impl.fork;
 import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.lang.management.ManagementFactory;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,19 +63,25 @@ import org.apache.hadoop.hbase.replication.ReplicationZookeeper;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationHLogReaderManager;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceInterface;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceManager;
+import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceMetrics;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Threads;
-import org.apache.hadoop.hbase.zookeeper.ClusterId;
 import org.apache.hadoop.hbase.zookeeper.ZKUtil;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperListener;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.zookeeper.KeeperException;
 
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
 /**
  * Forked version of org.apache.hadoop.hbase.replication.regionserver.ReplicationSource. Updated to be more
  * responsive to changes in the number of regionservers in peer clusters, as well as logging fewer errors. Once
  * HBASE-7634 and HBASE-7325 are in place then this class can be removed.
+ *
+ * Also includes changes to expose some info via JMX (currently not submitted as hbase patch, we'll first
+ * evaluate how useful it is).
  *
  * Current fork is based on: HBase 0.94.8 (though we use this in combo with CDH 4.2.0 which contains an older
  * HBase)
@@ -155,8 +164,7 @@ public class ForkedReplicationSource extends Thread
     // Indicates if this particular source is running
     private volatile boolean running = true;
     // Metrics for this source
-    // SEP change
-    private ForkedReplicationSourceMetrics metrics;
+    private ReplicationSourceMetrics metrics;
     // Handle on the log reader helper
     private ReplicationHLogReaderManager repLogReader;
 
@@ -165,6 +173,9 @@ public class ForkedReplicationSource extends Thread
 
     // SEP change - The time when the list of sinks was last changed in ZooKeeper
     private volatile long sinkListUpdateTimestamp;
+
+    // SEP change
+    private ReplicationSourceInfo infoMBean;
 
     /**
      * Instantiation method used by region servers
@@ -211,8 +222,7 @@ public class ForkedReplicationSource extends Thread
         this.sleepForRetries =
                 this.conf.getLong("replication.source.sleepforretries", 1000);
         this.fs = fs;
-        // SEP change
-        this.metrics = new ForkedReplicationSourceMetrics(peerClusterZnode);
+        this.metrics = new ReplicationSourceMetrics(peerClusterZnode);
         this.repLogReader = new ReplicationHLogReaderManager(this.fs, this.conf);
         try {
             this.clusterId = zkHelper.getUUIDForCluster(zkHelper.getZookeeperWatcher());
@@ -224,6 +234,10 @@ public class ForkedReplicationSource extends Thread
         this.checkIfQueueRecovered(peerClusterZnode);
 
         registerPeerClusterListener();
+
+        // SEP change: add an mbean to expose some replication info
+        infoMBean = new ReplicationSourceInfo();
+        registerMBean();
     }
 
     /**
@@ -237,6 +251,43 @@ public class ForkedReplicationSource extends Thread
             peerZkWatcher.registerListener(new PeerSinkChangeListener(peerZkWatcher));
         } catch (KeeperException ke) {
             throw new IOException("Could not get peer list of region servers", ke);
+        }
+    }
+
+    /**
+     * SEP change - new method.
+     */
+    private ObjectName getMBeanName() throws MalformedObjectNameException {
+        String id = peerClusterZnode;
+        // This is the same logic as in ReplicationSourceMetrics
+        try {
+            id = URLEncoder.encode(id, "UTF8");
+        } catch (UnsupportedEncodingException e) {
+            id = "CAN'T ENCODE UTF8";
+        }
+        // This follows the same naming pattern as for the metrics
+        return new ObjectName("hadoop:service=Replication,name=ReplicationSourceInfo for " + id);
+    }
+
+    /**
+     * SEP change - new method.
+     */
+    private void registerMBean() {
+        try {
+            ManagementFactory.getPlatformMBeanServer().registerMBean(infoMBean, getMBeanName());
+        } catch (Exception e) {
+            LOG.warn("Error registering mbean", e);
+        }
+    }
+
+    /**
+     * SEP change - new method.
+     */
+    private void unregisterMBean() {
+        try {
+            ManagementFactory.getPlatformMBeanServer().unregisterMBean(getMBeanName());
+        } catch (Exception e) {
+            LOG.warn("Error unregistering mbean", e);
         }
     }
 
@@ -330,7 +381,7 @@ public class ForkedReplicationSource extends Thread
         }
         this.currentPeers.addAll(setOfAddr);
         // SEP change
-        this.metrics.setSelectedPeerCount(currentPeers.size());
+        this.infoMBean.setSelectedPeerCount(currentPeers.size());
     }
 
     @Override
@@ -698,6 +749,8 @@ public class ForkedReplicationSource extends Thread
      */
     protected boolean sleepForRetries(String msg, int sleepMultiplier) {
         try {
+            // SEP change
+            infoMBean.setSleepInfo(msg, sleepMultiplier);
             LOG.debug(msg + ", sleeping " + sleepForRetries + " times " + sleepMultiplier);
             Thread.sleep(this.sleepForRetries * sleepMultiplier);
         } catch (InterruptedException e) {
@@ -782,6 +835,8 @@ public class ForkedReplicationSource extends Thread
                         this.currentNbOperations);
                 this.metrics.setAgeOfLastShippedOp(
                         this.entriesArray[currentNbEntries - 1].getKey().getWriteTime());
+                // SEP change
+                this.infoMBean.setTimestampLastShippedOp(this.entriesArray[currentNbEntries - 1].getKey().getWriteTime());
                 LOG.debug("Replicated in total: " + this.totalReplicatedEdits);
                 break;
 
@@ -905,6 +960,8 @@ public class ForkedReplicationSource extends Thread
         if (!Thread.currentThread().equals(this)) {
             Threads.shutdown(this, this.sleepForRetries);
         }
+        // SEP change
+        unregisterMBean();
     }
 
     /**
