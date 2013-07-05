@@ -364,6 +364,8 @@ public class ForkedReplicationSource extends Thread
      * Select a number of peers at random using the ratio. Mininum 1.
      */
     private void chooseSinks() {
+        // SEP change
+        this.sinkListReadTimetamp = System.currentTimeMillis();
         this.currentPeers.clear();
         List<ServerName> addresses = this.zkHelper.getSlavesAddresses(peerId);
         Set<ServerName> setOfAddr = new HashSet<ServerName>();
