@@ -120,13 +120,29 @@ public class ReplicationStatusRetriever {
 
         for (String server : regionServers) {
             String peersPath = regionServerPath + "/" + server;
-            List<String> peers = zk.getChildren(peersPath, false);
+
+            List<String> peers;
+            try {
+                peers = zk.getChildren(peersPath, false);
+            } catch (KeeperException.NoNodeException e) {
+                // server was removed since we called getChildren, skip it
+                continue;
+            }
+
             for (String peer : peers) {
                 // The peer nodes are either real peers or recovered queues, we make no distinction for now
                 String hlogsPath = peersPath + "/" + peer;
-                // The hlogs are not correctly sorted when we get them from ZK
-                SortedSet<String> logs = new TreeSet<String>(Collections.reverseOrder());
-                logs.addAll(zk.getChildren(hlogsPath, false));
+
+                SortedSet<String> logs;
+                try {
+                    // The hlogs are not correctly sorted when we get them from ZK
+                    logs = new TreeSet<String>(Collections.reverseOrder());
+                    logs.addAll(zk.getChildren(hlogsPath, false));
+                } catch (KeeperException.NoNodeException e) {
+                    // peer was removed since we called getChildren, skip it
+                    continue;
+                }
+
                 for (String log : logs) {
                     Map<String, Status> statusByServer = statusByPeerAndServer.get(peer);
                     if (statusByServer == null) {
