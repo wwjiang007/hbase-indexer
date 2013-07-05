@@ -19,6 +19,10 @@ import org.joda.time.DateTime;
 
 import java.io.PrintStream;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Generate a text report of the replication status.
@@ -52,7 +56,7 @@ public class ReplicationStatusReport {
         out.format(columnFormat, "Host", "Queue size",      "Size all HLogs",  "Current HLog", "Age last",   "TS last",    "Peer");
         out.format(columnFormat, "",     "(incl. current)", "(excl. current)", "progress",     "shipped op", "shipped op", "count");
 
-        for (String peerId : replicationStatus.getPeersAndRecoveredQueues()) {
+        for (String peerId : sort(replicationStatus.getPeersAndRecoveredQueues())) {
             out.println();
             if (replicationStatus.isRecoveredQueue(peerId)) {
                 out.println("Recovered queue: " + peerId);
@@ -60,7 +64,7 @@ public class ReplicationStatusReport {
                 out.println("Peer cluster: " + peerId);
             }
             out.println();
-            for (String server : replicationStatus.getServers(peerId)) {
+            for (String server : sort(replicationStatus.getServers(peerId))) {
                 ReplicationStatus.Status status = replicationStatus.getStatus(peerId, server);
                 out.format(columnFormat, server,
                         String.valueOf(status.getHLogCount()), formatAsMB(status.getTotalHLogSize()),
@@ -74,6 +78,12 @@ public class ReplicationStatusReport {
             }
         }
         out.println();
+    }
+
+    private static List<String> sort(Collection<String> items) {
+        List<String> things = new ArrayList<String>(items);
+        Collections.sort(things);
+        return things;
     }
 
     private static String formatAsMB(long size) {
