@@ -233,8 +233,8 @@ public class SepConsumer extends BaseHRegionServer {
         }
 
         if (!exceptionsThrown.isEmpty()) {
-            log.error("Encountered exceptions on " + exceptionsThrown.size() + " edits (out of " + futures.size()
-                    + " total edits)");
+            log.error("Encountered exceptions on " + exceptionsThrown.size() + " batches (out of " + futures.size()
+                    + " total batches)");
             throw new RuntimeException(exceptionsThrown.get(0));
         }
     }
