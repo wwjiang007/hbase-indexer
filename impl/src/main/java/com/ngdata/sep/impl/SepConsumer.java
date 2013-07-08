@@ -225,6 +225,9 @@ public class SepConsumer extends BaseHRegionServer {
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted in processing events.", e);
             } catch (Exception e) {
+                // While we throw the error higher up, to HBase, where it will also be logged, apparently the
+                // nested exceptions don't survive somewhere, therefore log it client-side as well.
+                log.warn("Error processing a batch of SEP events, the error will be forwarded to HBase for retry", e);
                 exceptionsThrown.add(e);
             }
         }
