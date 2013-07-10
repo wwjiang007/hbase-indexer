@@ -43,6 +43,10 @@
       <groupId>com.ngdata</groupId>
       <artifactId>hbase-indexer-demo</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.ngdata</groupId>
+      <artifactId>hbase-sep-tools</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

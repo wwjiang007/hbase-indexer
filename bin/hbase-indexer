@@ -232,7 +232,7 @@ fi
 unset IFS
 
 #Set the right GC options based on the what we are running
-declare -a client_cmds=("add-indexer" "list-indexers" "update-indexer" "delete-indexer" "version")
+declare -a client_cmds=("add-indexer" "list-indexers" "update-indexer" "delete-indexer" "version" "replication-status" "replication-wait")
 for cmd in ${client_cmds[@]}; do
 	if [[ $cmd == $COMMAND ]]; then
 		client=true
@@ -257,6 +257,10 @@ elif [ "$COMMAND" = "delete-indexer" ] ; then
   CLASS='com.ngdata.hbaseindexer.cli.DeleteIndexerCli'
 elif [ "$COMMAND" = "list-indexers" ] ; then
   CLASS='com.ngdata.hbaseindexer.cli.ListIndexersCli'
+elif [ "$COMMAND" = "replication-status" ] ; then
+  CLASS='com.ngdata.sep.tools.monitoring.ReplicationStatusCli'
+elif [ "$COMMAND" = "replication-wait" ] ; then
+  CLASS='com.ngdata.sep.tools.monitoring.ReplicationWaitCli'
 elif [ "$COMMAND" = "version" ] ; then
   CLASS='com.ngdata.hbaseindexer.util.VersionInfo'
 elif [ "$COMMAND" = "classpath" ] ; then
