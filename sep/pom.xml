@@ -31,6 +31,7 @@
     <module>api</module>
     <module>impl</module>
     <module>demo</module>
+    <module>tools</module>
   </modules>
 
   <build>
