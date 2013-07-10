@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <properties>
+    <version.lily>2.4-SNAPSHOT</version.lily>
+    <version.sep>1.1-SNAPSHOT</version.sep>
+    <version.zookeeper>3.4.5-cdh4.2.0</version.zookeeper>
+    <version.hadoop>2.0.0-cdh4.2.0</version.hadoop>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.ngdata</groupId>
+  <artifactId>hbase-sep-tools</artifactId>
+  <packaging>jar</packaging>
+  <version>1.1-SNAPSHOT</version>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <version>${version.zookeeper}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
+      <version>${version.hadoop}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ngdata</groupId>
+      <artifactId>hbase-sep-impl</artifactId>
+      <version>${version.sep}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>net.sf.jopt-simple</groupId>
+      <artifactId>jopt-simple</artifactId>
+      <version>4.4</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.lilyproject</groupId>
+        <artifactId>lily-genscript-plugin</artifactId>
+        <version>${version.lily}</version>
+        <configuration>
+          <applicationName>sep</applicationName>
+          <scripts>
+            <script>
+              <basename>sep-replication-status</basename>
+              <mainClass>com.ngdata.sep.tools.monitoring.ReplicationStatusCli</mainClass>
+            </script>
+            <script>
+              <basename>sep-replication-wait</basename>
+              <mainClass>com.ngdata.sep.tools.monitoring.ReplicationWaitCli</mainClass>
+            </script>
+          </scripts>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>genscript</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.6</source>
+          <target>1.6</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <repositories>
+    <repository>
+      <id>lilyproject</id>
+      <name>Lily Maven repository</name>
+      <url>http://lilyproject.org/maven/maven2/deploy/</url>
+    </repository>
+    <repository>
+      <id>lilyproject-dev</id>
+      <name>Lily Maven repository</name>
+      <url>http://lilyproject.org/maven/maven2/dev/</url>
+    </repository>
+
+    <repository>
+      <id>default</id>
+      <name>Maven Repository Switchboard</name>
+      <layout>default</layout>
+      <url>http://repo1.maven.org/maven2</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+
+    <repository>
+      <id>cdh.repo</id>
+      <url>https://repository.cloudera.com/content/groups/cloudera-repos</url>
+      <name>Cloudera Repository</name>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>central</id>
+      <name>Maven Plugin Repository</name>
+      <url>http://repo1.maven.org/maven2/</url>
+      <layout>default</layout>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <updatePolicy>never</updatePolicy>
+      </releases>
+    </pluginRepository>
+
+    <pluginRepository>
+      <id>lilyproject-plugins</id>
+      <name>Lily snapshot plugin repository</name>
+      <url>http://lilyproject.org/maven/maven2/deploy/</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <profiles>
+    <profile>
+      <id>dist</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <version>2.2.1</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <finalName>${project.artifactId}-${project.version}</finalName>
+              <appendAssemblyId>false</appendAssemblyId>
+              <tarLongFileMode>gnu</tarLongFileMode>
+              <descriptors>
+                <descriptor>src/main/assembly/assembly.xml</descriptor>
+              </descriptors>
+            </configuration>
+          </plugin>
+
+          <!-- Extract the .tar.gz archive since the rpm will build further on its contents. -->
+          <plugin>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>1.7</version>
+            <executions>
+              <execution>
+                <id>copy-out-fileset</id>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <target>
+                    <gunzip src="${project.build.directory}/${project.artifactId}-${project.version}.tar.gz"/>
+                    <untar src="${project.build.directory}/${project.artifactId}-${project.version}.tar" dest="${project.build.directory}/extracted-dist">
+                      <globmapper from="${project.artifactId}-${project.version}/*" to="*"/>
+                    </untar>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>rpm-maven-plugin</artifactId>
+            <version>2.1-alpha-2</version>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>rpm</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <name>hbase-sep-tools</name>
+              <copyright>Copyright 2013 NGDATA nv</copyright>
+              <group>Development/Libraries</group>
+              <mappings>
+                <mapping>
+                  <directory>/usr/lib/hbase-sep-tools/lib</directory>
+                  <filemode>755</filemode>
+                  <username>root</username>
+                  <groupname>root</groupname>
+                  <sources>
+                    <source>
+                      <location>${project.build.directory}/extracted-dist/lib</location>
+                    </source>
+                  </sources>
+                </mapping>
+                <mapping>
+                  <directory>/usr/lib/hbase-sep-tools/bin</directory>
+                  <filemode>755</filemode>
+                  <username>root</username>
+                  <groupname>root</groupname>
+                  <sources>
+                    <source>
+                      <location>${project.basedir}/target/dist-scripts/sep-replication-status</location>
+                    </source>
+                    <source>
+                      <location>${project.basedir}/target/dist-scripts/sep-replication-wait</location>
+                    </source>
+                  </sources>
+                </mapping>
+              </mappings>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+</project>
