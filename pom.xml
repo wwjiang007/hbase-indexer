@@ -19,7 +19,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <properties>
-    <version.sep>1.0</version.sep>
     <version.solr>4.3.1</version.solr>
     <version.guava>11.0.2</version.guava>
     <version.slf4j>1.7.2</version.slf4j>
@@ -67,6 +66,7 @@
     <module>hbase-indexer-all</module>
     <module>hbase-indexer-engine</module>
     <module>hbase-indexer-demo</module>
+    <module>sep</module>
   </modules>
 
   <dependencyManagement>
@@ -102,6 +102,16 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.ngdata</groupId>
+        <artifactId>hbase-sep-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ngdata</groupId>
+        <artifactId>hbase-sep-impl</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.solr</groupId>
         <artifactId>solr-solrj</artifactId>
         <version>${version.solr}</version>
@@ -124,6 +134,26 @@
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>org.apache.zookeeper</groupId>
+        <artifactId>zookeeper</artifactId>
+        <version>${version.zookeeper}</version>
+        <exclusions>
+          <!-- We should be able to remove this in zk 3.5: https://issues.apache.org/jira/browse/ZOOKEEPER-721 -->
+          <exclusion>
+            <groupId>com.sun.jdmk</groupId>
+            <artifactId>jmxtools</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.sun.jmx</groupId>
+            <artifactId>jmxri</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.jms</groupId>
+            <artifactId>jms</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
         <groupId>com.yammer.metrics</groupId>
         <artifactId>metrics-core</artifactId>
         <version>2.2.0</version>
@@ -132,6 +162,12 @@
         <groupId>com.yammer.metrics</groupId>
         <artifactId>metrics-ganglia</artifactId>
         <version>2.2.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>1.9.0</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
@@ -160,6 +196,11 @@
         <type>test-jar</type>
         <scope>test</scope>
         <version>${version.hbase}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${version.hadoop}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>

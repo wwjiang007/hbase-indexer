@@ -34,12 +34,10 @@
    <dependency>
       <groupId>com.ngdata</groupId>
       <artifactId>hbase-sep-api</artifactId>
-      <version>${version.sep}</version>
     </dependency>
     <dependency>
       <groupId>com.ngdata</groupId>
       <artifactId>hbase-sep-impl</artifactId>
-      <version>${version.sep}</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
