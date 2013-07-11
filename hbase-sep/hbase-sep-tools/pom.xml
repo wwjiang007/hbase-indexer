@@ -19,6 +19,7 @@
   <modelVersion>4.0.0</modelVersion>
   <artifactId>hbase-sep-tools</artifactId>
   <packaging>jar</packaging>
+  <name>HBase Side-Effect Processor: tools</name>
 
   <parent>
     <groupId>com.ngdata</groupId>

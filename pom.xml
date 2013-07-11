@@ -39,7 +39,7 @@
   <artifactId>hbase-indexer</artifactId>
   <packaging>pom</packaging>
   <version>1.1-SNAPSHOT</version>
-  <name>HBase Search</name>
+  <name>HBase Indexer</name>
 
   <url>http://www.ngdata.com/</url>
 
