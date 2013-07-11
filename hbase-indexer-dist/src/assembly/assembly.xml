@@ -21,11 +21,13 @@
   xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.1 http://maven.apache.org/xsd/assembly-1.1.1.xsd">
   <id>all</id>
   <formats>
+    <format>dir</format>
     <format>tar.gz</format>
   </formats>
   <fileSets>
     <fileSet>
       <outputDirectory>/</outputDirectory>
+      <directory>../</directory>
       <includes>
         <include>*.txt</include>
         <include>*.md</include>
@@ -33,37 +35,36 @@
     </fileSet>
     <fileSet>
       <outputDirectory>/demo</outputDirectory>
-      <directory>hbase-indexer-demo</directory>
+      <directory>../hbase-indexer-demo</directory>
       <includes>
         <include>*_indexer.xml</include>
         <include>README.md</include>
       </includes>
     </fileSet>
     <fileSet>
-      <directory>conf</directory>
+      <directory>../conf</directory>
       <outputDirectory>conf</outputDirectory>
       <fileMode>0644</fileMode>
       <directoryMode>0755</directoryMode>
     </fileSet>
     <fileSet>
-      <directory>bin</directory>
+      <directory>../bin</directory>
       <outputDirectory>bin</outputDirectory>
       <fileMode>0755</fileMode>
       <directoryMode>0755</directoryMode>
     </fileSet>
   </fileSets>
-  <moduleSets>
-    <moduleSet>
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>/lib</outputDirectory>
+      <unpack>false</unpack>
+      <scope>runtime</scope>
       <excludes>
         <exclude>com.ngdata:hbase-indexer-all</exclude>
+        <exclude>com.ngdata:hbase-indexer-dist</exclude>
       </excludes>
-      <binaries>
-        <outputDirectory>lib</outputDirectory>
-        <unpack>false</unpack>
-        <dependencySets>
-          <dependencySet/>
-        </dependencySets>
-      </binaries>
-    </moduleSet>
-  </moduleSets>
+      <fileMode>0644</fileMode>
+      <directoryMode>0644</directoryMode>
+    </dependencySet>
+  </dependencySets>
 </assembly>
