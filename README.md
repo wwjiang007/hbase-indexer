@@ -64,3 +64,14 @@ unique key field called "id".
         hbase> put 'record', 'row1', 'data:value', 'Test of HBase Indexer'
 
 
+## Subprojects
+
+### HBase SEP
+
+A standalone library for asynchronously processing HBase mutation events
+by hooking into HBase replication, see [the SEP readme](hbase-sep/README.md)
+
+### HBase SEP & replication monitoring
+
+A standalone utility to monitor HBase replication progress,
+see [README.md](hbase-sep/hbase-sep-tools/README.md)
