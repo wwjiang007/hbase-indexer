@@ -38,19 +38,24 @@ public class ReplicationStatusReport {
         String columnFormatWide = "  | %1$-50.50s | %2$-110.110s |\n";
 
         out.println();
-        out.println("Some notes on the displayed information:");
-        out.println(" * we don't know the size, and hence the progress, of the HLog which is");
-        out.println("   currently being written. But, if the queue always stays at size 1, you");
-        out.println("   are in pretty good shape.");
+        out.println();
+        out.println("How to interpret the output:");
+        out.println(" * this shows the progress from the HBase point of view, i.e. how far");
+        out.println("   each regionserver is in shipping its events to the peers.");
+        out.println(" * each time the 'Current HLog progress' percentage goes to 100%, the");
+        out.println("   'queue size' will drop by one.");
+        out.println(" * if the 'queue size' is 1, no 'Current HLog progress' is shown,");
+        out.println("   but at least you there is no delay beyond the current hlog, which");
+        out.println("   means you're in a good situation.");
+        out.println(" * 'last slept' information (not always available): is only relevant");
+        out.println("   if it is recent.");
         out.println(" * age of last shipped op: this is the age of the last shipped wal entry,");
         out.println("   at the time it was shipped. If there is no further activity on HBase,");
         out.println("   this value will stay constant.");
-        out.println(" * not all entries in the HLogs are of interest to every peer: therefore,");
-        out.println("   a large and slowly progressing queue might suddenly quickly shrink to 1.");
-        out.println(" * The 'TS last shipped op' and 'Peer count' are only available when using");
-        out.println("   the SEP's ForkedReplicationSource (and using --enable-jmx).");
         out.println(" * Peer count is only updated when edits are being shipped, i.e. when there");
         out.println("   is activity.");
+        out.println(" * Recovered queues appear each time regionservers are restarted, they");
+        out.println("   will disappear once processed.");
         out.println();
 
         out.format(columnFormat, "Host", "Queue size",      "Size all HLogs",  "Current HLog", "Age last",   "TS last",    "Peer");
