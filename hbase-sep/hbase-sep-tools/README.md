@@ -2,27 +2,22 @@ hbase-sep-tools
 ===============
 
 Monitoring tool for the HBase SEP or HBase replication in general. It is based on reading
-information from ZooKeeper, HDFS (to get hlog file sizes) and HBase JMX (optional, to get
-some metrics).
+information from ZooKeeper, HDFS (to get hlog file sizes) and HBase JMX (optional, some
+things only available when using the sep's ForkedReplicationSource).
 
-Build:
+## Monitor replication progress
 
-    mvn install
+Run (from the root of the hbase-indexer tree, or its binary dist):
 
-Run:
-
-    ./target/sep-replication-status
+    ./bin/hbase-indexer replication-status
 
 Use the -z option to specify the zookeeper host.
 
-Package in a .tar.gz to deploy to your server:
-
-    mvn -Pdist install
-
+## Wait for replication to be finished
 
 There is also a tool to wait until replication (sep processing) is done:
 
-    ./target/sep-replication-wait
+    ./bin/hbase-indexer replication-wait
 
 or to see what it is doing
 

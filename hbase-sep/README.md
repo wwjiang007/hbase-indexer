@@ -11,4 +11,4 @@ to it being asynchronous -- the distribution of events and execution of
 event handlers has no direct impact on write throughput in HBase.
 
 To get started with the HBase-SEP, try playing with the included
-demo sub-project.
+demo sub-project, see [the demo readme](hbase-sep-demo/README.md).
