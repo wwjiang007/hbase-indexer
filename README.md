@@ -6,9 +6,9 @@ HBase Indexer allows you to easily and quickly index HBase rows into Solr. Usage
 
 ## Building the binary distribution
 
-Use the following command to build the binary distribution (.tar.gz):
+Use the following command to build the binary distribution (.tar.gz & rpm):
 
-    mvn -DskipTests install assembly:assembly
+    mvn -DskipTests -Pdist install
 
 
 ## Getting Started
