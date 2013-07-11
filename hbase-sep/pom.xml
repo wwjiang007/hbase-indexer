@@ -28,10 +28,10 @@
   </parent>
 
   <modules>
-    <module>api</module>
-    <module>impl</module>
-    <module>demo</module>
-    <module>tools</module>
+    <module>hbase-sep-api</module>
+    <module>hbase-sep-impl</module>
+    <module>hbase-sep-demo</module>
+    <module>hbase-sep-tools</module>
   </modules>
 
   <build>

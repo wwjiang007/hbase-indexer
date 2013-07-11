@@ -66,7 +66,7 @@
     <module>hbase-indexer-all</module>
     <module>hbase-indexer-engine</module>
     <module>hbase-indexer-demo</module>
-    <module>sep</module>
+    <module>hbase-sep</module>
     <module>hbase-indexer-dist</module>
   </modules>
 
