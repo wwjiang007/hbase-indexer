@@ -25,7 +25,7 @@
   <parent>
     <groupId>com.ngdata</groupId>
     <artifactId>hbase-indexer</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.1</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -89,8 +89,7 @@
             <phase>process-resources</phase>
             <configuration>
               <target>
-                <replace file="${project.build.outputDirectory}/hbase-indexer-default.xml"
-                  token="@@@VERSION@@@" value="${project.version}" />
+                <replace file="${project.build.outputDirectory}/hbase-indexer-default.xml" token="@@@VERSION@@@" value="${project.version}" />
               </target>
             </configuration>
             <goals>
