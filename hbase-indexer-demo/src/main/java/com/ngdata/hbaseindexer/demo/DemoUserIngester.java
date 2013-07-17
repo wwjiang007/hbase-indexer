@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Pattern;
 
 import com.ngdata.hbaseindexer.HBaseIndexerConfiguration;
 import joptsimple.ArgumentAcceptingOptionSpec;
@@ -123,7 +124,8 @@ public class DemoUserIngester {
                 while (true) {
                     List<Put> puts = new ArrayList<Put>();
                     for (int i = 0; i < batchSize; i++) {
-                        byte[] rowkey = Bytes.toBytes(UUID.randomUUID().toString());
+                        String hexRowKey = UUID.randomUUID().toString().replaceAll(Pattern.quote("-"), "");
+                        byte[] rowkey = Bytes.toBytes(hexRowKey);
                         Put put = new Put(rowkey);
 
                         String firstName = pickName();

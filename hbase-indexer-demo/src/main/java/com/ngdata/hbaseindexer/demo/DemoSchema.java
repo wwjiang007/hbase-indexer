@@ -20,6 +20,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.util.RegionSplitter;
 
 import java.io.IOException;
 
@@ -45,7 +46,10 @@ public class DemoSchema {
             infoCf.setScope(1);
             tableDescriptor.addFamily(infoCf);
 
-            admin.createTable(tableDescriptor);
+            RegionSplitter.HexStringSplit splitter = new RegionSplitter.HexStringSplit();
+            byte[][] splitKeys = splitter.split(12);
+
+            admin.createTable(tableDescriptor, splitKeys);
         }
         
         if (!admin.tableExists(MESSAGE_TABLE)) {
