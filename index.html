@@ -43,79 +43,6 @@
 <a href="http://github.com/NGDATA/hbase-indexer/wiki">http://github.com/NGDATA/hbase-indexer/wiki</a>.</p>
 
 <h2>
-<a name="building-the-binary-distribution" class="anchor" href="#building-the-binary-distribution"><span class="octicon octicon-link"></span></a>Building the binary distribution</h2>
-
-<p>Use the following command to build the binary distribution (.tar.gz &amp; rpm):</p>
-
-<pre><code>mvn -DskipTests -Pdist install
-</code></pre>
-
-<h2>
-<a name="getting-started" class="anchor" href="#getting-started"><span class="octicon octicon-link"></span></a>Getting Started</h2>
-
-<p>These steps assume a running HBase 0.94.x installation (preferably CDH 4.2),
-as well as a running Solr installation. For this example, the configured Solr
-schema will need to have a multi-valued field called "data", as well as a
-unique key field called "id".</p>
-
-<ol>
-<li><p>Enable replication and other settings that are outlined in the
-<a href="https://github.com/NGDATA/hbase-indexer/blob/master/hbase-sep/hbase-sep-demo/README.md">hbase-sep demo instructions</a></p></li>
-<li>
-<p>Unzip the binary distribution (instructions for creating the binary
-distribution are listed above).</p>
-
-<pre><code>$ tar zxvf hbase_indexer.tar.gz
-</code></pre>
-</li>
-<li>
-<p>Copy the hbase-sep jar files from the lib directory of the binary
-distribution into the lib directory of HBase.</p>
-
-<pre><code>$ cd hbase_indexer
-$ sudo cp lib/hbase-sep-* /usr/lib/hbase/lib
-</code></pre>
-</li>
-<li>
-<p>Create a table in HBase that has replication enabled. For this example,
-we'll create a table called "record" with a single column family called 'data'.</p>
-
-<pre><code>hbase&gt; create 'record', {NAME =&gt; 'data', REPLICATION_SCOPE =&gt; 1}
-</code></pre>
-</li>
-<li>
-<p>Start the hbase-indexer server</p>
-
-<pre><code>$ ./bin/hbase-indexer server
-</code></pre>
-</li>
-<li>
-<p>Create an indexer definition. For this example, we'll just index anything
-in the data column family into the "data" field in Solr. Save the below
-contents in a file called 'sample.xml'.</p>
-
-<pre><code>&lt;?xml version="1.0"?&gt;
-&lt;indexer table="record"&gt;
-  &lt;field name="data" value="data:*" type="string"/&gt;
-&lt;/indexer&gt;
-</code></pre>
-</li>
-<li>
-<p>Add the indexer definition to the indexer server. The following command
-assumes that the Solr ZooKeeper is running on the current host, and the
-name of the collection to be used for indexing is "core0".</p>
-
-<pre><code>$ ./bin/hbase-indexer add-indexer  -n sampleindex -c sample.xml --cp solr.collection=core0 
-</code></pre>
-</li>
-<li>
-<p>Add some data to the record table in HBase. The data added to the data
-column family in the record table should show up in the Solr index.</p>
-
-<pre><code>hbase&gt; put 'record', 'row1', 'data:value', 'Test of HBase Indexer'
-</code></pre>
-</li>
-</ol><h2>
 <a name="subprojects" class="anchor" href="#subprojects"><span class="octicon octicon-link"></span></a>Subprojects</h2>
 
 <h3>
@@ -129,6 +56,7 @@ by hooking into HBase replication, see <a href="https://github.com/NGDATA/hbase-
 
 <p>A standalone utility to monitor HBase replication progress,
 see <a href="https://github.com/NGDATA/hbase-indexer/blob/master/hbase-sep/hbase-sep-tools/README.md">the SEP-tools readme</a>.</p>
+
       </section>
       <footer>
         <p><small>(c) NGDATA 2013</small></p>
