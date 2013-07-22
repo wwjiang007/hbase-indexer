@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Lily HBase Indexer by NGDATA</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Lily HBase Indexer</h1>
+        <p class="header">Indexing HBase, one row at the time</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/NGDATA/hbase-indexer/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/NGDATA/hbase-indexer/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/NGDATA/hbase-indexer">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/NGDATA">NGDATA</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a name="hbase-indexer" class="anchor" href="#hbase-indexer"><span class="octicon octicon-link"></span></a>HBase Indexer</h1>
+
+<p>HBase Indexer allows you to easily and quickly index HBase rows into Solr.
+Usage documentation can be found on the hbase-indexer Wiki -
+<a href="http://github.com/NGDATA/hbase-indexer/wiki">http://github.com/NGDATA/hbase-indexer/wiki</a>.</p>
+
+<h2>
+<a name="building-the-binary-distribution" class="anchor" href="#building-the-binary-distribution"><span class="octicon octicon-link"></span></a>Building the binary distribution</h2>
+
+<p>Use the following command to build the binary distribution (.tar.gz &amp; rpm):</p>
+
+<pre><code>mvn -DskipTests -Pdist install
+</code></pre>
+
+<h2>
+<a name="getting-started" class="anchor" href="#getting-started"><span class="octicon octicon-link"></span></a>Getting Started</h2>
+
+<p>These steps assume a running HBase 0.94.x installation (preferably CDH 4.2),
+as well as a running Solr installation. For this example, the configured Solr
+schema will need to have a multi-valued field called "data", as well as a
+unique key field called "id".</p>
+
+<ol>
+<li><p>Enable replication and other settings that are outlined in the
+<a href="https://github.com/NGDATA/hbase-sep/blob/master/demo/README.md">hbase-sep demo instructions</a></p></li>
+<li>
+<p>Unzip the binary distribution (instructions for creating the binary
+distribution are listed above).</p>
+
+<pre><code>$ tar zxvf hbase_indexer.tar.gz
+</code></pre>
+</li>
+<li>
+<p>Copy the hbase-sep jar files from the lib directory of the binary
+distribution into the lib directory of HBase.</p>
+
+<pre><code>$ cd hbase_indexer
+$ sudo cp lib/hbase-sep-* /usr/lib/hbase/lib
+</code></pre>
+</li>
+<li>
+<p>Create a table in HBase that has replication enabled. For this example,
+we'll create a table called "record" with a single column family called 'data'.</p>
+
+<pre><code>hbase&gt; create 'record', {NAME =&gt; 'data', REPLICATION_SCOPE =&gt; 1}
+</code></pre>
+</li>
+<li>
+<p>Start the hbase-indexer server</p>
+
+<pre><code>$ ./bin/hbase-indexer server
+</code></pre>
+</li>
+<li>
+<p>Create an indexer definition. For this example, we'll just index anything
+in the data column family into the "data" field in Solr. Save the below
+contents in a file called 'sample.xml'.</p>
+
+<pre><code>&lt;?xml version="1.0"?&gt;
+&lt;indexer table="record"&gt;
+  &lt;field name="data" value="data:*" type="string"/&gt;
+&lt;/indexer&gt;
+</code></pre>
+</li>
+<li>
+<p>Add the indexer definition to the indexer server. The following command
+assumes that the Solr ZooKeeper is running on the current host, and the
+name of the collection to be used for indexing is "core0".</p>
+
+<pre><code>$ ./bin/hbase-indexer add-indexer  -n sampleindex -c sample.xml --cp solr.collection=core0 
+</code></pre>
+</li>
+<li>
+<p>Add some data to the record table in HBase. The data added to the data
+column family in the record table should show up in the Solr index.</p>
+
+<pre><code>hbase&gt; put 'record', 'row1', 'data:value', 'Test of HBase Indexer'
+</code></pre>
+</li>
+</ol><h2>
+<a name="subprojects" class="anchor" href="#subprojects"><span class="octicon octicon-link"></span></a>Subprojects</h2>
+
+<h3>
+<a name="hbase-sep" class="anchor" href="#hbase-sep"><span class="octicon octicon-link"></span></a>HBase SEP</h3>
+
+<p>A standalone library for asynchronously processing HBase mutation events
+by hooking into HBase replication, see <a href="hbase-sep/README.md">the SEP readme</a>.</p>
+
+<h3>
+<a name="hbase-sep--replication-monitoring" class="anchor" href="#hbase-sep--replication-monitoring"><span class="octicon octicon-link"></span></a>HBase SEP &amp; replication monitoring</h3>
+
+<p>A standalone utility to monitor HBase replication progress,
+see <a href="hbase-sep/hbase-sep-tools/README.md">the SEP-tools readme</a>.</p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		          <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-28469944-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
