@@ -1,4 +1,4 @@
-@import url(https://fonts.googleapis.com/css?family=Arvo:400,700,400italic);
+
 
 /* MeyerWeb Reset */
 
@@ -26,10 +26,10 @@ time, mark, audio, video {
 /* Base text styles */
 
 body {
-  padding:10px 50px 0 0;
-  font-family:"Helvetica Neue", Helvetica, Arial, sans-serif;
+  padding:20px 50px 0 0;
+  font-family:Arial, sans-serif;
 	font-size: 14px;
-	color: #232323;
+	color: #2d2d2d;
 	background-color: #FBFAF7;
 	margin: 0;
 	line-height: 1.8em;
@@ -38,23 +38,30 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  color:#232323;
-  margin:36px 0 10px;
+  	margin:26px 0 10px;  
+	font-family:Calibri,Arial,sans-serif;
+	line-height:normal;
+	font-weight:normal;
+	color:#4d4d4d;
 }
 
 p, ul, ol, table, dl {
   margin:0 0 22px;
 }
 
+.clear {	
+  clear: both;
+}
+
 h1, h2, h3 {
-	font-family: Arvo, Monaco, serif;
+	font-family: Calibri,Arial,sans-serif;
   line-height:1.3;
 	font-weight: normal;
 }
 
 h1,h2, h3 {
 	display: block;
-	border-bottom: 1px solid #ccc;
+	border-bottom: 1px solid #1d5a31;
 	padding-bottom: 5px;
 }
 
@@ -76,13 +83,14 @@ h4, h5, h6 {
 }
 
 a {
-  color:#C30000;
+  color: #1d5a31;
   font-weight:200;
-  text-decoration:none;
+  text-decoration:underline;
 }
 
 a:hover {
-	text-decoration: underline;
+	text-decoration: none;
+	color: #519935;
 }
 
 a small {
@@ -198,26 +206,27 @@ td {
 
 /* Wrapper */
 .wrapper {
-  width:960px;
+  width:920px;
+  margin: 0 auto 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  border: 1px solid #CCC;
 }
 
 
 /* Header */
 
 header {
-	background-color: #171717;
-	color: #FDFDFB;
+	background-color: #1c590c;
+	color: #fff;
   width:170px;
   float:left;
   position:fixed;
-	border: 1px solid #000;
-	-webkit-border-top-right-radius: 4px;
-	-webkit-border-bottom-right-radius: 4px;
-	-moz-border-radius-topright: 4px;
-	-moz-border-radius-bottomright: 4px;
-	border-top-right-radius: 4px;
-	border-bottom-right-radius: 4px;
-	padding: 34px 25px 22px 50px;
+	border: 1px solid #ccc;
+	-webkit-border-radius: 4px;
+	-moz-border-radius: 4px;
+	border-radius: 4px;
+	padding: 34px 25px 22px 40px;
 	margin: 30px 25px 0 0;
 	-webkit-font-smoothing: antialiased;
 }
@@ -226,11 +235,17 @@ p.header {
 	font-size: 16px;
 }
 
+p.credits {
+	font-size: 12px;
+	line-height: 3em;
+	margin-bottom: 10px;
+}
+
 h1.header {
-	font-family: Arvo, sans-serif;
+	font-family: Calibri, arial, sans-serif;
 	font-size: 30px;
 	font-weight: 300;
-	line-height: 1.3em;
+	line-height: 1em;
 	border-bottom: none;
 	margin-top: 0;
 }
@@ -244,6 +259,11 @@ a.header {
 	text-decoration: underline;
 }
 
+a.buttons {
+	color: #1c590c;
+	text-decoration: none;
+}
+
 a.name {
 	white-space: nowrap;
 }
@@ -255,52 +275,55 @@ header ul {
 
 header li {
 	list-style-type: none;
-  width:132px;
+  width:136px;
   height:15px;
 	margin-bottom: 12px;
 	line-height: 1em;
-	padding: 6px 6px 6px 7px;
+	padding: 10px 10px 10px 11px;
 
-	background: #AF0011;
-	background: -moz-linear-gradient(top, #AF0011 0%, #820011 100%);
-  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f8f8f8), color-stop(100%,#dddddd));
-  background: -webkit-linear-gradient(top, #AF0011 0%,#820011 100%);
-  background: -o-linear-gradient(top, #AF0011 0%,#820011 100%);
-  background: -ms-linear-gradient(top, #AF0011 0%,#820011 100%);
-  background: linear-gradient(top, #AF0011 0%,#820011 100%);
+	background: #f2f2f2;
+	background: -moz-linear-gradient(top, #f2f2f2 0%, #d1d1d1 100%);
+  background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f2f2f2), color-stop(100%,#d1d1d1));
+  background: -webkit-linear-gradient(top, #f2f2f2 0%,#d1d1d1 100%);
+  background: -o-linear-gradient(top, #f2f2f2 0%,#d1d1d1 100%);
+  background: -ms-linear-gradient(top, #f2f2f2 0%,#d1d1d1 100%);
+  background: linear-gradient(top, #f2f2f2 0%,#d1d1d1 100%);
 
 	border-radius:4px;
   border:1px solid #0D0D0D;
 
-	-webkit-box-shadow: inset 0px 1px 1px 0 rgba(233,2,38, 1);
-	box-shadow: inset 0px 1px 1px 0 rgba(233,2,38, 1);
+	-webkit-box-shadow: inset 0px 1px 1px 0 rgba(242,242,242, 1);
+	box-shadow: inset 0px 1px 1px 0 rgba(242,242,242, 1);
 
 }
 
 header li:hover {
-	background: #C3001D;
-	background: -moz-linear-gradient(top, #C3001D 0%, #950119 100%);
+	background: #d1d1d1;
+	background: -moz-linear-gradient(top, #d1d1d1 0%, #f2f2f2 100%);
   background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f8f8f8), color-stop(100%,#dddddd));
-  background: -webkit-linear-gradient(top, #C3001D 0%,#950119 100%);
-  background: -o-linear-gradient(top, #C3001D 0%,#950119 100%);
-  background: -ms-linear-gradient(top, #C3001D 0%,#950119 100%);
-  background: linear-gradient(top, #C3001D 0%,#950119 100%);
+  background: -webkit-linear-gradient(top, #d1d1d1 0%,#f2f2f2 100%);
+  background: -o-linear-gradient(top, #d1d1d1 0%,#f2f2f2 100%);
+  background: -ms-linear-gradient(top, #d1d1d1 0%,#f2f2f2 100%);
+  background: linear-gradient(top, #d1d1d1 0%,#f2f2f2 100%);
 }
 
 a.buttons {
 	-webkit-font-smoothing: antialiased;
-	background: url(../images/arrow-down.png) no-repeat;
-	font-weight: normal;
-	text-shadow: rgba(0, 0, 0, 0.4) 0 -1px 0;
+	background: url(http://ngdata.github.io/hbase-indexer/images/arrow-down.png) no-repeat;
+	font-weight: bold;
 	padding: 2px 2px 2px 22px;
 	height: 30px;
 }
 
 a.github {
-	background: url(../images/octocat-small.png) no-repeat 1px;
+	background: url(http://ngdata.github.io/hbase-indexer/images/octocat-small.png) no-repeat 1px;
 }
 
 a.buttons:hover {
+	color: #1c5a0c;
+	text-decoration: none;
+}
+a.header:hover {
 	color: #fff;
 	text-decoration: none;
 }
@@ -318,19 +341,13 @@ section {
 /* Footer */
 
 footer {
-  width:170px;
+  width:910px;
   float:left;
-  position:fixed;
   bottom:10px;
 	padding-left: 50px;
 }
 
 @media print, screen and (max-width: 960px) {
-
-  div.wrapper {
-    width:auto;
-    margin:0;
-  }
 
   header, section, footer {
     float:none;
@@ -344,9 +361,7 @@ footer {
 		padding:0;
 	}
 
-  header {
-    padding-right:320px;
-  }
+
 
   section {
     padding:20px 84px 20px 50px;
@@ -362,6 +377,33 @@ footer {
     right:130px;
     top:84px;
   }
+}
+
+.cloudera {
+	background-color: #fff;
+	text-decoration: none;
+	margin: 0 0 0 8px;
+	padding: 10px;
+}
+
+
+.ngdata {
+	background-color: #fff;
+	text-decoration: none;
+	margin: 0;
+	padding: 10px;
+}
+
+div.heading {
+	margin-top:10px;
+	width: 920px;
+	border-bottom: 1px solid #ccc;
+}
+.lily {
+	padding:0px;
+	margin:10px 0 10px 0;
+	float: right;
+	border: none;
 }
 
 @media print, screen and (max-width: 720px) {
@@ -386,6 +428,10 @@ footer {
   header ul, header p.view {
     position:static;
   }
+}
+
+span.amp {
+	margin-left: 68px;
 }
 
 @media print, screen and (max-width: 480px) {
