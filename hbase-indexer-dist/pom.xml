@@ -73,6 +73,7 @@
     </profile>
 
     <profile>
+      <!-- Attention: profile rpm depends on profile dist, so use mvn -Pdist -Prpm -->
       <id>rpm</id>
       <activation>
         <activeByDefault>false</activeByDefault>
