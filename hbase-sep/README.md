@@ -12,3 +12,6 @@ event handlers has no direct impact on write throughput in HBase.
 
 To get started with the HBase-SEP, try playing with the included
 demo sub-project, see [the demo readme](hbase-sep-demo/README.md).
+
+A blog post on the SEP and SEP monitoring:
+[http://www.ngdata.com/the-hbase-side-effect-processor-and-hbase-replication-monitoring/](http://www.ngdata.com/the-hbase-side-effect-processor-and-hbase-replication-monitoring/)
