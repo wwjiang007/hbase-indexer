@@ -15,6 +15,8 @@
  */
 package com.ngdata.sep.tools.monitoring;
 
+import com.google.common.collect.ImmutableList;
+
 import com.google.common.collect.Lists;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
@@ -58,6 +60,11 @@ public class ReplicationWaitCli {
                 .defaultsTo("localhost");
         OptionSpec verboseOption = parser
                 .acceptsAll(Lists.newArrayList("verbose"), "Enable debug logging");
+        
+        OptionSpec<Integer> hbaseMasterPortOption = parser
+                .acceptsAll(ImmutableList.of("hbase-master-port"), "HBase Master web ui port number")
+                .withRequiredArg().ofType(Integer.class)
+                .defaultsTo(60010);
 
         OptionSet options = null;
         try {
@@ -81,13 +88,13 @@ public class ReplicationWaitCli {
 
         System.out.println("Connecting to Zookeeper " + zkConnectString + "...");
         ZooKeeperItf zk = ZkUtil.connect(zkConnectString, 30000);
-        waitUntilReplicationDone(zk);
+        waitUntilReplicationDone(zk, options.valueOf(hbaseMasterPortOption));
 
         Closer.close(zk);
     }
 
-    public void waitUntilReplicationDone(ZooKeeperItf zk) throws Exception {
-        ReplicationStatusRetriever retriever = new ReplicationStatusRetriever(zk);
+    public void waitUntilReplicationDone(ZooKeeperItf zk, int hbaseMasterPort) throws Exception {
+        ReplicationStatusRetriever retriever = new ReplicationStatusRetriever(zk, hbaseMasterPort);
 
         DateTime startedAt = new DateTime();
         ReplicationStatus prevReplicationStatus = null;

@@ -15,7 +15,25 @@
  */
 package com.ngdata.sep.tools.monitoring;
 
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanServerConnection;
+import javax.management.ObjectName;
+
 import com.google.common.collect.Maps;
+import com.ngdata.sep.tools.monitoring.ReplicationStatus.HLogInfo;
+import com.ngdata.sep.tools.monitoring.ReplicationStatus.Status;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -35,24 +53,6 @@ import org.apache.http.util.EntityUtils;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceNotFoundException;
-import javax.management.MBeanServerConnection;
-import javax.management.ObjectName;
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
-
-import static com.ngdata.sep.tools.monitoring.ReplicationStatus.HLogInfo;
-import static com.ngdata.sep.tools.monitoring.ReplicationStatus.Status;
-
 /**
  * Collects replication status information.
  *
@@ -60,32 +60,35 @@ import static com.ngdata.sep.tools.monitoring.ReplicationStatus.Status;
  * {@link #addStatusFromJmx(ReplicationStatus)} for more information.
  */
 public class ReplicationStatusRetriever {
-    private ZooKeeperItf zk;
-    private FileSystem fileSystem;
-    private Path hbaseRootDir;
-    private Path hbaseOldLogDir;
+    private final ZooKeeperItf zk;
+    private final FileSystem fileSystem;
+    private final Path hbaseRootDir;
+    private final Path hbaseOldLogDir;
     public static final int HBASE_JMX_PORT = 10102;
 
-    public ReplicationStatusRetriever(ZooKeeperItf zk) throws InterruptedException, IOException, KeeperException {
+    public ReplicationStatusRetriever(ZooKeeperItf zk, int hbaseMasterPort) throws InterruptedException, IOException, KeeperException {
         this.zk = zk;
-        Configuration conf = getHBaseConf(zk);
+        
+        Configuration conf = getHBaseConf(zk, hbaseMasterPort);
 
         if (!"true".equalsIgnoreCase(conf.get("hbase.replication"))) {
             throw new RuntimeException("HBase replication is not enabled.");
         }
 
+        
         fileSystem = FileSystem.get(conf);
         hbaseRootDir = FSUtils.getRootDir(conf);
         hbaseOldLogDir = new Path(hbaseRootDir, HConstants.HREGION_OLDLOGDIR_NAME);
     }
 
-    private Configuration getHBaseConf(ZooKeeperItf zk) throws KeeperException, InterruptedException, IOException {
+    private Configuration getHBaseConf(ZooKeeperItf zk, int hbaseMasterPort) throws KeeperException, InterruptedException, IOException {
         // Read the HBase/Hadoop configuration via the master web ui
         // This is debatable, but it avoids any pitfalls with conf dirs and also works with launch-test-lily
         byte[] masterServerName = removeMetaData(zk.getData("/hbase/master", false, new Stat()));
         String hbaseMasterHostName = ServerName.parseVersionedServerName(masterServerName).getHostname();
+        
 
-        String url = "http://" + hbaseMasterHostName + ":60010/conf";
+        String url = String.format("http://%s:%d/conf", hbaseMasterHostName, hbaseMasterPort);
         System.out.println("Reading HBase configuration from " + url);
         byte[] data = readUrl(url);
 

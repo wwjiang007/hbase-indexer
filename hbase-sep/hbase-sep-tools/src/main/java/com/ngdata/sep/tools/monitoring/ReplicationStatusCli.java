@@ -15,7 +15,7 @@
  */
 package com.ngdata.sep.tools.monitoring;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
@@ -40,9 +40,14 @@ public class ReplicationStatusCli {
         OptionSpec enableJmxOption = parser.accepts("enable-jmx",
                 "use JMX to retrieve info from HBase regionservers (port " + ReplicationStatusRetriever.HBASE_JMX_PORT + ")");
         OptionSpec<String> zkOption = parser
-                .acceptsAll(Lists.newArrayList("z"), "ZooKeeper connection string, defaults to localhost")
+                .acceptsAll(ImmutableList.of("z"), "ZooKeeper connection string, defaults to localhost")
                 .withRequiredArg().ofType(String.class)
                 .defaultsTo("localhost");
+        
+        OptionSpec<Integer> hbaseMasterPortOption = parser
+                .acceptsAll(ImmutableList.of("hbase-master-port"), "HBase Master web ui port number")
+                .withRequiredArg().ofType(Integer.class)
+                .defaultsTo(60010);
 
         OptionSet options = null;
         try {
@@ -60,7 +65,7 @@ public class ReplicationStatusCli {
         System.out.println("Connecting to Zookeeper " + zkConnectString + "...");
         ZooKeeperItf zk = ZkUtil.connect(zkConnectString, 30000);
 
-        ReplicationStatusRetriever retriever = new ReplicationStatusRetriever(zk);
+        ReplicationStatusRetriever retriever = new ReplicationStatusRetriever(zk, options.valueOf(hbaseMasterPortOption));
         ReplicationStatus replicationStatus = retriever.collectStatusFromZooKeepeer();
 
         if (enableJmx) {
