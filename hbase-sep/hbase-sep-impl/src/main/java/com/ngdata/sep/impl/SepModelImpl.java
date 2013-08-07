@@ -40,9 +40,25 @@ public class SepModelImpl implements SepModel {
     private final ZooKeeperItf zk;
     private final Configuration hbaseConf;
     private final String baseZkPath;
+    private final String zkQuorumString;
+    private final int zkClientPort;
     private Log log = LogFactory.getLog(getClass());
 
     public SepModelImpl(ZooKeeperItf zk, Configuration hbaseConf) {
+        
+        this.zkQuorumString = hbaseConf.get("hbase.zookeeper.quorum");
+        if (zkQuorumString == null) {
+            throw new IllegalStateException("hbase.zookeeper.quorum not supplied in configuration");
+        }
+        if (zkQuorumString.contains(":")) {
+            throw new IllegalStateException("hbase.zookeeper.quorum should not include port number, got " + zkQuorumString);
+        }
+        try {
+            this.zkClientPort = Integer.parseInt(hbaseConf.get("hbase.zookeeper.property.clientPort"));
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Non-numeric zookeeper client port", e);
+        }
+        
         this.zk = zk;
         this.hbaseConf = hbaseConf;
         this.baseZkPath = hbaseConf.get(ZK_ROOT_NODE_CONF_KEY, DEFAULT_ZK_ROOT_NODE);
@@ -69,12 +85,9 @@ public class SepModelImpl implements SepModel {
             ZkUtil.createPath(zk, basePath + "/hbaseid", Bytes.toBytes(uuid.toString()));
             ZkUtil.createPath(zk, basePath + "/rs");
 
-            // Let's assume we're all using the same ZooKeeper
-            String zkQuorum = hbaseConf.get("hbase.zookeeper.quorum");
-            String zkClientPort = hbaseConf.get("hbase.zookeeper.property.clientPort");
 
             try {
-                replicationAdmin.addPeer(internalName, zkQuorum + ":" + zkClientPort + ":" + basePath);
+                replicationAdmin.addPeer(internalName, zkQuorumString + ":" + zkClientPort + ":" + basePath);
             } catch (IllegalArgumentException e) {
                 if (e.getMessage().equals("Cannot add existing peer")) {
                     return false;
@@ -144,7 +157,6 @@ public class SepModelImpl implements SepModel {
         }
     }
     
-        
     static String toInternalSubscriptionName(String subscriptionName) {
         if (subscriptionName.indexOf(INTERNAL_HYPHEN_REPLACEMENT, 0) != -1) {
             throw new IllegalArgumentException("Subscription name cannot contain character \\U1400");

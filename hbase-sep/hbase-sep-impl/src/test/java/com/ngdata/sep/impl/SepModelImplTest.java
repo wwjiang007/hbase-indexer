@@ -16,10 +16,33 @@
 package com.ngdata.sep.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.junit.Test;
 
 public class SepModelImplTest {
+    
+    @Test(expected=IllegalStateException.class)
+    public void testInstantiate_InvalidZkQuorumString() {
+        Configuration conf = HBaseConfiguration.create();
+        
+        conf.set("hbase.zookeeper.quorum", "host:2181");
+
+        new SepModelImpl(mock(ZooKeeperItf.class), conf);
+    }
+    
+    @Test(expected=IllegalStateException.class)
+    public void testInstantiate_NonNumericZkClientPort() {
+        Configuration conf = HBaseConfiguration.create();
+        
+        conf.set("hbase.zookeeper.property.clientPort", "not a number");
+        
+        new SepModelImpl(mock(ZooKeeperItf.class), conf);
+    }
+    
 
     @Test
     public void testToInternalSubscriptionName_NoSpecialCharacters() {
