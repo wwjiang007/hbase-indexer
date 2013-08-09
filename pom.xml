@@ -459,6 +459,12 @@
                 <goal>jar-no-fork</goal>
               </goals>
             </execution>
+            <execution>
+              <id>attach-sources-to-jar</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
           </executions>
         </plugin>
         <plugin>
@@ -467,17 +473,6 @@
             <source>1.6</source>
             <target>1.6</target>
           </configuration>
-        </plugin>
-        <plugin>
-          <artifactId>maven-source-plugin</artifactId>
-          <executions>
-            <execution>
-              <id>attach-sources</id>
-              <goals>
-                <goal>jar</goal>
-              </goals>
-            </execution>
-          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
