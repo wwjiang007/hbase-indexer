@@ -633,7 +633,7 @@ public class IndexerIT {
         StringBuilder indexerConf = new StringBuilder();
         indexerConf.append("<indexer table='table1' mapper='" + MorphlineResultToSolrMapper.class.getName() + "'>");
         indexerConf.append("  <param name='morphlineFile'" +
-        		" value='../hbase-indexer-engine/src/test/resources/test-morphlines/extractHBaseCell.conf'/>");
+        		" value='../hbase-indexer-morphlines/src/test/resources/test-morphlines/extractHBaseCell.conf'/>");
         indexerConf.append("</indexer>");
 
         createIndexer1(indexerConf.toString());
