@@ -26,36 +26,37 @@ import com.ngdata.hbaseindexer.parse.ByteArrayExtractor;
  */
 final class HBaseMorphlineContext extends MorphlineContext {
 
-  private final Collection<ByteArrayExtractor> extractors = new ArrayList();
-  
-  /** For public access use {@link Builder#build()} instead */  
-  protected HBaseMorphlineContext() {}
-  
-  public Collection<ByteArrayExtractor> getExtractors() {    
-    return extractors;
-  }
+    private final Collection<ByteArrayExtractor> extractors = new ArrayList();
 
-  
-  ///////////////////////////////////////////////////////////////////////////////
-  // Nested classes:
-  ///////////////////////////////////////////////////////////////////////////////
-  /**
-   * Helper to construct a {@link HBaseMorphlineContext} instance.
-   */
-  public static class Builder extends MorphlineContext.Builder {
-        
-    public Builder() {}
-
-    @Override
-    public HBaseMorphlineContext build() {
-      return (HBaseMorphlineContext) super.build();
+    /** For public access use {@link Builder#build()} instead */
+    protected HBaseMorphlineContext() {
     }
 
-    @Override
-    protected HBaseMorphlineContext create() {
-      return new HBaseMorphlineContext();
+    public Collection<ByteArrayExtractor> getExtractors() {
+        return extractors;
     }
-    
-  }
- 
+
+    // /////////////////////////////////////////////////////////////////////////////
+    // Nested classes:
+    // /////////////////////////////////////////////////////////////////////////////
+    /**
+     * Helper to construct a {@link HBaseMorphlineContext} instance.
+     */
+    public static class Builder extends MorphlineContext.Builder {
+
+        public Builder() {
+        }
+
+        @Override
+        public HBaseMorphlineContext build() {
+            return (HBaseMorphlineContext)super.build();
+        }
+
+        @Override
+        protected HBaseMorphlineContext create() {
+            return new HBaseMorphlineContext();
+        }
+
+    }
+
 }
