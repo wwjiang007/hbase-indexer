@@ -38,7 +38,7 @@
   <groupId>com.ngdata</groupId>
   <artifactId>hbase-indexer</artifactId>
   <packaging>pom</packaging>
-  <version>1.2-SNAPSHOT</version>
+  <version>1.2</version>
   <name>HBase Indexer</name>
 
   <url>http://www.ngdata.com/</url>
