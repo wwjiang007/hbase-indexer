@@ -35,7 +35,6 @@ import org.apache.solr.common.SolrInputField;
 import org.junit.Test;
 
 import com.cloudera.cdk.morphline.api.Record;
-import com.cloudera.cdk.morphline.base.Fields;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Lists;
