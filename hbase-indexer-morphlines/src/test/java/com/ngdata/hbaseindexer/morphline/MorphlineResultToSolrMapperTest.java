@@ -65,7 +65,6 @@ public class MorphlineResultToSolrMapperTest {
         Multimap expectedMap = ImmutableMultimap.of("fieldA", 42, "fieldB", "dummy value");
 
         SolrInputDocument solrDocument = resultMapper.map(result);
-        solrDocument.removeField(Fields.ATTACHMENT_BODY);
         assertEquals(expectedMap, toRecord(solrDocument).getFields());
     }
 
