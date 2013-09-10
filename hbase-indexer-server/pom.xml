@@ -69,6 +69,27 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>0.95</id>
+      <activation>
+        <property>
+          <name>hbase.api</name>
+          <value>0.95</value>
+        </property>
+      </activation>
+
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>hbase-server</artifactId>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
   <build>
     <plugins>
       <plugin>
