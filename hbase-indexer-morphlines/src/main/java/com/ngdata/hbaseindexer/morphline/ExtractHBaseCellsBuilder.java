@@ -211,10 +211,10 @@ public final class ExtractHBaseCellsBuilder implements CommandBuilder {
             Iterator<byte[]> iter = extractor.extract(result).iterator();
             for (int i = 0; i < outputFieldNames.size() && iter.hasNext(); i++) {
                 byte[] input = iter.next();
-                String columnName = outputFieldNames.get(i);
-                if (columnName.length() > 0) { // empty column name indicates omit this field on output
+                String outputField = outputFieldNames.get(i);
+                if (outputField.length() > 0) { // empty column name indicates omit this field on output
                     for (Object value : byteArrayMapper.map(input)) {
-                        record.put(columnName, value);
+                        record.put(outputField, value);
                     }
                 }
             }              
