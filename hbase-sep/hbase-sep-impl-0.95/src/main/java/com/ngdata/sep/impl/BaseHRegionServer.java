@@ -56,6 +56,11 @@ public class BaseHRegionServer implements AdminProtos.AdminService.BlockingInter
   }
 
   @Override
+  public AdminProtos.UpdateFavoredNodesResponse updateFavoredNodes(RpcController controller, AdminProtos.UpdateFavoredNodesRequest request) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  @Override
   public AdminProtos.FlushRegionResponse flushRegion(RpcController rpcController, AdminProtos.FlushRegionRequest flushRegionRequest) throws ServiceException {
     return null;  //To change body of implemented methods use File | Settings | File Templates.
   }
