@@ -204,6 +204,13 @@ public class SepConsumer extends BaseHRegionServer {
         for (final AdminProtos.WALEntry entry : entries) {
             final WALProtos.WALKey entryKey = entry.getKey();
             if (entryKey.getWriteTime() < subscriptionTimestamp) {
+                // this is awful, but it seems that CellScanner doesn't allow us to seek
+                int count = entry.getAssociatedCellCount();
+                for (int i = 0; i < count; i++) {
+                    if (!cells.advance()) {
+                        throw new ArrayIndexOutOfBoundsException("Expected=" + count + ", index=" + i);
+                    }
+                }
                 continue;
             }
             TableName tableName = TableName.valueOf(entry.getKey().getTableName().toByteArray());
