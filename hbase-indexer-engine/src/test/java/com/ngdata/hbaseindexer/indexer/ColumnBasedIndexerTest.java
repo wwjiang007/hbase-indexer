@@ -70,7 +70,7 @@ public class ColumnBasedIndexerTest {
         indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
-        List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
         assertEquals(1, documents.size());
         assertEquals("_row_-_cf_-_qual_", documents.get(0).getFieldValue("id"));
     }
@@ -161,7 +161,7 @@ public class ColumnBasedIndexerTest {
                 ImmutableList.of(deleteEventRowData, addEventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
-        List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
         assertEquals(1, documents.size());
         assertEquals("_row_-_cf_-_qual_", documents.get(0).getFieldValue("id"));
     }
@@ -190,7 +190,7 @@ public class ColumnBasedIndexerTest {
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
-        List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
         assertEquals(1, documents.size());
         assertEquals("_row_-_cf_-_qual_", documents.get(0).getFieldValue("id"));
         assertEquals("_row_", documents.get(0).getFieldValue(CUSTOM_ROW_FIELD));
@@ -208,7 +208,7 @@ public class ColumnBasedIndexerTest {
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
-        List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
         assertEquals(1, documents.size());
         assertEquals("_row_-_cf_-_qual_", documents.get(0).getFieldValue("id"));
         assertEquals("_cf_", documents.get(0).getFieldValue(CUSTOM_FAMILY_FIELD));

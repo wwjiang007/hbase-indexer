@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
+import static com.ngdata.sep.impl.HBaseShims.newResult;
 import static junit.framework.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -45,14 +47,11 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-
-import static com.ngdata.sep.impl.HBaseShims.newResult;
 
 public class IndexingEventListenerTest {
 
@@ -156,11 +155,11 @@ public class IndexingEventListenerTest {
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_A), Bytes.toBytes("row1"), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
 
-        ArgumentCaptor<List> addedDocumentsCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Map> addedDocumentsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(solrDocumentWriter).add(addedDocumentsCaptor.capture());
-        List<SolrInputDocument> addedDocuments = addedDocumentsCaptor.getValue();
+        Map<String, SolrInputDocument> addedDocuments = addedDocumentsCaptor.getValue();
         assertEquals(1, addedDocuments.size());
-        assertEquals("row1", addedDocuments.get(0).getFieldValue("id"));
+        assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
 
         verifyZeroInteractions(tableA, tableB);
     }
@@ -181,11 +180,11 @@ public class IndexingEventListenerTest {
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_A), Bytes.toBytes("row1"), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
 
-        ArgumentCaptor<List> arg = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
         verify(solrDocumentWriter).add(arg.capture());
-        List<SolrInputDocument> addedDocuments = arg.getValue();
+        Map<String,SolrInputDocument> addedDocuments = arg.getValue();
         assertEquals(1, addedDocuments.size());
-        assertEquals("row1", addedDocuments.get(0).getFieldValue("id"));
+        assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
 
         // Should have been called twice -- once during the setup, and once during the test itself
         verify(tableA).get(any(Get.class));
@@ -205,11 +204,11 @@ public class IndexingEventListenerTest {
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_A), Bytes.toBytes("row1"), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
 
-        ArgumentCaptor<List> arg = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
         verify(solrDocumentWriter).add(arg.capture());
-        List<SolrInputDocument> addedDocuments = arg.getValue();
+        Map<String,SolrInputDocument> addedDocuments = arg.getValue();
         assertEquals(1, addedDocuments.size());
-        assertEquals("row1", addedDocuments.get(0).getFieldValue("id"));
+        assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
 
         verifyZeroInteractions(tableA, tableB);
     }
@@ -252,11 +251,11 @@ public class IndexingEventListenerTest {
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_A), Bytes.toBytes("row1"), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
 
-        ArgumentCaptor<List> arg = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
         verify(solrDocumentWriter).add(arg.capture());
-        List<SolrInputDocument> docs = arg.getValue();
+        Map<String,SolrInputDocument> docs = arg.getValue();
         assertEquals(2, docs.size());
-        Set<String> documentIds = Sets.newHashSet(Collections2.transform(docs, new Function<SolrInputDocument,String>(){
+        Set<String> documentIds = Sets.newHashSet(Collections2.transform(docs.values(), new Function<SolrInputDocument,String>(){
 
             @Override
             public String apply(@Nullable SolrInputDocument input) {

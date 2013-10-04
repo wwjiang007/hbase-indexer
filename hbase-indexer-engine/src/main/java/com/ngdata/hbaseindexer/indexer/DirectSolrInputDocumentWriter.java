@@ -20,6 +20,7 @@ import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import com.yammer.metrics.Metrics;
@@ -97,7 +98,8 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
      * documents contain issues, the error will be logged and swallowed, with all other updates being performed.
      */
     @Override
-    public void add(Collection<SolrInputDocument> inputDocuments) throws SolrServerException, IOException {
+    public void add(Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+        Collection<SolrInputDocument> inputDocuments = inputDocumentMap.values();
         try {
             solrServer.add(inputDocuments);
             indexAddMeter.mark(inputDocuments.size());

@@ -16,8 +16,8 @@
 package com.ngdata.hbaseindexer.indexer;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -32,9 +32,11 @@ import org.apache.solr.common.SolrInputDocument;
 public interface SolrInputDocumentWriter {
 
     /**
-     * Write a list of documents to an underlying datastore.
+     * Write a collection of documents to an underlying datastore.
+     * 
+     * @param inputDocumentMap map of document ids to {@code SolrInputDocument}s
      */
-    void add(Collection<SolrInputDocument> inputDocuments) throws SolrServerException, IOException;
+    void add(Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
 
     /**
      * Delete a list of documents from an underlying datastore (optional operation).

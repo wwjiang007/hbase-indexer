@@ -16,9 +16,11 @@
 package com.ngdata.hbaseindexer.indexer;
 
 import java.util.List;
+import java.util.Map;
+
+import com.google.common.collect.Maps;
 
 import com.google.common.collect.Lists;
-
 import org.apache.solr.common.SolrInputDocument;
 
 /**
@@ -26,7 +28,7 @@ import org.apache.solr.common.SolrInputDocument;
  */
 public class SolrUpdateCollector {
 
-    private List<SolrInputDocument> documentsToAdd;
+    private Map<String, SolrInputDocument> documentsToAdd;
 
     private List<String> idsToDelete;
 
@@ -36,7 +38,7 @@ public class SolrUpdateCollector {
      * Instantiate with an expected initial capacity of added and deleted documents.
      */
     public SolrUpdateCollector(int initialSize) {
-        documentsToAdd = Lists.newArrayListWithCapacity(initialSize);
+        documentsToAdd = Maps.newHashMapWithExpectedSize(initialSize);
         idsToDelete = Lists.newArrayListWithCapacity(initialSize);
         deleteQueries = Lists.newArrayList();
     }
@@ -46,8 +48,8 @@ public class SolrUpdateCollector {
      * 
      * @param solrDocument document to be added
      */
-    public void add(SolrInputDocument solrDocument) {
-        documentsToAdd.add(solrDocument);
+    public void add(String documentId, SolrInputDocument solrDocument) {
+        documentsToAdd.put(documentId, solrDocument);
     }
 
     /**
@@ -73,7 +75,7 @@ public class SolrUpdateCollector {
      * 
      * @return the list of documents
      */
-    public List<SolrInputDocument> getDocumentsToAdd() {
+    public Map<String, SolrInputDocument> getDocumentsToAdd() {
         return documentsToAdd;
     }
 

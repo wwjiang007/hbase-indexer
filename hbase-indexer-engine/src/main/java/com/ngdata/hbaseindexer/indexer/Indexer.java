@@ -115,9 +115,9 @@ public abstract class Indexer {
      * Create index documents based on a nested list of RowData instances.
      * 
      * @param rowDataList list of RowData instances to be considered for indexing
-     * @param updateCollector collector for created index documents
      */
-    public void indexRowData(List<RowData> rowDataList, SolrUpdateCollector updateCollector) throws IOException, SolrServerException {
+    public void indexRowData(List<RowData> rowDataList) throws IOException, SolrServerException {
+        SolrUpdateCollector updateCollector = new SolrUpdateCollector(rowDataList.size());
         calculateIndexUpdates(rowDataList, updateCollector);
         if (log.isDebugEnabled()) {
             log.debug(String.format("Indexer %s will send to Solr %s adds and %s deletes", getName(),
@@ -186,9 +186,10 @@ public abstract class Indexer {
 
                 boolean rowDeleted = result.isEmpty();
 
+                String documentId = uniqueKeyFormatter.formatRow(rowData.getRow());
                 if (rowDeleted) {
                     // Delete row from Solr as well
-                    updateCollector.deleteById(uniqueKeyFormatter.formatRow(rowData.getRow()));
+                    updateCollector.deleteById(documentId);
                     if (log.isDebugEnabled()) {
                         log.debug("Row " + Bytes.toString(rowData.getRow()) + ": deleted from Solr");
                     }
@@ -197,7 +198,7 @@ public abstract class Indexer {
                     document.addField(conf.getUniqueKeyField(), uniqueKeyFormatter.formatRow(rowData.getRow()));
                     // TODO there should probably be some way for the mapper to indicate there was no useful content to
                     // map,  e.g. if there are no fields in the solrWriter document (and should we then perform a delete instead?)
-                    updateCollector.add(document);
+                    updateCollector.add(documentId, document);
                     if (log.isDebugEnabled()) {
                         log.debug("Row " + Bytes.toString(rowData.getRow()) + ": added to Solr");
                     }
@@ -252,7 +253,7 @@ public abstract class Indexer {
                     
                     addRowAndFamily(document, keyValue);
                     
-                    updateCollector.add(document);
+                    updateCollector.add(documentId, document);
                 }
             }
         }

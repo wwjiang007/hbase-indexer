@@ -80,10 +80,9 @@ public class IndexingEventListener implements EventListener {
 
             incomingEventsMeter.mark(events.size());
             events = Lists.newArrayList(Iterables.filter(events, tableEqualityPredicate));
-            SolrUpdateCollector updateCollector = new SolrUpdateCollector(events.size());
             applicableEventsMeter.mark(events.size());
             
-            indexer.indexRowData(Lists.transform(events, SepEventToRowDataFunction.INSTANCE), updateCollector);
+            indexer.indexRowData(Lists.transform(events, SepEventToRowDataFunction.INSTANCE));
            
         } catch (Exception e) {
             throw new RuntimeException(e);

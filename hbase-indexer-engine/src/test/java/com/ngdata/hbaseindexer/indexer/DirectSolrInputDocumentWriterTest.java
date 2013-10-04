@@ -21,7 +21,12 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
+import com.google.common.collect.ImmutableSortedMap;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -46,11 +51,11 @@ public class DirectSolrInputDocumentWriterTest {
     public void testAdd_NormalCase() throws SolrServerException, IOException {
         SolrInputDocument inputDocA = mock(SolrInputDocument.class);
         SolrInputDocument inputDocB = mock(SolrInputDocument.class);
-        List<SolrInputDocument> toAdd = Lists.newArrayList(inputDocA, inputDocB);
+        Map<String, SolrInputDocument> toAdd = ImmutableSortedMap.of("idA", inputDocA, "idB", inputDocB);
 
         solrWriter.add(toAdd);
-
-        verify(solrServer).add(toAdd);
+        
+        verify(solrServer).add(toAdd.values());
     }
 
     @Test
@@ -64,11 +69,13 @@ public class DirectSolrInputDocumentWriterTest {
 
     @Test(expected = IOException.class)
     public void testAdd_IOException() throws SolrServerException, IOException {
-        List<SolrInputDocument> inputDocs = Lists.<SolrInputDocument> newArrayList(mock(SolrInputDocument.class));
+        
+        SolrInputDocument inputDoc = mock(SolrInputDocument.class);
+        Map<String, SolrInputDocument> inputDocMap = ImmutableMap.of("idA", inputDoc);
 
-        when(solrServer.add(inputDocs)).thenThrow(new IOException());
+        when(solrServer.add(inputDocMap.values())).thenThrow(new IOException());
 
-        solrWriter.add(inputDocs);
+        solrWriter.add(inputDocMap);
     }
 
     @Test(expected = IOException.class)
@@ -82,11 +89,13 @@ public class DirectSolrInputDocumentWriterTest {
 
     @Test(expected = SolrException.class)
     public void testAdd_SolrExceptionCausedByIOException() throws SolrServerException, IOException {
-        List<SolrInputDocument> inputDocuments = Lists.<SolrInputDocument> newArrayList(mock(SolrInputDocument.class));
+        SolrInputDocument inputDoc = mock(SolrInputDocument.class);
+        Map<String,SolrInputDocument> inputDocMap = ImmutableMap.of("idA", inputDoc);
 
-        when(solrServer.add(inputDocuments)).thenThrow(new SolrException(ErrorCode.SERVER_ERROR, new IOException()));
+        when(solrServer.add(inputDocMap.values()))
+            .thenThrow(new SolrException(ErrorCode.SERVER_ERROR, new IOException()));
 
-        solrWriter.add(inputDocuments);
+        solrWriter.add(inputDocMap);
     }
 
     @Test(expected = SolrException.class)
@@ -100,12 +109,13 @@ public class DirectSolrInputDocumentWriterTest {
 
     @Test
     public void testAdd_BadRequest() throws SolrServerException, IOException {
-        List<SolrInputDocument> inputDocument = Lists.<SolrInputDocument> newArrayList(mock(SolrInputDocument.class));
+        SolrInputDocument inputDoc = mock(SolrInputDocument.class);
+        Map<String,SolrInputDocument> inputDocumentMap = ImmutableMap.of("idA", inputDoc);
 
-        when(solrServer.add(inputDocument)).thenThrow(
+        when(solrServer.add(ImmutableList.of(inputDoc))).thenThrow(
                 new SolrException(ErrorCode.BAD_REQUEST, "should be swallowed and logged"));
 
-        solrWriter.add(inputDocument);
+        solrWriter.add(inputDocumentMap);
 
         // Nothing should happen -- no document successfully added, and exception is swallowed
     }
@@ -127,12 +137,13 @@ public class DirectSolrInputDocumentWriterTest {
         SolrInputDocument badInputDoc = mock(SolrInputDocument.class);
         SolrInputDocument goodInputDoc = mock(SolrInputDocument.class);
         
-        List<SolrInputDocument> inputDocs = Lists.newArrayList(badInputDoc, goodInputDoc);
+        Map<String, SolrInputDocument> inputDocumentMap = ImmutableSortedMap.of("bad", badInputDoc, "good", goodInputDoc);
         
-        when(solrServer.add(inputDocs)).thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad document"));
+        when(solrServer.add(inputDocumentMap.values()))
+            .thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad document"));
         when(solrServer.add(badInputDoc)).thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad document"));
         
-        solrWriter.add(inputDocs);
+        solrWriter.add(inputDocumentMap);
         
         verify(solrServer).add(goodInputDoc);
     }

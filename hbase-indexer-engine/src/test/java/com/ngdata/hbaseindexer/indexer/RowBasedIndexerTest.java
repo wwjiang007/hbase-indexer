@@ -74,7 +74,7 @@ public class RowBasedIndexerTest {
         indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
         
         assertEquals(1, updateCollector.getDocumentsToAdd().size());
-        assertEquals("_row_", updateCollector.getDocumentsToAdd().get(0).getFieldValue("id"));
+        assertEquals("_row_", updateCollector.getDocumentsToAdd().get("_row_").getFieldValue("id"));
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
     }
     
@@ -110,7 +110,7 @@ public class RowBasedIndexerTest {
         indexer.calculateIndexUpdates(ImmutableList.of(deleteEventRowData, addEventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
-        List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
         assertEquals(1, documents.size());
         assertEquals("_row_", documents.get(0).getFieldValue("id"));
     }
