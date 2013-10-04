@@ -42,7 +42,7 @@ public class RowBasedIndexerTest {
     private static final String TABLE_NAME = "TABLE_A";
     
     private HTablePool tablePool;
-    private SolrWriter solrWriter;
+    private SolrInputDocumentWriter solrWriter;
     private SolrUpdateCollector updateCollector;
     private RowBasedIndexer indexer;
     
@@ -53,7 +53,7 @@ public class RowBasedIndexerTest {
         ResultToSolrMapper mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
         
         tablePool = mock(HTablePool.class);
-        solrWriter = mock(SolrWriter.class);
+        solrWriter = mock(DirectSolrInputDocumentWriter.class);
         
         updateCollector = new SolrUpdateCollector(10);
         

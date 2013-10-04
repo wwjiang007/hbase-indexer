@@ -25,8 +25,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.solr.client.solrj.SolrServerException;
-
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -45,7 +43,7 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
 /**
@@ -58,7 +56,7 @@ public abstract class Indexer {
 
     private String indexerName;
     protected IndexerConf conf;
-    private SolrWriter solrWriter;
+    private SolrInputDocumentWriter solrWriter;
     protected ResultToSolrMapper mapper;
     protected UniqueKeyFormatter uniqueKeyFormatter;
     
@@ -68,8 +66,7 @@ public abstract class Indexer {
      * Instantiate an indexer based on the given {@link IndexerConf}.
      */
     public static Indexer createIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool,
-            SolrServer solrServer) {
-        SolrWriter solrWriter = new SolrWriter(indexerName, solrServer);
+            SolrInputDocumentWriter solrWriter) {
         switch (conf.getMappingType()) {
         case COLUMN:
             return new ColumnBasedIndexer(indexerName, conf, mapper, solrWriter);
@@ -81,7 +78,7 @@ public abstract class Indexer {
         }
     }
 
-    Indexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrWriter solrWriter) {
+    Indexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
         this.indexerName = indexerName;
         this.conf = conf;
         this.mapper = mapper;
@@ -152,7 +149,7 @@ public abstract class Indexer {
         private HTablePool tablePool;
         private Timer rowReadTimer;
 
-        public RowBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool, SolrWriter solrWriter) {
+        public RowBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool, SolrInputDocumentWriter solrWriter) {
             super(indexerName, conf, mapper, solrWriter);
             this.tablePool = tablePool;
             rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
@@ -236,7 +233,7 @@ public abstract class Indexer {
 
     static class ColumnBasedIndexer extends Indexer {
 
-        public ColumnBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrWriter solrWriter) {
+        public ColumnBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
             super(indexerName, conf, mapper, solrWriter);
         }
 

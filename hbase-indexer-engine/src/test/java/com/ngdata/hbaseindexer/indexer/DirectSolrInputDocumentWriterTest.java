@@ -31,15 +31,15 @@ import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
 
-public class SolrWriterTest {
+public class DirectSolrInputDocumentWriterTest {
 
     private SolrServer solrServer;
-    private SolrWriter solrWriter;
+    private DirectSolrInputDocumentWriter solrWriter;
 
     @Before
     public void setUp() {
         solrServer = mock(SolrServer.class);
-        solrWriter = new SolrWriter("index name", solrServer);
+        solrWriter = new DirectSolrInputDocumentWriter("index name", solrServer);
     }
 
     @Test

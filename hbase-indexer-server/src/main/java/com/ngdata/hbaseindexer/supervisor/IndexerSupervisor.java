@@ -39,9 +39,11 @@ import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.indexer.DirectSolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.IndexingEventListener;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
+import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerModel;
@@ -213,8 +215,10 @@ public class IndexerSupervisor {
             ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                             indexerDef.getName(), indexerConf, indexerDef.getConnectionParams());
             
-            solr = getSolrServer(indexerDef);
-            Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, mapper, htablePool, solr);
+            SolrInputDocumentWriter solrWriter = new DirectSolrInputDocumentWriter(
+                                                                        indexerDef.getName(),
+                                                                        getSolrServer(indexerDef));
+            Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, mapper, htablePool, solrWriter);
             IndexingEventListener eventListener = new IndexingEventListener(
                                                                 indexer, indexerConf.getTable().getBytes());
 

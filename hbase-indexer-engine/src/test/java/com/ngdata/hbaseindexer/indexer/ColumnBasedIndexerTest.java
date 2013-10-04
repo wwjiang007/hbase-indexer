@@ -43,7 +43,7 @@ public class ColumnBasedIndexerTest {
 
     private IndexerConf indexerConf;
     private ResultToSolrMapper mapper;
-    private SolrWriter solrWriter;
+    private SolrInputDocumentWriter solrWriter;
     private SolrUpdateCollector updateCollector;
     private ColumnBasedIndexer indexer;
 
@@ -51,7 +51,7 @@ public class ColumnBasedIndexerTest {
     public void setUp() {
         indexerConf = spy(new IndexerConfBuilder().table(TABLE_NAME).build());
         mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
-        solrWriter = mock(SolrWriter.class);
+        solrWriter = mock(DirectSolrInputDocumentWriter.class);
         updateCollector = new SolrUpdateCollector(10);
         indexer = new ColumnBasedIndexer("column-based", indexerConf, mapper, solrWriter);
     }
