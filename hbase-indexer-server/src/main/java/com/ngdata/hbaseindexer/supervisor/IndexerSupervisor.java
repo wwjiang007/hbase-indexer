@@ -40,6 +40,7 @@ import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.Indexer;
+import com.ngdata.hbaseindexer.indexer.IndexingEventListener;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
@@ -214,10 +215,12 @@ public class IndexerSupervisor {
             
             solr = getSolrServer(indexerDef);
             Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, mapper, htablePool, solr);
+            IndexingEventListener eventListener = new IndexingEventListener(
+                                                                indexer, indexerConf.getTable().getBytes());
 
             int threads = hbaseConf.getInt("hbaseindexer.indexer.threads", 10);
             SepConsumer sepConsumer = new SepConsumer(indexerDef.getSubscriptionId(),
-                    indexerDef.getSubscriptionTimestamp(), indexer, threads, hostName,
+                    indexerDef.getSubscriptionTimestamp(), eventListener, threads, hostName,
                     zk, hbaseConf, null);
             
             handle = new IndexerHandle(indexerDef, indexer, sepConsumer, solr);

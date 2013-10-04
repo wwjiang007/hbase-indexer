@@ -50,22 +50,24 @@ public class ColumnBasedIndexerTest {
     @Before
     public void setUp() {
         indexerConf = spy(new IndexerConfBuilder().table(TABLE_NAME).build());
-        mapper = IndexerTest.createHbaseToSolrMapper(true);
+        mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
         solrWriter = mock(SolrWriter.class);
         updateCollector = new SolrUpdateCollector(10);
         indexer = new ColumnBasedIndexer("column-based", indexerConf, mapper, solrWriter);
     }
 
-    private SepEvent createSepEvent(String row, KeyValue... keyValues) {
-        return new SepEvent(TABLE_NAME.getBytes(), row.getBytes(), Lists.newArrayList(keyValues), null);
+    private RowData createEventRowData(String row, KeyValue... keyValues) {
+        return new SepEventRowData(
+                new SepEvent(TABLE_NAME.getBytes(),
+                        row.getBytes(), Lists.newArrayList(keyValues), null));
     }
 
     @Test
     public void testCalculateIndexUpdates_AddDocument() throws IOException {
         KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        SepEvent event = createSepEvent("_row_", toAdd);
+        RowData rowData = createEventRowData("_row_", toAdd);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
         List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
@@ -76,9 +78,9 @@ public class ColumnBasedIndexerTest {
     @Test
     public void testCalculateIndexUpdates_DeleteDocument() throws IOException {
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.DeleteColumn);
-        SepEvent event = createSepEvent("_row_", toDelete);
+        RowData rowData = createEventRowData("_row_", toDelete);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
 
         assertEquals(Lists.newArrayList("_row_-_cf_-_qual_"), updateCollector.getIdsToDelete());
         assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
@@ -96,9 +98,9 @@ public class ColumnBasedIndexerTest {
 
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L,
                 Type.DeleteFamily);
-        SepEvent event = createSepEvent("_row_", toDelete);
+        RowData rowData = createEventRowData("_row_", toDelete);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(Lists.newArrayList(rowData), updateCollector);
 
         assertEquals(ImmutableList.of("(" + ROW_FIELD + ":_row_)AND(" + FAMILY_FIELD + ":_cf_)"),
                 updateCollector.getDeleteQueries());
@@ -113,9 +115,9 @@ public class ColumnBasedIndexerTest {
         doReturn(ROW_FIELD).when(indexerConf).getRowField();
         
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.Delete);
-        SepEvent event = createSepEvent("_row_", toDelete);
+        RowData eventRowData = createEventRowData("_row_", toDelete);
         
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertEquals(ImmutableList.of(ROW_FIELD + ":_row_"), updateCollector.getDeleteQueries());
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
@@ -126,9 +128,9 @@ public class ColumnBasedIndexerTest {
     @Test
     public void testCalculateIndexUpdates_DeleteFamily_NoFamilyFieldDefinedForIndexer() throws IOException {
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.DeleteFamily);
-        SepEvent event = createSepEvent("_row_", toDelete);
+        RowData eventRowData = createEventRowData("_row_", toDelete);
         
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertTrue(updateCollector.getDeleteQueries().isEmpty());
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
@@ -139,9 +141,9 @@ public class ColumnBasedIndexerTest {
     @Test
     public void testCalculateIndexUpdates_DeleteRow_NoRowFieldDefinedForIndexer() throws IOException {
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.Delete);
-        SepEvent event = createSepEvent("_row_", toDelete);
+        RowData eventRowData = createEventRowData("_row_", toDelete);
         
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertTrue(updateCollector.getDeleteQueries().isEmpty());
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
@@ -152,10 +154,11 @@ public class ColumnBasedIndexerTest {
     public void testCalculateIndexUpdates_UpdateAndDeleteCombinedForSameCell_DeleteFirst() throws IOException {
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.Delete);
         KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        SepEvent deleteEvent = createSepEvent("_row_", toDelete);
-        SepEvent addEvent = createSepEvent("_row_", toAdd);
+        RowData deleteEventRowData = createEventRowData("_row_", toDelete);
+        RowData addEventRowData = createEventRowData("_row_", toAdd);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(deleteEvent, addEvent), updateCollector);
+        indexer.calculateIndexUpdates(
+                ImmutableList.of(deleteEventRowData, addEventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
         List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
@@ -167,10 +170,10 @@ public class ColumnBasedIndexerTest {
     public void testCalculateIndexUpdates_UpdateAndDeleteCombinedForSameCell_UpdateFirst() throws IOException {
         KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
         KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.DeleteColumn);
-        SepEvent addEvent = createSepEvent("_row_", toAdd);
-        SepEvent deleteEvent = createSepEvent("_row_", toDelete);
+        RowData addEventRowData = createEventRowData("_row_", toAdd);
+        RowData deleteEventRowData = createEventRowData("_row_", toDelete);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(addEvent, deleteEvent), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(addEventRowData, deleteEventRowData), updateCollector);
 
         assertEquals(Lists.newArrayList("_row_-_cf_-_qual_"), updateCollector.getIdsToDelete());
         assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
@@ -182,9 +185,9 @@ public class ColumnBasedIndexerTest {
         doReturn(CUSTOM_ROW_FIELD).when(indexerConf).getRowField();
         
         KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        SepEvent event = createSepEvent("_row_", toAdd);
+        RowData eventRowData = createEventRowData("_row_", toAdd);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
         List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
@@ -200,9 +203,9 @@ public class ColumnBasedIndexerTest {
         doReturn(CUSTOM_FAMILY_FIELD).when(indexerConf).getColumnFamilyField();
         
         KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        SepEvent event = createSepEvent("_row_", toAdd);
+        RowData eventRowData = createEventRowData("_row_", toAdd);
 
-        indexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+        indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
 
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
         List<SolrInputDocument> documents = updateCollector.getDocumentsToAdd();
