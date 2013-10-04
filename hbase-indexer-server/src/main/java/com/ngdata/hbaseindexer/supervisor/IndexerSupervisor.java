@@ -15,8 +15,6 @@
  */
 package com.ngdata.hbaseindexer.supervisor;
 
-import com.ngdata.sep.impl.HBaseShims; 
-
 import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
 import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
 import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
@@ -35,16 +33,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
-import javax.xml.parsers.ParserConfigurationException;
-
-import com.google.common.collect.Maps;
 
 import com.google.common.base.Objects;
-import com.ngdata.hbaseindexer.ConfigureUtil;
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.Indexer;
+import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerModel;
@@ -52,30 +48,21 @@ import com.ngdata.hbaseindexer.model.api.IndexerModelEvent;
 import com.ngdata.hbaseindexer.model.api.IndexerModelListener;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.api.IndexerProcessRegistry;
-import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
-import com.ngdata.hbaseindexer.util.solr.SolrConfigLoader;
 import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-// import org.apache.hadoop.hbase.EmptyWatcher;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
-import org.apache.solr.core.SolrConfig;
-import org.apache.solr.core.SolrResourceLoader;
-import org.apache.solr.schema.IndexSchema;
-import org.apache.solr.util.SystemIdResolver;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooKeeper;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
+// import org.apache.hadoop.hbase.EmptyWatcher;
 
 /**
  * Responsible for starting, stopping and restarting {@link Indexer}s for the indexers defined in the
@@ -220,19 +207,10 @@ public class IndexerSupervisor {
             indexerProcessId = indexerProcessRegistry.registerIndexerProcess(indexerDef.getName(), hostName);
             indexerProcessIds.put(indexerDef.getName(), indexerProcessId);
             
+            // Create and register the indexer
             IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(indexerDef.getConfiguration()));
-
-            IndexSchema indexSchema = loadIndexSchema(indexerDef);
-            
-            // create and register the indexer
-            ResultToSolrMapper mapper = null;
-            if (indexerConf.getMapperClass() == null) {
-                mapper = new DefaultResultToSolrMapper(indexerDef.getName(),
-                        indexerConf.getFieldDefinitions(), indexerConf.getDocumentExtractDefinitions(), indexSchema);
-            } else {
-                mapper = indexerConf.getMapperClass().newInstance();
-                ConfigureUtil.configure(mapper, indexerConf.getGlobalParams());
-            }
+            ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
+                                            indexerDef.getName(), indexerConf, indexerDef.getConnectionParams());
             
             solr = getSolrServer(indexerDef);
             Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, mapper, htablePool, solr);
@@ -282,21 +260,6 @@ public class IndexerSupervisor {
         }
     }
     
-    private IndexSchema loadIndexSchema(IndexerDefinition indexerDef) throws IOException, ParserConfigurationException, SAXException, InterruptedException {
-        Map<String, String> connParams = indexerDef.getConnectionParams();
-        ZooKeeper zk = new ZooKeeper(connParams.get(SolrConnectionParams.ZOOKEEPER), 30000, HBaseShims.getEmptyWatcherInstance());
-        SolrConfigLoader solrConfigLoader = new SolrConfigLoader(connParams.get(SolrConnectionParams.COLLECTION), zk);
-
-        SolrConfig solrConfig = solrConfigLoader.loadSolrConfig();
-        SolrResourceLoader loader = solrConfig.getResourceLoader();
-        InputSource is = new InputSource(loader.openSchema("schema.xml"));
-          is.setSystemId(SystemIdResolver.createSystemIdFromResourceName("schema.xml"));
-
-        IndexSchema indexSchema = new IndexSchema(solrConfig, "schema.xml", is);
-        zk.close();
-        return indexSchema;
-
-    }
 
     private void restartIndexer(IndexerDefinition indexerDef) {
         
