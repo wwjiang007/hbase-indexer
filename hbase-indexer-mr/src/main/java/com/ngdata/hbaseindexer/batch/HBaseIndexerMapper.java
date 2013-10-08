@@ -19,25 +19,27 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
 
-import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
-
-import org.apache.solr.client.solrj.SolrServerException;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
+import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
+import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
+import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.io.Text;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 
 /**
@@ -57,6 +59,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     private static final String CONF_KEYVALUE_SEPARATOR = "=";
 
     private static final String CONF_VALUE_SEPARATOR = ";";
+    
+    private static final Log LOG = LogFactory.getLog(HBaseIndexerMapper.class);
 
     public static void configureIndexConnectionParams(Configuration conf, Map<String, String> connectionParams) {
         String confValue = Joiner.on(CONF_VALUE_SEPARATOR).withKeyValueSeparator(CONF_KEYVALUE_SEPARATOR).join(
@@ -98,6 +102,13 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new RuntimeException(e);
         }
 
+        // TODO Move this to the top-level job setup
+        if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {
+            LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
+            indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
+        }
+        
+        
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
