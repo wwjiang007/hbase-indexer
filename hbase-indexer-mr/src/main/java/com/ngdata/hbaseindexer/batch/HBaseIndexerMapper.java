@@ -22,6 +22,7 @@ import java.util.Map;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
@@ -62,6 +63,12 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     
     private static final Log LOG = LogFactory.getLog(HBaseIndexerMapper.class);
 
+    /**
+     * Add the given index connection parameters to a Configuration.
+     * 
+     * @param conf the configuration in which to add the parameters
+     * @param connectionParams index connection parameters
+     */
     public static void configureIndexConnectionParams(Configuration conf, Map<String, String> connectionParams) {
         String confValue = Joiner.on(CONF_VALUE_SEPARATOR).withKeyValueSeparator(CONF_KEYVALUE_SEPARATOR).join(
                 connectionParams);
@@ -69,8 +76,18 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         conf.set(INDEX_CONNECTION_PARAMS_CONF_KEY, confValue);
     }
 
+    /**
+     * Retrieve index connection parameters from a Configuration.
+     * 
+     * @param conf configuration containing index connection parameters
+     * @return index connection parameters
+     */
     public static Map<String, String> getIndexConnectionParams(Configuration conf) {
         String confValue = conf.get(INDEX_CONNECTION_PARAMS_CONF_KEY);
+        if (confValue == null) {
+            LOG.warn("No connection parameters found in configuration");
+            return ImmutableMap.of();
+        }
 
         return Splitter.on(CONF_VALUE_SEPARATOR).withKeyValueSeparator(CONF_KEYVALUE_SEPARATOR).split(confValue);
     }
