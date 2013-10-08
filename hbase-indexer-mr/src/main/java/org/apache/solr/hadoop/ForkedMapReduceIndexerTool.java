@@ -594,6 +594,8 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     // HBase-specific options
     public String indexerZkHost;
     public String indexName;
+    public boolean isDirectWrite;
+    public String tableName;
     
     public Options asOptions() {
         Options opts = new Options();

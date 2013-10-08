@@ -16,7 +16,10 @@
 package com.ngdata.hbaseindexer.batch;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
+
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
 import com.ngdata.hbaseindexer.ConfKeys;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
@@ -302,6 +305,14 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         Argument indexNameArg = requiredGroup.addArgument("--index-name")
                 .metavar("STRING")
                 .help("Name of the index to be run in MapReduce mode");
+        
+        Argument tableNameArg = parser.addArgument("--table-name")
+                .metavar("STRING")
+                .help("Name of the HBase table containing the records to be indexed");
+        
+        Argument directWriteArg = parser.addArgument("--direct-write")
+                .action(Arguments.storeTrue())
+                .help("Write documents directly to a live Solr server instead of building shards offline");
             
         Namespace ns;
         try {
@@ -339,6 +350,10 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         
         opts.indexerZkHost = ns.getString(indexerZkHostArg.getDest());
         opts.indexName = ns.getString(indexNameArg.getDest());
+        opts.tableName = ns.getString(tableNameArg.getDest());
+        opts.isDirectWrite = ns.getBoolean(directWriteArg.getDest());
+        
+        // TODO Check required cmdline params
         
         return null;
       }
@@ -360,10 +375,11 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         if (exitCode != null) {
           return exitCode;
         }
-        return runIndexingPipeline(opts);
+        
+        return runOfflineIndexingPipeline(opts);
     }
     
-    public int runIndexingPipeline(OptionsBridge optionsBridge) throws Exception {
+    public int runOfflineIndexingPipeline(OptionsBridge optionsBridge) throws Exception {
         
         Configuration conf = getConf();
         
@@ -373,27 +389,52 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         IndexerDefinition indexerDefinition = indexerModel.getIndexer(optionsBridge.indexName);
         
         conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, new String(indexerDefinition.getConfiguration()));
-        HBaseIndexerMapper.configureIndexConnectionParams(conf, indexerDefinition.getConnectionParams());
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, optionsBridge.indexName);
+        conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, optionsBridge.isDirectWrite);
+
+        HBaseIndexerMapper.configureIndexConnectionParams(conf, indexerDefinition.getConnectionParams());
         
         Job job = Job.getInstance(getConf());
         job.setJarByClass(HBaseIndexerMapper.class);
         job.setUserClassesTakesPrecedence(true);
         
+        // TODO Allow setting scan parameters on cmdline
         Scan scan = new Scan();
-        byte[] tableName = "indexdemo-user".getBytes();
         
         TableMapReduceUtil.initTableMapperJob(
-                                    tableName,
+                                    optionsBridge.tableName,
                                     scan,
                                     HBaseIndexerMapper.class,
                                     Text.class,
                                     SolrInputDocumentWritable.class,
                                     job);
         
-        return ForkedMapReduceIndexerTool.runIndexingPipeline(
+        if (optionsBridge.isDirectWrite) {
+            return runDirectWritePipeline(job, getConf());
+        } else {
+            return ForkedMapReduceIndexerTool.runIndexingPipeline(
                                             job, getConf(), optionsBridge.asOptions(), 0,
-                                            FileSystem.get(getConf()), null, -1, 1, 2);
+                                            FileSystem.get(getConf()),
+                                            null, -1, // File-based parameters
+                                            
+                                            // TODO Set these based on heuristics and cmdline args
+                                            1, // num mappers
+                                            2  // num reducers
+                                            );
+        }
+    }
+
+    private int runDirectWritePipeline(Job job, Configuration conf) {
+        job.setOutputFormatClass(NullOutputFormat.class);
+        job.setNumReduceTasks(0);
+        try {
+            job.waitForCompletion(true);
+            return 0;
+        } catch (Exception e) {
+            // TODO Handle execution exceptions in the same way as the
+            // MapReduceIndexerTool does
+            throw new RuntimeException(e);
+        }
     }
 
 }

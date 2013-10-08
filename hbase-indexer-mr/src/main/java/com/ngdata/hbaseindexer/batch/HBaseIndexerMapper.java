@@ -23,10 +23,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.indexer.DirectSolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
@@ -41,6 +43,7 @@ import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.io.Text;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 
 /**
@@ -53,9 +56,12 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
     /** Configuration key for setting the contents of the indexer config. */
     public static final String INDEX_CONFIGURATION_CONF_KEY = "hbase.indexer.configuration";
-
+    
     /** Configuration key for setting the free-form index connection parameters. */
     public static final String INDEX_CONNECTION_PARAMS_CONF_KEY = "hbase.indexer.index.connectionparams";
+    
+    /** Configuration key for setting the direct write flag. */
+    public static final String INDEX_DIRECT_WRITE_CONF_KEY = "hbase.indexer.directwrite";
 
     private static final String CONF_KEYVALUE_SEPARATOR = "=";
 
@@ -130,8 +136,30 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                     indexName, indexerConf, indexConnectionParams);
-        SolrInputDocumentWriter solrDocWriter = new MapReduceSolrInputDocumentWriter(context);
+        SolrInputDocumentWriter solrDocWriter = createSolrWriter(context, indexConnectionParams);
         indexer = Indexer.createIndexer(indexName, indexerConf, mapper, null, solrDocWriter);
+    }
+    
+    private SolrInputDocumentWriter createSolrWriter(Context context, Map<String,String> indexConnectionParams) throws IOException {
+        Configuration conf = context.getConfiguration();
+        if (conf.getBoolean(INDEX_DIRECT_WRITE_CONF_KEY, false)) {
+            String indexZkHost = indexConnectionParams.get(SolrConnectionParams.ZOOKEEPER);
+            String collectionName = indexConnectionParams.get(SolrConnectionParams.COLLECTION);
+            
+            if (indexZkHost == null) {
+                throw new IllegalStateException("No index ZK host defined");
+            }
+            
+            if (collectionName == null) {
+                throw new IllegalStateException("No collection name defined");
+            }
+            CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
+            solrServer.setDefaultCollection(collectionName);
+            return new DirectSolrInputDocumentWriter(conf.get(INDEX_NAME_CONF_KEY), solrServer);
+        } else {
+            return new MapReduceSolrInputDocumentWriter(context);
+        }
+        
     }
 
     @Override
