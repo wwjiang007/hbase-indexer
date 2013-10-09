@@ -105,7 +105,7 @@
           </descriptors>
           <archive>
             <manifest>
-              <mainClass>com.ngdata.hbaseindexer.batch.HBaseMapReduceIndexerTool</mainClass>
+              <mainClass>com.ngdata.hbaseindexer.mr.HBaseMapReduceIndexerTool</mainClass>
             </manifest>
           </archive>
         </configuration>

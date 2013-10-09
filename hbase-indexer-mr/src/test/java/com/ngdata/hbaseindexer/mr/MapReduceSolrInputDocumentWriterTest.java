@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.hbaseindexer.batch;
+package com.ngdata.hbaseindexer.mr;
 
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.eq;
@@ -21,6 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
+
+import com.ngdata.hbaseindexer.mr.MapReduceSolrInputDocumentWriter;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;

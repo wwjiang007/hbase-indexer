@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.hbaseindexer.batch;
+package com.ngdata.hbaseindexer.mr;
 
 import static org.junit.Assert.assertEquals;
 
 import java.util.Map;
+
+import com.ngdata.hbaseindexer.mr.HBaseIndexerMapper;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
