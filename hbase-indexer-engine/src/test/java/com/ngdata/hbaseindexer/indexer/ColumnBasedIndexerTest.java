@@ -17,12 +17,15 @@ package com.ngdata.hbaseindexer.indexer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.hadoop.hbase.client.Result;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -42,7 +45,6 @@ public class ColumnBasedIndexerTest {
     private static final String TABLE_NAME = "TABLE_A";
 
     private IndexerConf indexerConf;
-    private ResultToSolrMapper mapper;
     private SolrWriter solrWriter;
     private SolrUpdateCollector updateCollector;
     private ColumnBasedIndexer indexer;
@@ -50,10 +52,10 @@ public class ColumnBasedIndexerTest {
     @Before
     public void setUp() {
         indexerConf = spy(new IndexerConfBuilder().table(TABLE_NAME).build());
-        mapper = IndexerTest.createHbaseToSolrMapper(true);
+        ResultToSolrMapper resultToSolrMapper = IndexerTest.createHbaseToSolrMapper(true);
         solrWriter = mock(SolrWriter.class);
         updateCollector = new SolrUpdateCollector(10);
-        indexer = new ColumnBasedIndexer("column-based", indexerConf, mapper, solrWriter);
+        indexer = new ColumnBasedIndexer("column-based", indexerConf, resultToSolrMapper, solrWriter);
     }
 
     private SepEvent createSepEvent(String row, KeyValue... keyValues) {
@@ -209,6 +211,23 @@ public class ColumnBasedIndexerTest {
         assertEquals(1, documents.size());
         assertEquals("_row_-_cf_-_qual_", documents.get(0).getFieldValue("id"));
         assertEquals("_cf_", documents.get(0).getFieldValue(CUSTOM_FAMILY_FIELD));
+    }
+    
+    @Test
+    public void testCalculateIndexUpdates_NoSolrDocumentReturnedFromMapper() throws IOException {
+        ResultToSolrMapper nullReturningMapper = mock(ResultToSolrMapper.class);
+        Indexer nullHandlingIndexer = new ColumnBasedIndexer(
+                "column-based", indexerConf, nullReturningMapper, solrWriter);
+        
+        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        SepEvent event = createSepEvent("_row_", toAdd);
+        
+        doReturn(null).when(nullReturningMapper).map(any(Result.class));
+
+        nullHandlingIndexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
+
+        assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
+        assertTrue(updateCollector.getIdsToDelete().isEmpty());
     }
     
 

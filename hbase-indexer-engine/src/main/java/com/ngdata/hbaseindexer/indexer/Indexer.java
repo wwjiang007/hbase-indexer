@@ -238,12 +238,18 @@ public abstract class Indexer implements EventListener {
                     }
                 } else {
                     SolrInputDocument document = mapper.map(result);
-                    document.addField(conf.getUniqueKeyField(), uniqueKeyFormatter.formatRow(event.getRow()));
-                    // TODO there should probablyn be some way for the mapper to indicate there was no useful content to
-                    // map,  e.g. if there are no fields in the solrWriter document (and should we then perform a delete instead?)
-                    updateCollector.add(document);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Row " + Bytes.toString(event.getRow()) + ": added to Solr");
+                    if (document != null) {
+                        document.addField(conf.getUniqueKeyField(), uniqueKeyFormatter.formatRow(event.getRow()));
+                        // TODO there should probably be some way for the mapper to indicate there was no useful content to
+                        // map,  e.g. if there are no fields in the solrWriter document (and should we then perform a delete instead?)
+                        updateCollector.add(document);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Row " + Bytes.toString(event.getRow()) + ": added to Solr");
+                        }
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Skipping indexing of " + result);
+                        }
                     }
                 }
             }
@@ -291,11 +297,15 @@ public abstract class Indexer implements EventListener {
                 } else {
                     Result result = newResult(Collections.singletonList(keyValue));
                     SolrInputDocument document = mapper.map(result);
-                    document.addField(conf.getUniqueKeyField(), documentId);
-                    
-                    addRowAndFamily(document, keyValue);
-                    
-                    updateCollector.add(document);
+                    if (document != null) {
+                        document.addField(conf.getUniqueKeyField(), documentId);
+                        addRowAndFamily(document, keyValue);
+                        updateCollector.add(document);
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Skipping indexing of " + keyValue + " under id " + documentId);
+                        }
+                    }
                 }
             }
         }

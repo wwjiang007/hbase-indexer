@@ -17,24 +17,25 @@ package com.ngdata.hbaseindexer.indexer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
 import java.util.List;
 
-import com.ngdata.hbaseindexer.conf.IndexerConf;
-import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
-import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
-import org.apache.solr.common.SolrInputDocument;
-
-import org.apache.hadoop.hbase.KeyValue.Type;
-
 import com.google.common.collect.Lists;
-import com.ngdata.hbaseindexer.indexer.Indexer.RowBasedIndexer;
+import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
+import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
+import com.ngdata.hbaseindexer.indexer.Indexer.RowBasedIndexer;
+import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.sep.SepEvent;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.KeyValue.Type;
 import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,6 +43,7 @@ public class RowBasedIndexerTest {
     
     private static final String TABLE_NAME = "TABLE_A";
     
+    IndexerConf indexerConf;
     private HTablePool tablePool;
     private SolrWriter solrWriter;
     private SolrUpdateCollector updateCollector;
@@ -50,15 +52,15 @@ public class RowBasedIndexerTest {
     @Before
     public void setUp() {
         
-        IndexerConf indexerConf = new IndexerConfBuilder().table(TABLE_NAME).mappingType(MappingType.ROW).build();
-        ResultToSolrMapper mapper = IndexerTest.createHbaseToSolrMapper(true);
+        indexerConf = new IndexerConfBuilder().table(TABLE_NAME).mappingType(MappingType.ROW).build();
+        ResultToSolrMapper resultToSolrMapper = IndexerTest.createHbaseToSolrMapper(true);
         
         tablePool = mock(HTablePool.class);
         solrWriter = mock(SolrWriter.class);
         
         updateCollector = new SolrUpdateCollector(10);
         
-        indexer = new RowBasedIndexer("row-based", indexerConf, mapper, tablePool, solrWriter);
+        indexer = new RowBasedIndexer("row-based", indexerConf, resultToSolrMapper, tablePool, solrWriter);
     }
     
     private SepEvent createSepEvent(String row, KeyValue... keyValues) {
@@ -125,6 +127,26 @@ public class RowBasedIndexerTest {
 
         assertEquals(Lists.newArrayList("_row_"), updateCollector.getIdsToDelete());
         assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
+    }
+    
+    @Test
+    public void testCalculateIndexUpdates_NoSolrDocumentReturnedFromMapper() throws IOException {
+        
+        ResultToSolrMapper nullReturningMapper = mock(ResultToSolrMapper.class);
+        
+        RowBasedIndexer nullHandlingIndexer = new RowBasedIndexer(
+                "row-based", indexerConf, nullReturningMapper, tablePool, solrWriter);
+        
+        
+        KeyValue keyValue = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        SepEvent sepEvent = createSepEvent("_row_", keyValue);
+        
+        doReturn(null).when(nullReturningMapper).map(any(Result.class));
+        
+        nullHandlingIndexer.calculateIndexUpdates(Lists.newArrayList(sepEvent), updateCollector);
+        
+        assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
+        assertTrue(updateCollector.getIdsToDelete().isEmpty());
     }
 
 }

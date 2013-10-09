@@ -61,9 +61,12 @@ public interface ResultToSolrMapper {
      * <p>The document does not need to contain the ID (unique key) for Solr, this will be added by the
      * {@link Indexer}.</p>
      *
-     * <p>If the mapping would result in nothing, either null or an empty SolrInputDocument can be returned.
-     * TODO this is not yet implemented, also does Solr allow adding empty documents and does this have an
-     * interesting semantic?</p>
+     * <p>
+     * If the mapping would result in nothing, null should be returned.
+     * </p>
+     * 
+     * @param result the HBase {@code Result} object to be mapped to a {@code SolrInputDocument}
+     * @return the mapped {@code SolrInputDocument}, or null
      */
     SolrInputDocument map(Result result);
 }
