@@ -408,7 +408,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                     job);
         
         if (optionsBridge.isDirectWrite) {
-            return runDirectWritePipeline(job, getConf());
+            return runDirectWriteIndexingJob(job, getConf());
         } else {
             return ForkedMapReduceIndexerTool.runIndexingPipeline(
                                             job, getConf(), optionsBridge.asOptions(), 0,
@@ -422,7 +422,14 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         }
     }
 
-    private int runDirectWritePipeline(Job job, Configuration conf) {
+    /**
+     * Write a map-only MR job that writes index documents directly to a live Solr instance.
+     * 
+     * @param job configured job for creating SolrInputDocuments
+     * @param conf job configuration
+     * @return exit code, 0 is successful execution
+     */
+    private int runDirectWriteIndexingJob(Job job, Configuration conf) {
         job.setOutputFormatClass(NullOutputFormat.class);
         job.setNumReduceTasks(0);
         try {

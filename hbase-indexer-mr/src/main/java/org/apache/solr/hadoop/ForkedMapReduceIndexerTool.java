@@ -767,6 +767,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     return runIndexingPipeline(job, getConf(), options, programStartTime, fs, fullInputList, numFiles, realMappers, reducers);
   }
 
+
   public static int runIndexingPipeline(Job job, Configuration conf, Options options, long programStartTime, FileSystem fs, Path fullInputList, long numFiles,
         int realMappers, int reducers) throws IOException, KeeperException, InterruptedException, URISyntaxException,
         ClassNotFoundException, FileNotFoundException {
