@@ -418,8 +418,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                             null, -1, // File-based parameters
                                             
                                             // TODO Set these based on heuristics and cmdline args
-                                            1, // num mappers
-                                            2  // num reducers
+                                            -1, // num mappers
+                                            Math.max(optionsBridge.reducers, optionsBridge.shards)  // num reducers
                                             );
         }
     }
