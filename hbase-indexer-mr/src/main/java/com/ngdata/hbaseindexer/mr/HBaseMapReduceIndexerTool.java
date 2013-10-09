@@ -16,10 +16,7 @@
 package com.ngdata.hbaseindexer.mr;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Collections;
-
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 
 import com.ngdata.hbaseindexer.ConfKeys;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
@@ -44,6 +41,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.PropertyConfigurator;
@@ -298,15 +296,15 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
           .setDefault(1000)
           .help("Tuning knob that indicates the maximum number of live merges to run in parallel at one time.");
         
-        Argument indexerZkHostArg = requiredGroup.addArgument("--indexer-zk-host")
+        Argument indexerZkHostArg = requiredGroup.addArgument("--hbase-indexer-zk")
                 .metavar("STRING")
                 .help("The name of the ZooKeeper host where the indexer definition is stored");
         
-        Argument indexNameArg = requiredGroup.addArgument("--index-name")
+        Argument indexNameArg = requiredGroup.addArgument("--hbase-indexer-name")
                 .metavar("STRING")
                 .help("Name of the index to be run in MapReduce mode");
         
-        Argument tableNameArg = parser.addArgument("--table-name")
+        Argument hbaseTableNameArg = parser.addArgument("--hbase-table-name")
                 .metavar("STRING")
                 .help("Name of the HBase table containing the records to be indexed");
         
@@ -350,7 +348,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         
         opts.indexerZkHost = ns.getString(indexerZkHostArg.getDest());
         opts.indexName = ns.getString(indexNameArg.getDest());
-        opts.tableName = ns.getString(tableNameArg.getDest());
+        opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
         opts.isDirectWrite = ns.getBoolean(directWriteArg.getDest());
         
         // TODO Check required cmdline params
@@ -402,7 +400,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         Scan scan = new Scan();
         
         TableMapReduceUtil.initTableMapperJob(
-                                    optionsBridge.tableName,
+                                    optionsBridge.hbaseTableName,
                                     scan,
                                     HBaseIndexerMapper.class,
                                     Text.class,
