@@ -374,10 +374,10 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
           return exitCode;
         }
         
-        return runOfflineIndexingPipeline(opts);
+        return runIndexingJob(opts);
     }
     
-    public int runOfflineIndexingPipeline(OptionsBridge optionsBridge) throws Exception {
+    public int runIndexingJob(OptionsBridge optionsBridge) throws Exception {
         
         Configuration conf = getConf();
         
