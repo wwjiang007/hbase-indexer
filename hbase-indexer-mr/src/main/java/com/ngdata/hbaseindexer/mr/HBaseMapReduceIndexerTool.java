@@ -39,6 +39,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
@@ -78,7 +79,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
        *         non-null indicates the caller shall exit the program with the
        *         given exit status code.
        */
-      public Integer parseArgs(String[] args, Configuration conf, OptionsBridge opts) {
+      public Integer parseArgs(String[] args, Configuration conf, HBaseIndexingOptions opts) {
         assert args != null;
         assert conf != null;
         assert opts != null;
@@ -311,7 +312,26 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         Argument directWriteArg = parser.addArgument("--direct-write")
                 .action(Arguments.storeTrue())
                 .help("Write documents directly to a live Solr server instead of building shards offline");
-            
+        
+        ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("Scan parameters");
+        
+        // TODO Provide example in doc of "binary string" format
+        Argument startRowArg = scanArgumentGroup.addArgument("--startRow")
+                .help("Binary string representation of start row from which to start indexing (inclusive)");
+        
+        // TODO Provide example in doc of "binary string" format
+        Argument endRowArg = scanArgumentGroup.addArgument("--endRow")
+                .help("Binary string representation of end row prefix at which to stop indexing");
+        
+        Argument startTimeArg = scanArgumentGroup.addArgument("--startTime")
+                .metavar("LONG")
+                .help("Earliest timestamp in time range of HBase cells to be included for indexing");
+        
+        Argument endTimeArg = scanArgumentGroup.addArgument("--endTime")
+                .metavar("LONG")
+                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing");
+        
+        
         Namespace ns;
         try {
           ns = parser.parseArgs(args);
@@ -350,6 +370,10 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         opts.indexName = ns.getString(indexNameArg.getDest());
         opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
         opts.isDirectWrite = ns.getBoolean(directWriteArg.getDest());
+        opts.startRow = ns.getString(startRowArg.getDest());
+        opts.endRow = ns.getString(endRowArg.getDest());
+        opts.startTime = ns.getLong(startTimeArg.getDest());
+        opts.endTime = ns.getLong(endTimeArg.getDest());
         
         // TODO Check required cmdline params
         
@@ -362,33 +386,46 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
     }
     // END OF INNER CLASS
     
+
+    // TODO Remove this method of passing options around. It's currently just here
+    // to allow reuse of the MapReduceIndexerTool, but that tool should to be altered
+    // set allow for easier reuse
+    static class HBaseIndexingOptions extends OptionsBridge {
+        public String indexerZkHost;
+        public String indexName;
+        public boolean isDirectWrite;
+        public String hbaseTableName;
+        public String startRow;
+        public String endRow;
+        public Long startTime;
+        public Long endTime;
+    }
     
 
     @Override
     public int run(String[] args) throws Exception {
         
-        
-        OptionsBridge opts = new OptionsBridge();
-        Integer exitCode = new IndexerArgumentParser().parseArgs(args, getConf(), opts);
+        HBaseIndexingOptions hbaseIndexingOpts = new HBaseIndexingOptions();
+        Integer exitCode = new IndexerArgumentParser().parseArgs(args, getConf(), hbaseIndexingOpts);
         if (exitCode != null) {
           return exitCode;
         }
         
-        return runIndexingJob(opts);
+        return runIndexingJob(hbaseIndexingOpts);
     }
     
-    public int runIndexingJob(OptionsBridge optionsBridge) throws Exception {
+    public int runIndexingJob(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
         
         Configuration conf = getConf();
         
-        StateWatchingZooKeeper zk = new StateWatchingZooKeeper(optionsBridge.indexerZkHost, 30000);
+        StateWatchingZooKeeper zk = new StateWatchingZooKeeper(hbaseIndexingOpts.indexerZkHost, 30000);
         IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
         
-        IndexerDefinition indexerDefinition = indexerModel.getIndexer(optionsBridge.indexName);
+        IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexingOpts.indexName);
         
         conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, new String(indexerDefinition.getConfiguration()));
-        conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, optionsBridge.indexName);
-        conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, optionsBridge.isDirectWrite);
+        conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, hbaseIndexingOpts.indexName);
+        conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite);
 
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexerDefinition.getConnectionParams());
         
@@ -398,26 +435,49 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         
         // TODO Allow setting scan parameters on cmdline
         Scan scan = new Scan();
+        if (hbaseIndexingOpts.startRow != null) {
+            scan.setStartRow(Bytes.toBytesBinary(hbaseIndexingOpts.startRow));
+            LOG.debug("Starting row scan at " + hbaseIndexingOpts.startRow);
+        }
+        
+        if (hbaseIndexingOpts.endRow != null) {
+            scan.setStopRow(Bytes.toBytesBinary(hbaseIndexingOpts.endRow));
+            LOG.debug("Stopping row scan at " + hbaseIndexingOpts.endRow);
+        }
+        
+        if (hbaseIndexingOpts.startTime != null || hbaseIndexingOpts.endTime != null) {
+            long startTime = 0L;
+            long endTime = Long.MAX_VALUE;
+            if (hbaseIndexingOpts.startTime != null) {
+                startTime = hbaseIndexingOpts.startTime;
+                LOG.debug("Setting scan start of time range to " + startTime);
+            }
+            if (hbaseIndexingOpts.endTime != null) {
+                endTime = hbaseIndexingOpts.endTime;
+                LOG.debug("Setting scan end of time range to " + endTime);
+            }
+            scan.setTimeRange(startTime, endTime);
+        }
         
         TableMapReduceUtil.initTableMapperJob(
-                                    optionsBridge.hbaseTableName,
+                                    hbaseIndexingOpts.hbaseTableName,
                                     scan,
                                     HBaseIndexerMapper.class,
                                     Text.class,
                                     SolrInputDocumentWritable.class,
                                     job);
         
-        if (optionsBridge.isDirectWrite) {
+        if (hbaseIndexingOpts.isDirectWrite) {
             return runDirectWriteIndexingJob(job, getConf());
         } else {
             return ForkedMapReduceIndexerTool.runIndexingPipeline(
-                                            job, getConf(), optionsBridge.asOptions(), 0,
+                                            job, getConf(), hbaseIndexingOpts.asOptions(), 0,
                                             FileSystem.get(getConf()),
                                             null, -1, // File-based parameters
                                             
                                             // TODO Set these based on heuristics and cmdline args
                                             -1, // num mappers
-                                            Math.max(optionsBridge.reducers, optionsBridge.shards)  // num reducers
+                                            Math.max(hbaseIndexingOpts.reducers, hbaseIndexingOpts.shards)  // num reducers
                                             );
         }
     }

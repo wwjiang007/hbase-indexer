@@ -568,7 +568,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
   
   // TODO Get rid of this, it's just here to get around the fact that
   // the Options class is not public
-  public static final class OptionsBridge {
+  public static class OptionsBridge {
     public boolean goLive;
     public String collection;
     public String zkHost;
@@ -591,11 +591,6 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     public File log4jConfigFile;
     public boolean isVerbose;
     
-    // HBase-specific options
-    public String indexerZkHost;
-    public String indexName;
-    public boolean isDirectWrite;
-    public String hbaseTableName;
     
     public Options asOptions() {
         Options opts = new Options();
