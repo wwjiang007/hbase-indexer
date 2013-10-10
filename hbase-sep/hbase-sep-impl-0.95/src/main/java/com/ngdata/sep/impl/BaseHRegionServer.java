@@ -62,86 +62,86 @@ public class BaseHRegionServer implements AdminProtos.AdminService.BlockingInter
 
   @Override
   public AdminProtos.FlushRegionResponse flushRegion(RpcController rpcController, AdminProtos.FlushRegionRequest flushRegionRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.SplitRegionResponse splitRegion(RpcController rpcController, AdminProtos.SplitRegionRequest splitRegionRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.CompactRegionResponse compactRegion(RpcController rpcController, AdminProtos.CompactRegionRequest compactRegionRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.MergeRegionsResponse mergeRegions(RpcController rpcController, AdminProtos.MergeRegionsRequest mergeRegionsRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.ReplicateWALEntryResponse replicateWALEntry(RpcController rpcController, AdminProtos.ReplicateWALEntryRequest replicateWALEntryRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public ClientProtos.MultiResponse replay(RpcController rpcController, ClientProtos.MultiRequest multiRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.RollWALWriterResponse rollWALWriter(RpcController rpcController, AdminProtos.RollWALWriterRequest rollWALWriterRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.GetServerInfoResponse getServerInfo(RpcController rpcController, AdminProtos.GetServerInfoRequest getServerInfoRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public AdminProtos.StopServerResponse stopServer(RpcController rpcController, AdminProtos.StopServerRequest stopServerRequest) throws ServiceException {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public Configuration getConfiguration() {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public ZooKeeperWatcher getZooKeeper() {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public CatalogTracker getCatalogTracker() {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public ServerName getServerName() {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public void abort(String s, Throwable throwable) {
-    //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public boolean isAborted() {
-    return false;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public void stop(String s) {
-    //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 
   @Override
   public boolean isStopped() {
-    return false;  //To change body of implemented methods use File | Settings | File Templates.
+    throw new UnsupportedOperationException("Not implemented");
   }
 }
