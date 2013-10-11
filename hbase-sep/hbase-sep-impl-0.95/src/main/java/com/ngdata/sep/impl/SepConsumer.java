@@ -26,6 +26,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
+
+import org.apache.hadoop.hbase.ServerName;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -79,6 +83,8 @@ public class SepConsumer extends BaseHRegionServer {
     private final PayloadExtractor payloadExtractor;
     private String zkNodePath;
     private List<ThreadPoolExecutor> executors;
+    private ServerName serverName;
+    private ZooKeeperWatcher zkWatcher;
     boolean running = false;
     private Log log = LogFactory.getLog(getClass());
 
@@ -145,11 +151,12 @@ public class SepConsumer extends BaseHRegionServer {
         // Publish our existence in ZooKeeper
         // See HBase ServerName class: format of server name is: host,port,startcode
         // Startcode is to distinguish restarted servers on same hostname/port
-        String serverName = hostName + "," + port + "," + System.currentTimeMillis();
+        long startCode = System.currentTimeMillis();
+        serverName = new ServerName(hostName, port, startCode);
         zkNodePath = hbaseConf.get(SepModel.ZK_ROOT_NODE_CONF_KEY, SepModel.DEFAULT_ZK_ROOT_NODE)
-                + "/" + subscriptionId + "/rs/" + serverName;
+                + "/" + subscriptionId + "/rs/" + serverName.getServerName();
         zk.create(zkNodePath, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
-
+        zkWatcher = new ZooKeeperWatcher(hbaseConf, serverName.toString(), null);
         this.running = true;
     }
   private List<RpcServer.BlockingServiceAndInterface> getServices() {
@@ -279,6 +286,16 @@ public class SepConsumer extends BaseHRegionServer {
     @Override
     public Configuration getConfiguration() {
         return hbaseConf;
+    }
+    
+    @Override
+    public ServerName getServerName() {
+        return serverName;
+    }
+    
+    @Override
+    public ZooKeeperWatcher getZooKeeper() {
+        return this.zkWatcher;
     }
 
 }

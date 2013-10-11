@@ -536,6 +536,7 @@
               <exclude>**/.settings/**</exclude>
               <exclude>**/resources/*.txt</exclude>
               <exclude>**/resources/**/*.txt</exclude>
+              <exclude>**/resources/**/*.xml</exclude>
               <exclude>**/conf/*</exclude>
               <exclude>**/src/it/resources/**</exclude>
               <exclude>**/META-INF/services/**</exclude>
