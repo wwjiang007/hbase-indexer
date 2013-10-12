@@ -19,9 +19,13 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.util.List;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HServerInfo;
 import org.apache.hadoop.hbase.NotServingRegionException;
+import org.apache.hadoop.hbase.Server;
+import org.apache.hadoop.hbase.ServerName;
+import org.apache.hadoop.hbase.catalog.CatalogTracker;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
@@ -43,12 +47,13 @@ import org.apache.hadoop.hbase.regionserver.RegionOpeningState;
 import org.apache.hadoop.hbase.regionserver.wal.FailedLogCloseException;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
 import org.apache.hadoop.hbase.util.Pair;
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 
 /**
  * Empty implementation of HRegionInterface, except for {@link #getProtocolVersion} and
  * {@link #getProtocolVersion}.
  */
-public class BaseHRegionServer implements HRegionInterface {
+public class BaseHRegionServer implements HRegionInterface, Server {
     
     // Constant dummy value that is returned from getHServerInfo.
     private static final HServerInfo HSERVER_INFO = new HServerInfo();
@@ -341,6 +346,26 @@ public class BaseHRegionServer implements HRegionInterface {
     @Override
     public void compactRegion(HRegionInfo regionInfo, boolean major, byte[] columnFamily)
             throws NotServingRegionException, IOException {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public Configuration getConfiguration() {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public ZooKeeperWatcher getZooKeeper() {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public CatalogTracker getCatalogTracker() {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public ServerName getServerName() {
         throw new UnsupportedOperationException("Not implemented");
     }
 }

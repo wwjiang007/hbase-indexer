@@ -24,8 +24,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.ngdata.sep.util.concurrent.WaitPolicy;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -35,18 +33,21 @@ import com.ngdata.sep.EventListener;
 import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
+import com.ngdata.sep.util.concurrent.WaitPolicy;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.ipc.HBaseRPC;
 import org.apache.hadoop.hbase.ipc.HRegionInterface;
 import org.apache.hadoop.hbase.ipc.RpcServer;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
 import org.apache.hadoop.hbase.regionserver.wal.HLogKey;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -65,10 +66,11 @@ public class SepConsumer extends BaseHRegionServer {
     private final String subscriptionId;
     private long subscriptionTimestamp;
     private EventListener listener;
-    private final String hostName;
     private final ZooKeeperItf zk;
     private final Configuration hbaseConf;
     private RpcServer rpcServer;
+    private ServerName serverName;
+    private ZooKeeperWatcher zkWatcher;
     private SepMetrics sepMetrics;
     private final PayloadExtractor payloadExtractor;
     private String zkNodePath;
@@ -87,7 +89,7 @@ public class SepConsumer extends BaseHRegionServer {
      *                 that the RPC will bind to.
      */
     public SepConsumer(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
-            String hostName, ZooKeeperItf zk, Configuration hbaseConf) {
+            String hostName, ZooKeeperItf zk, Configuration hbaseConf) throws IOException {
         this(subscriptionId, subscriptionTimestamp, listener, threadCnt, hostName, zk, hbaseConf, null);
     }
 
@@ -100,17 +102,27 @@ public class SepConsumer extends BaseHRegionServer {
      * @param payloadExtractor extracts payloads to include in SepEvents
      */
     public SepConsumer(String subscriptionId, long subscriptionTimestamp, EventListener listener, int threadCnt,
-            String hostName, ZooKeeperItf zk, Configuration hbaseConf, PayloadExtractor payloadExtractor) {
+            String hostName, ZooKeeperItf zk, Configuration hbaseConf, PayloadExtractor payloadExtractor) throws IOException {
         Preconditions.checkArgument(threadCnt > 0, "Thread count must be > 0");
         this.subscriptionId = SepModelImpl.toInternalSubscriptionName(subscriptionId);
         this.subscriptionTimestamp = subscriptionTimestamp;
         this.listener = listener;
-        this.hostName = hostName;
         this.zk = zk;
         this.hbaseConf = hbaseConf;
         this.sepMetrics = new SepMetrics(subscriptionId);
         this.payloadExtractor = payloadExtractor;
         this.executors = Lists.newArrayListWithCapacity(threadCnt);
+        
+        // TODO see same call in HBase's HRegionServer:
+        // - should we do HBaseRPCErrorHandler ?
+        rpcServer = HBaseRPC.getServer(this, new Class<?>[] { HRegionInterface.class }, hostName, 0, /* ephemeral port */
+                10, // TODO how many handlers do we need? make it configurable?
+                10, false, // TODO make verbose flag configurable
+                hbaseConf, 0); // TODO need to check what this parameter is for
+        
+        this.serverName = new ServerName(hostName, rpcServer.getListenerAddress().getPort(), System.currentTimeMillis());
+        this.zkWatcher = new ZooKeeperWatcher(hbaseConf, this.serverName.toString(), null);
+        
         for (int i = 0; i < threadCnt; i++) {
             ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 10, TimeUnit.SECONDS,
                     new ArrayBlockingQueue<Runnable>(100));
@@ -120,29 +132,19 @@ public class SepConsumer extends BaseHRegionServer {
     }
 
     public void start() throws IOException, InterruptedException, KeeperException {
-        // TODO see same call in HBase's HRegionServer:
-        // - should we do HBaseRPCErrorHandler ?
-        rpcServer = HBaseRPC.getServer(this, new Class<?>[] { HRegionInterface.class }, hostName, 0, /* ephemeral port */
-                10, // TODO how many handlers do we need? make it configurable?
-                10, false, // TODO make verbose flag configurable
-                hbaseConf, 0); // TODO need to check what this parameter is for
 
         rpcServer.start();
 
-        int port = rpcServer.getListenerAddress().getPort();
-
         // Publish our existence in ZooKeeper
-        // See HBase ServerName class: format of server name is: host,port,startcode
-        // Startcode is to distinguish restarted servers on same hostname/port
-        String serverName = hostName + "," + port + "," + System.currentTimeMillis();
         zkNodePath = hbaseConf.get(SepModel.ZK_ROOT_NODE_CONF_KEY, SepModel.DEFAULT_ZK_ROOT_NODE)
-                + "/" + subscriptionId + "/rs/" + serverName;
+                + "/" + subscriptionId + "/rs/" + serverName.getServerName();
         zk.create(zkNodePath, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
 
         this.running = true;
     }
 
     public void stop() {
+        Closer.close(zkWatcher);
         if (running) {
             running = false;
             Closer.close(rpcServer);
@@ -237,6 +239,21 @@ public class SepConsumer extends BaseHRegionServer {
                     + " total batches)");
             throw new RuntimeException(exceptionsThrown.get(0));
         }
+    }
+    
+    @Override
+    public Configuration getConfiguration() {
+        return hbaseConf;
+    }
+    
+    @Override
+    public ServerName getServerName() {
+        return serverName;
+    }
+    
+    @Override
+    public ZooKeeperWatcher getZooKeeper() {
+        return zkWatcher;
     }
 
 }
