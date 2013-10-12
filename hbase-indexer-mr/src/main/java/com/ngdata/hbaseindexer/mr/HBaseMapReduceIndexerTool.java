@@ -17,7 +17,11 @@ package com.ngdata.hbaseindexer.mr;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.Map;
 
+import com.google.common.base.Charsets;
+import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.ConfKeys;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerModel;
@@ -313,6 +317,13 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                 .action(Arguments.storeTrue())
                 .help("Write documents directly to a live Solr server instead of building shards offline");
         
+        // TODO Improve doc info on this arg
+        // TODO Do more validation on this file (e.g. is it a valid hbase-indexer config?)
+        Argument hbaseIndexerConfigArg = parser.addArgument("--hbase-indexer")
+                .metavar("FILE")
+                .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
+                .help("Optional HBase indexer xml configuration file");
+        
         ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("Scan parameters");
         
         // TODO Provide example in doc of "binary string" format
@@ -346,7 +357,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         if (opts.log4jConfigFile != null) {
           PropertyConfigurator.configure(opts.log4jConfigFile.getPath());
         }
-        LOG.debug("Parsed command line args: {}", ns);
+        LOG.debug("Parsed command line args: " +  ns);
         
         opts.inputLists = Collections.EMPTY_LIST;
         opts.outputDir = (Path) ns.get(outputDirArg.getDest());
@@ -366,6 +377,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         opts.goLiveThreads = ns.getInt(goLiveThreadsArg.getDest());
         opts.collection = ns.getString(collectionArg.getDest());
         
+        opts.hbaseIndexerConfig = (File)ns.get(hbaseIndexerConfigArg.getDest());
         opts.indexerZkHost = ns.getString(indexerZkHostArg.getDest());
         opts.indexName = ns.getString(indexNameArg.getDest());
         opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
@@ -392,7 +404,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
     // set allow for easier reuse
     static class HBaseIndexingOptions extends OptionsBridge {
         public String indexerZkHost;
-        public String indexName;
+        public String indexName = "unnamed-index";
+        public File hbaseIndexerConfig;
         public boolean isDirectWrite;
         public String hbaseTableName;
         public String startRow;
@@ -417,17 +430,30 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
     public int runIndexingJob(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
         
         Configuration conf = getConf();
+
+        String hbaseIndexerConfig;
         
-        StateWatchingZooKeeper zk = new StateWatchingZooKeeper(hbaseIndexingOpts.indexerZkHost, 30000);
-        IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
+        // TODO Verify in the cmdline arg parsing that if the ZK host isn't specified then the
+        // solr connection params must be present. Same thing goes for the indexing config file.
+        if (hbaseIndexingOpts.hbaseIndexerConfig != null) {
+            hbaseIndexerConfig = Files.toString(hbaseIndexingOpts.hbaseIndexerConfig, Charsets.UTF_8);
+            Map<String,String> solrOptions = Maps.newHashMap();
+            solrOptions.put("solr.zk", hbaseIndexingOpts.zkHost);
+            solrOptions.put("solr.collection", hbaseIndexingOpts.collection);
+            HBaseIndexerMapper.configureIndexConnectionParams(conf, solrOptions);
+        } else {
+            StateWatchingZooKeeper zk = new StateWatchingZooKeeper(hbaseIndexingOpts.indexerZkHost, 30000);
+            IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
+            IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexingOpts.indexName);
+            hbaseIndexerConfig = new String(indexerDefinition.getConfiguration());
+            HBaseIndexerMapper.configureIndexConnectionParams(conf, indexerDefinition.getConnectionParams());
+        }
         
-        IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexingOpts.indexName);
-        
-        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, new String(indexerDefinition.getConfiguration()));
+        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, hbaseIndexerConfig);
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, hbaseIndexingOpts.indexName);
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite);
+        
 
-        HBaseIndexerMapper.configureIndexConnectionParams(conf, indexerDefinition.getConnectionParams());
         
         Job job = Job.getInstance(getConf());
         job.setJarByClass(HBaseIndexerMapper.class);
@@ -493,8 +519,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         job.setOutputFormatClass(NullOutputFormat.class);
         job.setNumReduceTasks(0);
         try {
-            job.waitForCompletion(true);
-            return 0;
+            boolean successful = job.waitForCompletion(true);
+            return successful ? 0 : 1;
         } catch (Exception e) {
             // TODO Handle execution exceptions in the same way as the
             // MapReduceIndexerTool does

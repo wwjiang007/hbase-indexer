@@ -22,8 +22,6 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 
-import com.ngdata.hbaseindexer.mr.MapReduceSolrInputDocumentWriter;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.io.Text;

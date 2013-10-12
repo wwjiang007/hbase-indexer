@@ -289,6 +289,12 @@
         <scope>test</scope>
         <version>${version.hbase95}</version>
       </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-test</artifactId>
+        <version>${version.hadoop.mr1}</version>
+        <scope>test</scope>
+      </dependency>
       <!-- Need to align version of httpclient and httpcore -->
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
@@ -358,8 +364,22 @@
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${version.hadoop}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-hdfs</artifactId>
             <version>${version.hadoop}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-hdfs</artifactId>
+            <version>${version.hadoop}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -542,6 +562,7 @@
               <exclude>**/.settings/**</exclude>
               <exclude>**/resources/*.txt</exclude>
               <exclude>**/resources/**/*.txt</exclude>
+              <exclude>**/resources/**/*.xml</exclude>
               <exclude>**/conf/*</exclude>
               <exclude>**/src/it/resources/**</exclude>
               <exclude>**/META-INF/services/**</exclude>

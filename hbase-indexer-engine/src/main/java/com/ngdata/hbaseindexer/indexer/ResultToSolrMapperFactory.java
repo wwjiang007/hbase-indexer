@@ -28,6 +28,8 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.solr.SolrConfigLoader;
 import com.ngdata.sep.impl.HBaseShims;
 import com.ngdata.sep.util.io.Closer;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.schema.IndexSchema;
@@ -40,6 +42,8 @@ import org.xml.sax.SAXException;
  * Instantiates and configures {@code ResultToSolrMapper} instances based on a supplied hbase-indexer configuration.
  */
 public class ResultToSolrMapperFactory {
+    
+    private static final Log LOG = LogFactory.getLog(ResultToSolrMapperFactory.class);
 
     /**
      * Instantiate a ResultToSolrMapper based on a configuration supplied through an input stream.
@@ -63,6 +67,7 @@ public class ResultToSolrMapperFactory {
                 ConfigureUtil.configure(mapper, indexerConf.getGlobalParams());
             }
         } catch (Exception e) {
+            LOG.error("Error instantiating ResultToSolrMapper for " + indexName, e);
             throw new RuntimeException(e);
         }
         return mapper;
