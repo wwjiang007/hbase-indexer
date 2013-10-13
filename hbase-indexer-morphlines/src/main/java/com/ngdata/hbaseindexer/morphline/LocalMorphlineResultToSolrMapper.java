@@ -27,6 +27,14 @@ import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.TreeMap;
 
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.cloudera.cdk.morphline.api.Command;
 import com.cloudera.cdk.morphline.api.MorphlineCompilationException;
 import com.cloudera.cdk.morphline.api.Record;
@@ -35,6 +43,7 @@ import com.cloudera.cdk.morphline.base.FaultTolerance;
 import com.cloudera.cdk.morphline.base.Fields;
 import com.cloudera.cdk.morphline.base.Notifications;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -43,13 +52,6 @@ import com.ngdata.hbaseindexer.parse.ByteArrayExtractor;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrInputDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Performs Result to Solr mapping using morphlines.
@@ -64,7 +66,6 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     private Timer mappingTimer;
     private final Collector collector = new Collector();
     private boolean isSafeMode = false; // safe but slow (debug-only)
-    private MetricRegistry metricRegistry;
 
     /**
      * Information to be used for constructing a Get to fetch data required for indexing.
@@ -76,10 +77,6 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     public LocalMorphlineResultToSolrMapper() {
     }
     
-    public void setMetricRegistry(MetricRegistry metricRegistry) {
-        this.metricRegistry = metricRegistry;
-    }
-
     @Override
     public void configure(Map<String, String> params) {
         if (LOG.isTraceEnabled()) {
@@ -87,13 +84,11 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
             LOG.trace("Configuration:\n{}", Joiner.on("\n").join(new TreeMap(params).entrySet()));
         }
 
-        FaultTolerance faultTolerance = new FaultTolerance(getBooleanParameter(FaultTolerance.IS_PRODUCTION_MODE,
-                false, params), getBooleanParameter(FaultTolerance.IS_IGNORING_RECOVERABLE_EXCEPTIONS, false, params),
-                getStringParameter(FaultTolerance.RECOVERABLE_EXCEPTION_CLASSES, SolrServerException.class.getName(),
-                        params));
-
-        this.morphlineContext = (HBaseMorphlineContext)new HBaseMorphlineContext.Builder().setExceptionHandler(
-                faultTolerance).setMetricRegistry(metricRegistry).build();
+        FaultTolerance faultTolerance = new FaultTolerance(
+            getBooleanParameter(FaultTolerance.IS_PRODUCTION_MODE, false, params), 
+            getBooleanParameter(FaultTolerance.IS_IGNORING_RECOVERABLE_EXCEPTIONS, false, params),
+            getStringParameter(FaultTolerance.RECOVERABLE_EXCEPTION_CLASSES, 
+                               SolrServerException.class.getName(), params));
 
         String morphlineFile = params.get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         String morphlineId = params.get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
@@ -101,6 +96,16 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
             throw new MorphlineCompilationException("Missing parameter: "
                         + MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, null);
         }
+        this.morphlineFileAndId = morphlineFile + "@" + morphlineId;
+        
+        // share metric registry across threads for better (aggregate) reporting
+        MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(morphlineFileAndId);
+        
+        this.morphlineContext = (HBaseMorphlineContext)new HBaseMorphlineContext.Builder()
+            .setExceptionHandler(faultTolerance)
+            .setMetricRegistry(metricRegistry)
+            .build();
+
         Map morphlineVariables = new HashMap();
         for (Map.Entry<String, String> entry : params.entrySet()) {
             String variablePrefix = MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".";
@@ -111,7 +116,6 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
         Config override = ConfigFactory.parseMap(morphlineVariables);
         this.morphline = new Compiler().compile(new File(morphlineFile), morphlineId, morphlineContext, collector,
                 override);
-        this.morphlineFileAndId = morphlineFile + "@" + morphlineId;
 
         // precompute familyMap; see DefaultResultToSolrMapper ctor
         Get get = newGet();

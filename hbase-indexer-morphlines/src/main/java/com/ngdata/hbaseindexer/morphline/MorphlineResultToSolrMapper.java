@@ -17,16 +17,15 @@ package com.ngdata.hbaseindexer.morphline;
 
 import java.util.Map;
 
-import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.ngdata.hbaseindexer.Configurable;
-import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
-
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.solr.common.SolrInputDocument;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.ngdata.hbaseindexer.Configurable;
+import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 
 /**
  * Pipes a given HBase Result into a morphline and extracts and transforms the specified HBase cells to a
@@ -75,9 +74,6 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
 
     private Map<String, String> params;
     
-    // share metric registry across threads for better (aggregate) reporting
-    private final MetricRegistry metricRegistry = new MetricRegistry();
-
     /*
      * The SEP calls the *same* MorphlineResultToSolrMapper instance from multiple threads at the same
      * time. Morphlines contain state within a method call, so we use a single LocalMorphlineResultToSolrMapper
@@ -91,7 +87,6 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
                 throw new IllegalStateException("Can't create a LocalMorphlineToSolrMapper, not yet configured");
             }
             LocalMorphlineResultToSolrMapper localMorphlineMapper = new LocalMorphlineResultToSolrMapper();
-            localMorphlineMapper.setMetricRegistry(metricRegistry);
             localMorphlineMapper.configure(ImmutableMap.copyOf(params));
             return localMorphlineMapper;
         }
