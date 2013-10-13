@@ -64,6 +64,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     private Timer mappingTimer;
     private final Collector collector = new Collector();
     private boolean isSafeMode = false; // safe but slow (debug-only)
+    private MetricRegistry metricRegistry;
 
     /**
      * Information to be used for constructing a Get to fetch data required for indexing.
@@ -73,6 +74,10 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     private static final Logger LOG = LoggerFactory.getLogger(LocalMorphlineResultToSolrMapper.class);
 
     public LocalMorphlineResultToSolrMapper() {
+    }
+    
+    public void setMetricRegistry(MetricRegistry metricRegistry) {
+        this.metricRegistry = metricRegistry;
     }
 
     @Override
@@ -88,7 +93,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
                         params));
 
         this.morphlineContext = (HBaseMorphlineContext)new HBaseMorphlineContext.Builder().setExceptionHandler(
-                faultTolerance).setMetricRegistry(new MetricRegistry()).build();
+                faultTolerance).setMetricRegistry(metricRegistry).build();
 
         String morphlineFile = params.get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         String morphlineId = params.get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
