@@ -41,7 +41,9 @@ import com.cloudera.cdk.morphline.api.Record;
 import com.cloudera.cdk.morphline.base.Compiler;
 import com.cloudera.cdk.morphline.base.FaultTolerance;
 import com.cloudera.cdk.morphline.base.Fields;
+import com.cloudera.cdk.morphline.base.Metrics;
 import com.cloudera.cdk.morphline.base.Notifications;
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -63,9 +65,13 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     private HBaseMorphlineContext morphlineContext;
     private Command morphline;
     private String morphlineFileAndId;
-    private Timer mappingTimer;
     private final Collector collector = new Collector();
     private boolean isSafeMode = false; // safe but slow (debug-only)
+
+    private Timer mappingTimer;
+    private Meter numRecords;
+    private Meter numFailedRecords;
+    private Meter numExceptionRecords;
 
     /**
      * Information to be used for constructing a Get to fetch data required for indexing.
@@ -135,8 +141,15 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
         this.isSafeMode = getBooleanParameter("isSafeMode", false, params); // intentionally undocumented, not a public
                                                                             // API
 
-        String metricName = MetricRegistry.name(getClass(), "HBase Result to Solr mapping time");
-        this.mappingTimer = morphlineContext.getMetricRegistry().timer(metricName);
+        this.mappingTimer = morphlineContext.getMetricRegistry().timer(
+            MetricRegistry.name("morphline.app", Metrics.ELAPSED_TIME));
+        this.numRecords = morphlineContext.getMetricRegistry().meter(
+            MetricRegistry.name("morphline.app", Metrics.NUM_RECORDS));
+        this.numFailedRecords = morphlineContext.getMetricRegistry().meter(
+            MetricRegistry.name("morphline.app", "numFailedRecords"));
+        this.numExceptionRecords = morphlineContext.getMetricRegistry().meter(
+            MetricRegistry.name("morphline.app", "numExceptionRecords"));
+        
         Notifications.notifyBeginTransaction(morphline);
     }
 
@@ -188,6 +201,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
 
     @Override
     public SolrInputDocument map(Result result) {
+        numRecords.mark();
         Timer.Context timerContext = mappingTimer.time();
         try {
             Record record = new Record();
@@ -197,9 +211,11 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
             try {
                 Notifications.notifyStartSession(morphline);
                 if (!morphline.process(record)) {
+                    numFailedRecords.mark();
                     LOG.warn("Morphline {} failed to process record: {}", morphlineFileAndId, record);
                 }
             } catch (RuntimeException t) {
+                numExceptionRecords.mark();
                 morphlineContext.getExceptionHandler().handleException(t, record);
             }
 
