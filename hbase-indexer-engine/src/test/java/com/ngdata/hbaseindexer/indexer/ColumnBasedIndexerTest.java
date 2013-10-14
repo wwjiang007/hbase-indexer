@@ -213,22 +213,5 @@ public class ColumnBasedIndexerTest {
         assertEquals("_cf_", documents.get(0).getFieldValue(CUSTOM_FAMILY_FIELD));
     }
     
-    @Test
-    public void testCalculateIndexUpdates_NoSolrDocumentReturnedFromMapper() throws IOException {
-        ResultToSolrMapper nullReturningMapper = mock(ResultToSolrMapper.class);
-        Indexer nullHandlingIndexer = new ColumnBasedIndexer(
-                "column-based", indexerConf, nullReturningMapper, solrWriter);
-        
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        SepEvent event = createSepEvent("_row_", toAdd);
-        
-        doReturn(null).when(nullReturningMapper).map(any(Result.class));
-
-        nullHandlingIndexer.calculateIndexUpdates(Lists.newArrayList(event), updateCollector);
-
-        assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
-        assertTrue(updateCollector.getIdsToDelete().isEmpty());
-    }
-    
 
 }

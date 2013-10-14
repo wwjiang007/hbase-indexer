@@ -16,6 +16,7 @@
 package com.ngdata.hbaseindexer.indexer;
 
 import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+import static com.ngdata.sep.impl.HBaseShims.newResult;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,16 +29,16 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
-import com.ngdata.hbaseindexer.ConfigureUtil;
-
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
@@ -55,8 +56,6 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.common.SolrInputDocument;
-
-import static com.ngdata.sep.impl.HBaseShims.newResult;
 
 /**
  * The indexing algorithm. It receives an event from the SEP, handles it based on the configuration, and eventually
@@ -237,20 +236,11 @@ public abstract class Indexer implements EventListener {
                         log.debug("Row " + Bytes.toString(event.getRow()) + ": deleted from Solr");
                     }
                 } else {
-                    SolrInputDocument document = mapper.map(result);
-                    if (document != null) {
-                        document.addField(conf.getUniqueKeyField(), uniqueKeyFormatter.formatRow(event.getRow()));
-                        // TODO there should probably be some way for the mapper to indicate there was no useful content to
-                        // map,  e.g. if there are no fields in the solrWriter document (and should we then perform a delete instead?)
-                        updateCollector.add(document);
-                        if (log.isDebugEnabled()) {
-                            log.debug("Row " + Bytes.toString(event.getRow()) + ": added to Solr");
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Skipping indexing of " + result);
-                        }
-                    }
+                    IdAddingSolrUpdateWriter idAddingUpdateWriter = new IdAddingSolrUpdateWriter(
+                                                                            conf.getUniqueKeyField(),
+                                                                            uniqueKeyFormatter.formatRow(event.getRow()),
+                                                                            updateCollector);
+                    mapper.map(result, idAddingUpdateWriter);
                 }
             }
         }
@@ -296,16 +286,17 @@ public abstract class Indexer implements EventListener {
                     handleDelete(documentId, keyValue, updateCollector);
                 } else {
                     Result result = newResult(Collections.singletonList(keyValue));
-                    SolrInputDocument document = mapper.map(result);
-                    if (document != null) {
-                        document.addField(conf.getUniqueKeyField(), documentId);
-                        addRowAndFamily(document, keyValue);
-                        updateCollector.add(document);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Skipping indexing of " + keyValue + " under id " + documentId);
-                        }
-                    }
+                    SolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter(
+                            conf.getRowField(),
+                            conf.getColumnFamilyField(),
+                            uniqueKeyFormatter,
+                            keyValue,
+                            new IdAddingSolrUpdateWriter(
+                                    conf.getUniqueKeyField(),
+                                    documentId,
+                                    updateCollector));
+                   
+                    mapper.map(result, updateWriter);
                 }
             }
         }
@@ -323,17 +314,6 @@ public abstract class Indexer implements EventListener {
             }
         }
 
-        private void addRowAndFamily(SolrInputDocument document, KeyValue keyValue) {
-            if (conf.getRowField() != null) {
-                document.addField(conf.getRowField(), uniqueKeyFormatter.formatRow(keyValue.getRow()));
-            }
-
-            if (conf.getColumnFamilyField() != null) {
-                document.addField(conf.getColumnFamilyField(),
-                        uniqueKeyFormatter.formatFamily(keyValue.getFamily()));
-            }
-        }
-        
         /**
          * Delete all values for a single column family from Solr.
          */

@@ -128,25 +128,5 @@ public class RowBasedIndexerTest {
         assertEquals(Lists.newArrayList("_row_"), updateCollector.getIdsToDelete());
         assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
     }
-    
-    @Test
-    public void testCalculateIndexUpdates_NoSolrDocumentReturnedFromMapper() throws IOException {
-        
-        ResultToSolrMapper nullReturningMapper = mock(ResultToSolrMapper.class);
-        
-        RowBasedIndexer nullHandlingIndexer = new RowBasedIndexer(
-                "row-based", indexerConf, nullReturningMapper, tablePool, solrWriter);
-        
-        
-        KeyValue keyValue = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        SepEvent sepEvent = createSepEvent("_row_", keyValue);
-        
-        doReturn(null).when(nullReturningMapper).map(any(Result.class));
-        
-        nullHandlingIndexer.calculateIndexUpdates(Lists.newArrayList(sepEvent), updateCollector);
-        
-        assertTrue(updateCollector.getDocumentsToAdd().isEmpty());
-        assertTrue(updateCollector.getIdsToDelete().isEmpty());
-    }
 
 }

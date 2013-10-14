@@ -27,14 +27,6 @@ import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.TreeMap;
 
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrInputDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.cloudera.cdk.morphline.api.Command;
 import com.cloudera.cdk.morphline.api.MorphlineCompilationException;
 import com.cloudera.cdk.morphline.api.Record;
@@ -52,8 +44,16 @@ import com.google.common.base.Preconditions;
 import com.ngdata.hbaseindexer.Configurable;
 import com.ngdata.hbaseindexer.parse.ByteArrayExtractor;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Performs Result to Solr mapping using morphlines.
@@ -91,9 +91,9 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
         }
 
         FaultTolerance faultTolerance = new FaultTolerance(
-            getBooleanParameter(FaultTolerance.IS_PRODUCTION_MODE, false, params), 
+            getBooleanParameter(FaultTolerance.IS_PRODUCTION_MODE, false, params),
             getBooleanParameter(FaultTolerance.IS_IGNORING_RECOVERABLE_EXCEPTIONS, false, params),
-            getStringParameter(FaultTolerance.RECOVERABLE_EXCEPTION_CLASSES, 
+            getStringParameter(FaultTolerance.RECOVERABLE_EXCEPTION_CLASSES,
                                SolrServerException.class.getName(), params));
 
         String morphlineFile = params.get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
@@ -200,7 +200,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     }
 
     @Override
-    public SolrInputDocument map(Result result) {
+    public void map(Result result, SolrUpdateWriter solrUpdateWriter) {
         numRecords.mark();
         Timer.Context timerContext = mappingTimer.time();
         try {
@@ -219,16 +219,9 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
                 morphlineContext.getExceptionHandler().handleException(t, record);
             }
 
-            List<Record> results = collector.getRecords();
-            if (results.size() == 0) {
-                return null;
+            for (Record resultRecord : collector.getRecords()) {
+                solrUpdateWriter.add(convert(resultRecord));
             }
-            if (results.size() > 1) {
-                throw new IllegalStateException(getClass().getName()
-                        + " must not generate more than one output record per input HBase Result event");
-            }
-            SolrInputDocument solrInputDocument = convert(results.get(0));
-            return solrInputDocument;
         } finally {
             timerContext.stop();
         }

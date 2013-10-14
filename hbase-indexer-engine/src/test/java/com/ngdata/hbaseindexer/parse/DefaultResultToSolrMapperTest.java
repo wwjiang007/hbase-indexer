@@ -15,11 +15,14 @@
  */
 package com.ngdata.hbaseindexer.parse;
 
+import static com.ngdata.sep.impl.HBaseShims.newResult;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -28,8 +31,9 @@ import java.util.NavigableSet;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.mockito.ArgumentCaptor;
+
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.ngdata.hbaseindexer.conf.DocumentExtractDefinition;
 import com.ngdata.hbaseindexer.conf.FieldDefinition;
@@ -42,15 +46,17 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.schema.IndexSchema;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import static com.ngdata.sep.impl.HBaseShims.newResult;
-
 public class DefaultResultToSolrMapperTest {
 
+    private SolrUpdateWriter solrUpdateWriter;
+    private ArgumentCaptor<SolrInputDocument> solrInputDocCaptor;
+    
     private static final byte[] ROW = Bytes.toBytes("row");
     private static final byte[] COLUMN_FAMILY_A = Bytes.toBytes("cfA");
     private static final byte[] COLUMN_FAMILY_B = Bytes.toBytes("cfB");
@@ -65,6 +71,12 @@ public class DefaultResultToSolrMapperTest {
         InputSource schemaInputSource = new InputSource(DefaultResultToSolrMapperTest.class.getResourceAsStream("/schema.xml"));
         indexSchema = new IndexSchema(solrConfig, "schema.xml", schemaInputSource);
     }
+    
+    @Before
+    public void setUp() {
+        solrUpdateWriter = mock(SolrUpdateWriter.class);
+        solrInputDocCaptor = ArgumentCaptor.forClass(SolrInputDocument.class);
+    }
 
     @Test
     public void testMap() {
@@ -78,7 +90,10 @@ public class DefaultResultToSolrMapperTest {
         KeyValue kvB = new KeyValue(ROW, COLUMN_FAMILY_B, QUALIFIER_B, "dummy value".getBytes());
         Result result = newResult(Lists.newArrayList(kvA, kvB));
 
-        SolrInputDocument solrDocument = resultMapper.map(result);
+        resultMapper.map(result, solrUpdateWriter);
+        verify(solrUpdateWriter).add(solrInputDocCaptor.capture());
+        
+        SolrInputDocument solrDocument = solrInputDocCaptor.getValue();
 
         assertEquals(Sets.newHashSet("fieldA", "fieldB"), solrDocument.keySet());
 
@@ -100,7 +115,10 @@ public class DefaultResultToSolrMapperTest {
         KeyValue kvB = new KeyValue(ROW, COLUMN_FAMILY_B, QUALIFIER_B, "dummy value".getBytes());
         Result result = newResult(Lists.newArrayList(kvA, kvB));
 
-        SolrInputDocument solrDocument = resultMapper.map(result);
+        resultMapper.map(result, solrUpdateWriter);
+        verify(solrUpdateWriter).add(solrInputDocCaptor.capture());
+        
+        SolrInputDocument solrDocument = solrInputDocCaptor.getValue();
 
         assertTrue(solrDocument.getFieldNames().contains("testprefix_content"));
         assertTrue(solrDocument.getField("testprefix_content").getValues().toString().contains("test value"));

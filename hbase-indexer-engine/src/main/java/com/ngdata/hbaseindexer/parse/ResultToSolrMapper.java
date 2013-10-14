@@ -20,7 +20,6 @@ import com.ngdata.hbaseindexer.indexer.Indexer;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.common.SolrInputDocument;
 
 /**
  * Parses and maps HBase {@code Result} objects to Solr {@code SolrInputDocument}s.
@@ -56,17 +55,14 @@ public interface ResultToSolrMapper {
     boolean containsRequiredData(Result result);
 
     /**
-     * Creates a Solr document out of the supplied HBase row.
+     * Creates a Solr document or documents from of the supplied HBase row.
      *
      * <p>The document does not need to contain the ID (unique key) for Solr, this will be added by the
-     * {@link Indexer}.</p>
+     * {@link Indexer} if it is not already present. Note that if multiple documents are output, they
+     * should include unique document ids.</p>
      *
-     * <p>
-     * If the mapping would result in nothing, null should be returned.
-     * </p>
-     * 
-     * @param result the HBase {@code Result} object to be mapped to a {@code SolrInputDocument}
-     * @return the mapped {@code SolrInputDocument}, or null
+     * @param result the HBase {@code Result} object to be mapped to {@code SolrInputDocument}(s)
+     * @param solrDocumentWriter writer to write new Solr documents to
      */
-    SolrInputDocument map(Result result);
+    void map(Result result, SolrUpdateWriter solrUpdateWriter);
 }

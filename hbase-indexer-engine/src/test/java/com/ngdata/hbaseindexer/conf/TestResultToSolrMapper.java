@@ -15,12 +15,11 @@
  */
 package com.ngdata.hbaseindexer.conf;
 
+import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.common.SolrInputDocument;
-
-import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 
 /**
  * A {@code ResultToSolrMapper} mapper used to test the dynamic loading of a mapper class.
@@ -43,7 +42,7 @@ public class TestResultToSolrMapper implements ResultToSolrMapper {
     }
 
     @Override
-    public SolrInputDocument map(Result result) {
+    public void map(Result result, SolrUpdateWriter solrUpdateWriter) {
         throw new UnsupportedOperationException("Not yet implemented");
     }
 

@@ -15,24 +15,19 @@
  */
 package com.ngdata.hbaseindexer.morphline;
 
+import static com.ngdata.sep.impl.HBaseShims.newResult;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableSet;
-
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.common.SolrInputField;
-import org.junit.Test;
 
 import com.cloudera.cdk.morphline.api.Record;
 import com.google.common.collect.ImmutableMap;
@@ -41,8 +36,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.ngdata.hbaseindexer.conf.FieldDefinition;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
-
-import static com.ngdata.sep.impl.HBaseShims.newResult;
+import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.SolrInputField;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class MorphlineResultToSolrMapperTest {
 
@@ -52,6 +55,15 @@ public class MorphlineResultToSolrMapperTest {
     private static final byte[] QUALIFIER_A = Bytes.toBytes("qualifierA");
     private static final byte[] QUALIFIER_B = Bytes.toBytes("qualifierB");
     private static final byte[] QUALIFIER_C = Bytes.toBytes("qualifierC");
+    
+    private SolrUpdateWriter updateWriter;
+    private ArgumentCaptor<SolrInputDocument> solrInputDocCaptor;
+    
+    @Before
+    public void setUp() {
+        updateWriter = mock(SolrUpdateWriter.class);
+        solrInputDocCaptor = ArgumentCaptor.forClass(SolrInputDocument.class);
+    }
     
     @Test
     public void testMap() throws Exception {
@@ -66,7 +78,10 @@ public class MorphlineResultToSolrMapperTest {
 
         Multimap expectedMap = ImmutableMultimap.of("fieldA", 42, "fieldB", "dummy value");
 
-        SolrInputDocument solrDocument = resultMapper.map(result);
+        resultMapper.map(result, updateWriter);
+        verify(updateWriter).add(solrInputDocCaptor.capture());
+        
+        SolrInputDocument solrDocument = solrInputDocCaptor.getValue();
         assertEquals(expectedMap, toRecord(solrDocument).getFields());
     }
 
@@ -85,7 +100,10 @@ public class MorphlineResultToSolrMapperTest {
 
         Multimap expectedMap = ImmutableMultimap.of("fieldA", 42, "fieldB", "Basti", "fieldC", "Nadja");
 
-        SolrInputDocument solrDocument = resultMapper.map(result);
+        resultMapper.map(result, updateWriter);
+        verify(updateWriter).add(solrInputDocCaptor.capture());
+        
+        SolrInputDocument solrDocument = solrInputDocCaptor.getValue();
         assertEquals(expectedMap, toRecord(solrDocument).getFields());
     }
 
@@ -103,7 +121,10 @@ public class MorphlineResultToSolrMapperTest {
 
         Multimap expectedMap = ImmutableMultimap.of("fieldA", 42, "prefixB", "dummy value", "prefixA", "Nadja");
 
-        SolrInputDocument solrDocument = resultMapper.map(result);
+        resultMapper.map(result, updateWriter);
+        verify(updateWriter).add(solrInputDocCaptor.capture());
+        
+        SolrInputDocument solrDocument = solrInputDocCaptor.getValue();
         assertEquals(expectedMap, toRecord(solrDocument).getFields());
     }
 
@@ -199,7 +220,7 @@ public class MorphlineResultToSolrMapperTest {
     private Record toRecord(SolrInputDocument doc) {
       Record record = new Record();
       for (Entry<String, SolrInputField> entry : doc.entrySet()) {
-          record.getFields().putAll(entry.getKey(), entry.getValue().getValues());        
+          record.getFields().putAll(entry.getKey(), entry.getValue().getValues());
       }
       return record;
     }
@@ -219,7 +240,7 @@ public class MorphlineResultToSolrMapperTest {
           MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".OUTPUT_FIELD", fieldDef.getName(),
           MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".TYPE", fieldDef.getTypeName(),
           MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".SOURCE", fieldDef.getValueSource().toString().toLowerCase());
-    }       
+    }
     
     private Map<String, String> makeMap(Map<String, String>...maps) {
       Map<String, String> result = new HashMap();

@@ -151,14 +151,14 @@ public class DefaultResultToSolrMapper implements ResultToSolrMapper {
     }
 
     @Override
-    public SolrInputDocument map(Result result) {
+    public void map(Result result, SolrUpdateWriter solrUpdateWriter) {
         TimerContext timerContext = mappingTimer.time();
         try {
             SolrInputDocument solrInputDocument = new SolrInputDocument();
             for (SolrDocumentExtractor documentExtractor : resultDocumentExtractors) {
                 documentExtractor.extractDocument(result, solrInputDocument);
             }
-            return solrInputDocument;
+            solrUpdateWriter.add(solrInputDocument);
         } finally {
             timerContext.stop();
         }

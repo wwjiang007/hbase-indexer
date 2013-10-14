@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
+import static com.ngdata.sep.impl.HBaseShims.newResult;
 import static junit.framework.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -38,6 +39,7 @@ import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.ngdata.sep.SepEvent;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
@@ -51,8 +53,6 @@ import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-
-import static com.ngdata.sep.impl.HBaseShims.newResult;
 
 public class IndexerTest {
 
@@ -129,8 +129,8 @@ public class IndexerTest {
             }
 
             @Override
-            public SolrInputDocument map(Result result) {
-                return new SolrInputDocument();
+            public void map(Result result, SolrUpdateWriter solrUpdateWriter) {
+                solrUpdateWriter.add(new SolrInputDocument());
             }
 
             @Override
@@ -225,9 +225,8 @@ public class IndexerTest {
             }
 
             @Override
-            public SolrInputDocument map(Result result) {
-                SolrInputDocument doc = new SolrInputDocument();
-                return doc;
+            public void map(Result result, SolrUpdateWriter solrUpdateWriter) {
+                solrUpdateWriter.add(new SolrInputDocument());
             }
 
             @Override

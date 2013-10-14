@@ -17,6 +17,8 @@ package com.ngdata.hbaseindexer.morphline;
 
 import java.util.Map;
 
+import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
+
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
@@ -128,8 +130,8 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
     }
 
     @Override
-    public SolrInputDocument map(Result result) {
-        return localMorphlineMapper.get().map(result);
+    public void map(Result result, SolrUpdateWriter solrUpdateWriter) {
+        localMorphlineMapper.get().map(result, solrUpdateWriter);
     }
 
 }
