@@ -23,14 +23,12 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.hadoop.fs.FileSystem;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
-import com.ngdata.hbaseindexer.mr.HBaseMapReduceIndexerTool.HBaseIndexingOptions;
 import com.ngdata.hbaseindexer.util.net.NetUtils;
 import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -108,7 +106,7 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable = new HTable(HBASE_TEST_UTILITY.getConfiguration(), TEST_TABLE_NAME);
         
         int zkPort = HBASE_TEST_UTILITY.getZkCluster().getClientPort();
-        opts = new HBaseIndexingOptions();
+        opts = new HBaseIndexingOptions(new Configuration());
         opts.zkHost = "127.0.0.1:" + zkPort + "/solr";
         opts.hbaseTableName = Bytes.toString(TEST_TABLE_NAME);
         opts.indexerZkHost = "127.0.0.1:" + zkPort;
@@ -116,13 +114,8 @@ public class HBaseMapReduceIndexerToolTest {
         opts.collection = "collection1";
         opts.shards = 1;
         opts.reducers = 1;
-        
-
-        FileSystem fs = FileSystem.get(HBASE_TEST_UTILITY.getConfiguration());
-        Path outputPath = fs.makeQualified(new Path("/solroutput"));
-        
-        
-        opts.outputDir = outputPath;
+        opts.fanout = Integer.MAX_VALUE;
+       
         opts.updateConflictResolver = RetainMostRecentUpdateConflictResolver.class.getName();
         opts.isVerbose = true;
     }
@@ -168,6 +161,7 @@ public class HBaseMapReduceIndexerToolTest {
     private void executeIndexPipeline() throws Exception, SolrServerException, IOException {
         HBaseMapReduceIndexerTool indexerTool = new HBaseMapReduceIndexerTool();
         indexerTool.setConf(HBASE_TEST_UTILITY.getConfiguration());
+        opts.evaluate();
         int exitCode = indexerTool.runIndexingJob(opts);
         
         assertEquals(0, exitCode);
@@ -201,7 +195,6 @@ public class HBaseMapReduceIndexerToolTest {
                                 "lastname", "Doe"));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         
         executeIndexPipeline();
         
@@ -215,7 +208,6 @@ public class HBaseMapReduceIndexerToolTest {
                                 "lastname", "Doe"));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.collection = "collection2";
         
         executeIndexPipeline();
@@ -235,7 +227,6 @@ public class HBaseMapReduceIndexerToolTest {
         writeHBaseRecord("c", ImmutableMap.of("firstname", "Carl"));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.startRow = "b";
         
         executeIndexPipeline();
@@ -252,7 +243,6 @@ public class HBaseMapReduceIndexerToolTest {
         writeHBaseRecord("c", ImmutableMap.of("firstname", "Carl"));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.endRow = "c";
         
         executeIndexPipeline();
@@ -268,7 +258,6 @@ public class HBaseMapReduceIndexerToolTest {
         writeHBaseRecord("c", ImmutableMap.of("firstname", "Carl"));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.startRow = "b";
         opts.endRow = "c";
         
@@ -292,7 +281,6 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.startTime = 2L;
         
         executeIndexPipeline();
@@ -315,7 +303,6 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.endTime = 3L;
         
         executeIndexPipeline();
@@ -338,7 +325,6 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.isDirectWrite = true;
         opts.startTime = 2L;
         opts.endTime = 3L;
         
@@ -354,10 +340,15 @@ public class HBaseMapReduceIndexerToolTest {
 
     @Test
     public void testIndexer_ToHdfs() throws Exception {
+        
         writeHBaseRecord("row1", ImmutableMap.of("firstname", "John", "lastname", "Doe"));
+        writeHBaseRecord("row2", ImmutableMap.of("firstname", "Jane", "lastname", "Doe"));
 
         opts.reducers = 1;
+        opts.outputDir = new Path("/solroutput");
         executeIndexPipeline();
+        
+        // TODO Validate output
     }
 
 }
