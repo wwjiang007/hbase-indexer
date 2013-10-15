@@ -1298,7 +1298,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     }
   }
 
-  private static boolean waitForCompletion(Job job, boolean isVerbose)
+  public static boolean waitForCompletion(Job job, boolean isVerbose)
       throws IOException, InterruptedException, ClassNotFoundException {
     
     LOG.debug("Running job: " + getJobInfo(job));

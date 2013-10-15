@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import java.io.IOException;
 import java.util.Map;
 
 import com.google.common.base.Charsets;
@@ -111,7 +112,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                     job);
         
         if (hbaseIndexingOpts.isDirectWrite()) {
-            return runDirectWriteIndexingJob(job, getConf());
+            return runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
         } else {
             return ForkedMapReduceIndexerTool.runIndexingPipeline(
                                             job, getConf(), hbaseIndexingOpts.asOptions(), 0,
@@ -130,19 +131,14 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
      * 
      * @param job configured job for creating SolrInputDocuments
      * @param conf job configuration
+     * @param verbose run in verbose mode
      * @return exit code, 0 is successful execution
      */
-    private int runDirectWriteIndexingJob(Job job, Configuration conf) {
+    private int runDirectWriteIndexingJob(Job job, Configuration conf, boolean verbose)
+                throws ClassNotFoundException, IOException, InterruptedException {
         job.setOutputFormatClass(NullOutputFormat.class);
         job.setNumReduceTasks(0);
-        try {
-            boolean successful = job.waitForCompletion(true);
-            return successful ? 0 : 1;
-        } catch (Exception e) {
-            // TODO Handle execution exceptions in the same way as the
-            // MapReduceIndexerTool does
-            throw new RuntimeException(e);
-        }
+        return ForkedMapReduceIndexerTool.waitForCompletion(job, verbose) ? 0 : 1;
     }
 
 }
