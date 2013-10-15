@@ -26,6 +26,8 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 import org.slf4j.Logger;
@@ -81,7 +83,13 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                     job);
         
         if (hbaseIndexingOpts.isDirectWrite()) {
-            return runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
+            int exitCode = runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
+            if (exitCode == 0) {
+                SolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
+                solrServer.commit(false, false);
+                solrServer.shutdown();
+            }
+            return exitCode;
         } else {
             FileSystem fileSystem = FileSystem.get(getConf());
             int exitCode = ForkedMapReduceIndexerTool.runIndexingPipeline(

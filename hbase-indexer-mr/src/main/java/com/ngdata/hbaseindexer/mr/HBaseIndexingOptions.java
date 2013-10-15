@@ -124,6 +124,10 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new IllegalStateException(
                     "Output directory should not be specified if direct-write (no reducers) is enabled");
             }
+            if (zkHost == null) {
+                throw new IllegalStateException(
+                    "--zk-host must be specified if num reducers is 0");
+            }
             return;
         }
         
