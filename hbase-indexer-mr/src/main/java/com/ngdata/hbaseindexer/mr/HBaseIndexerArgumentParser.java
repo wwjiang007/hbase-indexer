@@ -252,17 +252,17 @@ class HBaseIndexerArgumentParser {
         ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("Scan parameters");
 
         // TODO Provide example in doc of "binary string" format
-        Argument startRowArg = scanArgumentGroup.addArgument("--startRow").help(
+        Argument startRowArg = scanArgumentGroup.addArgument("--hbase-start-row").help(
                 "Binary string representation of start row from which to start indexing (inclusive)");
 
         // TODO Provide example in doc of "binary string" format
-        Argument endRowArg = scanArgumentGroup.addArgument("--endRow").help(
-                "Binary string representation of end row prefix at which to stop indexing");
+        Argument endRowArg = scanArgumentGroup.addArgument("--hbase-end-row").help(
+                "Binary string representation of end row prefix at which to stop indexing (exclusive)");
 
-        Argument startTimeArg = scanArgumentGroup.addArgument("--startTime").metavar("LONG").help(
-                "Earliest timestamp in time range of HBase cells to be included for indexing");
+        Argument startTimeArg = scanArgumentGroup.addArgument("--hbase-start-time").metavar("LONG").help(
+                "Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing");
 
-        Argument endTimeArg = scanArgumentGroup.addArgument("--endTime").metavar("LONG").help(
+        Argument endTimeArg = scanArgumentGroup.addArgument("--hbase-end-time").metavar("LONG").help(
                 "Latest timestamp (exclusive) of HBase cells to be included for indexing");
 
         Namespace ns;
