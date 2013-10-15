@@ -93,7 +93,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             return runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
         } else {
             return ForkedMapReduceIndexerTool.runIndexingPipeline(
-                                            job, getConf(), hbaseIndexingOpts.asOptions(), 0,
+                                            job, getConf(), hbaseIndexingOpts.asOptions(),
+                                            System.currentTimeMillis(),
                                             FileSystem.get(getConf()),
                                             null, -1, // File-based parameters
                                             
