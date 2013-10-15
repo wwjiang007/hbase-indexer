@@ -45,6 +45,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
+import org.apache.solr.hadoop.SolrOutputFormat;
 
 /**
  * Mapper for converting HBase Result objects into index documents.
@@ -68,6 +69,9 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     private static final String CONF_VALUE_SEPARATOR = ";";
     
     private static final Log LOG = LogFactory.getLog(HBaseIndexerMapper.class);
+    
+    private Indexer indexer;
+    private SolrInputDocumentWriter solrDocWriter;
 
     /**
      * Add the given index connection parameters to a Configuration.
@@ -98,8 +102,6 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         return Splitter.on(CONF_VALUE_SEPARATOR).withKeyValueSeparator(CONF_KEYVALUE_SEPARATOR).split(confValue);
     }
 
-    private Indexer indexer;
-  
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -136,7 +138,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                     indexName, indexerConf, indexConnectionParams);
-        SolrInputDocumentWriter solrDocWriter = createSolrWriter(context, indexConnectionParams);
+        solrDocWriter = createSolrWriter(context, indexConnectionParams);
         indexer = Indexer.createIndexer(indexName, indexerConf, mapper, null, solrDocWriter);
     }
     
@@ -155,7 +157,12 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             }
             CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
             solrServer.setDefaultCollection(collectionName);
-            return new DirectSolrInputDocumentWriter(conf.get(INDEX_NAME_CONF_KEY), solrServer);
+            
+            int bufferSize = context.getConfiguration().getInt(SolrOutputFormat.SOLR_RECORD_WRITER_BATCH_SIZE, 100);
+            
+            return new BufferedSolrInputDocumentWriter(
+                    new DirectSolrInputDocumentWriter(conf.get(INDEX_NAME_CONF_KEY), solrServer),
+                    bufferSize);
         } else {
             return new MapReduceSolrInputDocumentWriter(context);
         }
@@ -172,6 +179,15 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new RuntimeException(e);
         }
 
+    }
+    
+    @Override
+    protected void cleanup(Context context) throws IOException, InterruptedException {
+        try {
+            solrDocWriter.close();
+        } catch (SolrServerException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

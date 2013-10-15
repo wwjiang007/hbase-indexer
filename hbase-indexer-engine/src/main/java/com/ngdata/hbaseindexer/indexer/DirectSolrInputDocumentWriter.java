@@ -188,5 +188,10 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
             throw sse;
         }
     }
+    
+    @Override
+    public void close() {
+        solrServer.shutdown();
+    }
 
 }

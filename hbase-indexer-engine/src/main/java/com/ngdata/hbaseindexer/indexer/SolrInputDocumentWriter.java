@@ -49,5 +49,10 @@ public interface SolrInputDocumentWriter {
      * @param deleteQuery delete query to be executed
      */
     void deleteByQuery(String deleteQuery) throws SolrServerException, IOException;
+    
+    /**
+     * Close any open resources being used by this writer.
+     */
+    void close() throws SolrServerException, IOException;
 
 }

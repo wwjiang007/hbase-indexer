@@ -61,5 +61,10 @@ public class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter
     public void deleteByQuery(String deleteQuery) throws SolrServerException, IOException {
         throw new UnsupportedOperationException("Cannot delete records in a MapReduce context");
     }
+    
+    @Override
+    public void close() throws SolrServerException, IOException {
+        // Nothing to do
+    }
 
 }
