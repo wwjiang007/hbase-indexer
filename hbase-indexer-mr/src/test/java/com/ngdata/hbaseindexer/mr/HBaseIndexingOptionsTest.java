@@ -18,6 +18,7 @@ package com.ngdata.hbaseindexer.mr;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -71,9 +72,7 @@ public class HBaseIndexingOptionsTest {
         // Should have no effect
         opts.evaluateOutputDir();
         
-        Path outputPath = opts.outputDir;
-        assertEquals(new Path("/tmp"), outputPath.getParent());
-        assertTrue(opts.isGeneratedOutputDir());
+        assertNull(opts.outputDir);
     }
     
     @Test

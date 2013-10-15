@@ -93,12 +93,15 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateOutputDir() {
 
-        if (isDirectWrite() && outputDir != null) {
-            throw new IllegalStateException(
+        if (isDirectWrite()) {
+            if (outputDir != null) {
+                throw new IllegalStateException(
                     "Output directory should not be specified if direct-write (no reducers) is enabled");
+            }
+            return;
         }
         
-        if (goLive || isDirectWrite()) {
+        if (goLive) {
             if (outputDir == null) {
                 outputDir = new Path(conf.get("hbase.search.mr.tmpdir", "/tmp"), "search-"
                         + UUID.randomUUID().toString());
