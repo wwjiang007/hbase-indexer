@@ -16,16 +16,7 @@
 package com.ngdata.hbaseindexer.mr;
 
 import java.io.IOException;
-import java.util.Map;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Maps;
-import com.google.common.io.Files;
-import com.ngdata.hbaseindexer.ConfKeys;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
-import com.ngdata.hbaseindexer.model.api.IndexerModel;
-import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
-import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
@@ -92,17 +83,26 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         if (hbaseIndexingOpts.isDirectWrite()) {
             return runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
         } else {
-            return ForkedMapReduceIndexerTool.runIndexingPipeline(
+            FileSystem fileSystem = FileSystem.get(getConf());
+            int exitCode = ForkedMapReduceIndexerTool.runIndexingPipeline(
                                             job, getConf(), hbaseIndexingOpts.asOptions(),
                                             System.currentTimeMillis(),
-                                            FileSystem.get(getConf()),
+                                            fileSystem,
                                             null, -1, // File-based parameters
                                             
                                             // TODO Set these based on heuristics and cmdline args
                                             -1, // num mappers
                                             Math.max(hbaseIndexingOpts.reducers, hbaseIndexingOpts.shards)  // num reducers
                                             );
+            
+
+            if (hbaseIndexingOpts.isGeneratedOutputDir()) {
+                LOG.info("Deleting generated output directory " + hbaseIndexingOpts.outputDir);
+                fileSystem.delete(hbaseIndexingOpts.outputDir, true);
+            }
+            return exitCode;
         }
+        
     }
 
     /**

@@ -129,6 +129,7 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateOutputDir();
         
         assertNull(opts.outputDir);
+        assertFalse(opts.isGeneratedOutputDir());
     }
     
     @Test
