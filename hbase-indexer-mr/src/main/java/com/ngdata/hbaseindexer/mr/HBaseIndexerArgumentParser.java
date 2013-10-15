@@ -297,7 +297,7 @@ class HBaseIndexerArgumentParser {
 
         opts.hbaseIndexerConfig = (File)ns.get(hbaseIndexerConfigArg.getDest());
         opts.indexerZkHost = ns.getString(indexerZkHostArg.getDest());
-        opts.indexName = ns.getString(indexNameArg.getDest());
+        opts.indexerName = ns.getString(indexNameArg.getDest());
         opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
         opts.startRow = ns.getString(startRowArg.getDest());
         opts.endRow = ns.getString(endRowArg.getDest());

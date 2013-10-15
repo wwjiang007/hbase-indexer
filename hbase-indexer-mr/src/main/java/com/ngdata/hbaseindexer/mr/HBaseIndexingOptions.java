@@ -15,12 +15,27 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
 import java.util.UUID;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
+import com.google.common.io.Files;
+import com.ngdata.hbaseindexer.ConfKeys;
+import com.ngdata.hbaseindexer.conf.IndexerConf;
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
+import com.ngdata.hbaseindexer.model.api.IndexerModel;
+import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
+import com.ngdata.sep.util.io.Closer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
@@ -38,14 +53,17 @@ import org.slf4j.LoggerFactory;
 class HBaseIndexingOptions extends OptionsBridge {
 
     private static final Logger LOG = LoggerFactory.getLogger(MapReduceIndexerTool.class);
+    
+    static final String DEFAULT_INDEXER_NAME = "_default_";
 
     private Configuration conf;
     private Scan scan;
+    private IndexingSpecification indexingSpecification;
     // Flag that we have created our own output directory
     private boolean generatedOutputDir = false;
 
     public String indexerZkHost;
-    public String indexName = "unnamed-index";
+    public String indexerName = DEFAULT_INDEXER_NAME;
     public File hbaseIndexerConfig;
     public String hbaseTableName;
     public String startRow;
@@ -73,6 +91,13 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
         return scan;
     }
+    
+    public IndexingSpecification getIndexingSpecification() {
+        if (indexingSpecification == null) {
+            throw new IllegalStateException("Indexing specification has not yet been evaluated");
+        }
+        return indexingSpecification;
+    }
 
     /**
      * Evaluate the current state to calculate derived options settings. Validation of the state is also done here, so
@@ -85,6 +110,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         evaluateScan();
         evaluateGoLiveArgs();
         evaluateNumReducers();
+        evaluateIndexingSpecification();
     }
 
     /**
@@ -191,7 +217,6 @@ class HBaseIndexingOptions extends OptionsBridge {
     }
 
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
-    @VisibleForTesting
     private void evaluateNumReducers() {
         
         if (isDirectWrite()) {
@@ -246,5 +271,84 @@ class HBaseIndexingOptions extends OptionsBridge {
             result++;
         }
         return result;
+    }
+    
+    @VisibleForTesting
+    void evaluateIndexingSpecification() {
+        String tableName = null;
+        String indexerConfigXml = null;
+        Map<String,String> indexConnectionParams = Maps.newHashMap();
+        
+        if (indexerZkHost != null) {
+            try {
+                StateWatchingZooKeeper zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
+                IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
+                IndexerDefinition indexerDefinition = indexerModel.getIndexer(indexerName);
+                byte[] indexConfigBytes = indexerDefinition.getConfiguration();
+                tableName = getTableNameFromConf(new ByteArrayInputStream(indexConfigBytes));
+                indexerConfigXml = Bytes.toString(indexConfigBytes);
+                if (indexerDefinition.getConnectionParams() != null) {
+                    indexConnectionParams.putAll(indexerDefinition.getConnectionParams());
+                }
+            } catch (Exception e) {
+                // We won't bother trying to do any recovery here if things don't work out,
+                // so we just throw the wrapped exception up the stack
+                throw new RuntimeException(e);
+            }
+        } else {
+            if (hbaseIndexerConfig == null) {
+                throw new IllegalStateException(
+                        "--hbase-indexer must be specified if --hbase-indexer-zk is not specified");
+            }
+            if (zkHost == null) {
+                throw new IllegalStateException(
+                        "--zk-host must be specified if --hbase-indexer-zk is not specified");
+            }
+            if (collection == null) {
+                throw new IllegalStateException(
+                        "--collection must be specified if --hbase-indexer-zk is not specified");
+            }
+        }
+        
+        
+        if (this.hbaseIndexerConfig != null) {
+            try {
+                indexerConfigXml = Files.toString(hbaseIndexerConfig, Charsets.UTF_8);
+                tableName = getTableNameFromConf(new FileInputStream(hbaseIndexerConfig));
+            } catch (IOException e) {
+                throw new RuntimeException("Error loading " + hbaseIndexerConfig, e);
+            }
+        }
+        
+        if (hbaseTableName != null) {
+            tableName = hbaseTableName;
+        }
+        
+        
+        if (zkHost != null) {
+            indexConnectionParams.put("solr.zk", zkHost);
+        }
+        
+        if (collection != null) {
+            indexConnectionParams.put("solr.collection", collection);
+        }
+        
+        this.indexingSpecification = new IndexingSpecification(
+                                            tableName,
+                                            indexerName,
+                                            indexerConfigXml,
+                                            indexConnectionParams);
+    }
+    
+    private String getTableNameFromConf(InputStream indexerConfigInputStream) {
+        IndexerConf indexerConf;
+        try {
+            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            Closer.close(indexerConfigInputStream);
+        }
+        return indexerConf.getTable();
     }
 }

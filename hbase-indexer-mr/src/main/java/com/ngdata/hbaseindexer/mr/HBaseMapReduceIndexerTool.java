@@ -53,10 +53,6 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         System.exit(res);
     }
     
-
-
-    
-
     @Override
     public int run(String[] args) throws Exception {
         
@@ -73,38 +69,20 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         
         Configuration conf = getConf();
 
-        String hbaseIndexerConfig;
+        IndexingSpecification indexingSpec = hbaseIndexingOpts.getIndexingSpecification();
         
-        // TODO Verify in the cmdline arg parsing that if the ZK host isn't specified then the
-        // solr connection params must be present. Same thing goes for the indexing config file.
-        if (hbaseIndexingOpts.hbaseIndexerConfig != null) {
-            hbaseIndexerConfig = Files.toString(hbaseIndexingOpts.hbaseIndexerConfig, Charsets.UTF_8);
-            Map<String,String> solrOptions = Maps.newHashMap();
-            solrOptions.put("solr.zk", hbaseIndexingOpts.zkHost);
-            solrOptions.put("solr.collection", hbaseIndexingOpts.collection);
-            HBaseIndexerMapper.configureIndexConnectionParams(conf, solrOptions);
-        } else {
-            StateWatchingZooKeeper zk = new StateWatchingZooKeeper(hbaseIndexingOpts.indexerZkHost, 30000);
-            IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
-            IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexingOpts.indexName);
-            hbaseIndexerConfig = new String(indexerDefinition.getConfiguration());
-            HBaseIndexerMapper.configureIndexConnectionParams(conf, indexerDefinition.getConnectionParams());
-        }
+        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, indexingSpec.getIndexConfigXml());
+        conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, indexingSpec.getIndexerName());
+        HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
         
-        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, hbaseIndexerConfig);
-        conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, hbaseIndexingOpts.indexName);
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());
-        
-
         
         Job job = Job.getInstance(getConf());
         job.setJarByClass(HBaseIndexerMapper.class);
         job.setUserClassesTakesPrecedence(true);
         
-        
-        
         TableMapReduceUtil.initTableMapperJob(
-                                    hbaseIndexingOpts.hbaseTableName,
+                                    indexingSpec.getTableName(),
                                     hbaseIndexingOpts.getScan(),
                                     HBaseIndexerMapper.class,
                                     Text.class,
