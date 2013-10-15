@@ -240,9 +240,6 @@ class HBaseIndexerArgumentParser {
         Argument hbaseTableNameArg = parser.addArgument("--hbase-table-name").metavar("STRING").help(
                 "Name of the HBase table containing the records to be indexed");
 
-        Argument directWriteArg = parser.addArgument("--direct-write").action(Arguments.storeTrue()).help(
-                "Write documents directly to a live Solr server instead of building shards offline");
-
         // TODO Improve doc info on this arg
         // TODO Do more validation on this file (e.g. is it a valid hbase-indexer config?)
         Argument hbaseIndexerConfigArg = parser.addArgument("--hbase-indexer").metavar("FILE").type(
