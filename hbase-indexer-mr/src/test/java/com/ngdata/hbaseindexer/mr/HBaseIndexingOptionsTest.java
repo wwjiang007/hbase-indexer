@@ -24,7 +24,10 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.URISyntaxException;
 import java.util.List;
+
+import org.apache.hadoop.hbase.client.Scan;
 
 import org.apache.commons.io.FileUtils;
 
@@ -211,31 +214,83 @@ public class HBaseIndexingOptionsTest {
     }
     
     @Test
-    public void testEvaluateScan_StartRowDefined() {
+    public void testEvaluateScan_StartRowDefined() throws Exception {
+        
+        // Set up the dependencies for the indexing specification
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.zkHost = "myzkhost";
+        opts.collection = "mycollection";
+        opts.evaluateIndexingSpecification();
+        
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.startRow = "starthere";
         opts.evaluateScan();
         assertArrayEquals(Bytes.toBytes("starthere"), opts.getScan().getStartRow());
     }
     
     @Test
-    public void testEvaluateScan_EndRowDefined() {
+    public void testEvaluateScan_EndRowDefined() throws Exception {
+        
+        // Set up the dependencies for the indexing specification
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.zkHost = "myzkhost";
+        opts.collection = "mycollection";
+        opts.evaluateIndexingSpecification();
+        
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.endRow = "endhere";
         opts.evaluateScan();
         assertArrayEquals(Bytes.toBytes("endhere"), opts.getScan().getStopRow());
     }
     
     @Test
-    public void testEvaluateScan_StartTimeDefined() {
+    public void testEvaluateScan_StartTimeDefined() throws Exception {
+        
+        // Set up the dependencies for the indexing specification
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.zkHost = "myzkhost";
+        opts.collection = "mycollection";
+        opts.evaluateIndexingSpecification();
+        
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.startTime = 220777L;
         opts.evaluateScan();
         assertEquals(220777L, opts.getScan().getTimeRange().getMin());
     }
     
     @Test
-    public void testEvaluateScan_EndTimeDefined() {
+    public void testEvaluateScan_EndTimeDefined() throws Exception {
+        
+        // Set up the dependencies for the indexing specification
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.zkHost = "myzkhost";
+        opts.collection = "mycollection";
+        opts.evaluateIndexingSpecification();
+        
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.endTime = 220777L;
         opts.evaluateScan();
         assertEquals(220777L, opts.getScan().getTimeRange().getMax());
+    }
+    
+    @Test
+    public void testEvaluateScan_CheckFamilyMap() throws Exception{
+        // Check that the Scan only scans values referred to via the
+        // ResultToSolrMapper#getGet(byte[]) method
+        
+        // Set up the dependencies for the indexing specification
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.zkHost = "myzkhost";
+        opts.collection = "mycollection";
+        opts.evaluateIndexingSpecification();
+        
+        
+        opts.evaluateScan();
+        
+        Scan scan = opts.getScan();
+        assertTrue(scan.getFamilyMap().containsKey(Bytes.toBytes("info")));
+        // Should be firstname, lastname, age
+        assertEquals(3, scan.getFamilyMap().get(Bytes.toBytes("info")).size());
     }
     
     @Test(expected=IllegalStateException.class)

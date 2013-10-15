@@ -30,14 +30,18 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.ConfKeys;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
+import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerModel;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
 import com.ngdata.sep.util.io.Closer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.JobClient;
@@ -107,10 +111,10 @@ class HBaseIndexingOptions extends OptionsBridge {
      */
     public void evaluate() {
         evaluateOutputDir();
-        evaluateScan();
         evaluateGoLiveArgs();
         evaluateNumReducers();
         evaluateIndexingSpecification();
+        evaluateScan();
     }
 
     /**
@@ -182,6 +186,19 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new RuntimeException(e);
             }
         }
+
+        // Only scan the column families and/or cells that the indexer requires
+        // if we're running in row-indexing mode
+        IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(indexingSpecification.getIndexConfigXml().getBytes()));
+        if (indexerConf.getMappingType() == MappingType.ROW) {
+            ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
+                        indexingSpecification.getIndexerName(),
+                        indexerConf,
+                        indexingSpecification.getIndexConnectionParams());
+            Get get = resultToSolrMapper.getGet(new byte[0]);
+            scan.setFamilyMap(get.getFamilyMap());
+        }
+        
     }
 
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
@@ -344,15 +361,18 @@ class HBaseIndexingOptions extends OptionsBridge {
                                             indexConnectionParams);
     }
     
-    private String getTableNameFromConf(InputStream indexerConfigInputStream) {
-        IndexerConf indexerConf;
+    private IndexerConf loadIndexerConf(InputStream indexerConfigInputStream) {
         try {
-            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);
+            return new XmlIndexerConfReader().read(indexerConfigInputStream);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             Closer.close(indexerConfigInputStream);
         }
-        return indexerConf.getTable();
+    }
+    
+    private String getTableNameFromConf(InputStream indexerConfigInputStream) {
+       
+        return loadIndexerConf(indexerConfigInputStream).getTable();
     }
 }
