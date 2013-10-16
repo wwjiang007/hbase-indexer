@@ -218,7 +218,8 @@ public class IndexerSupervisor {
             SolrInputDocumentWriter solrWriter = new DirectSolrInputDocumentWriter(
                                                                         indexerDef.getName(),
                                                                         getSolrServer(indexerDef));
-            Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, mapper, htablePool, solrWriter);
+            Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, indexerConf.getTable(),
+                                                    mapper, htablePool, solrWriter);
             IndexingEventListener eventListener = new IndexingEventListener(
                                                                 indexer, indexerConf.getTable().getBytes());
 

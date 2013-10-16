@@ -75,6 +75,7 @@ public class XmlIndexerConfReader {
         builder.uniqueyKeyField(getAttribute(indexEl, "unique-key-field", false));
         builder.rowField(getAttribute(indexEl, "row-field", false));
         builder.columnFamilyField(getAttribute(indexEl, "column-family-field", false));
+        builder.tableNameField(getAttribute(indexEl, "table-name-field", false));
         builder.globalParams(buildParams(indexEl));
         
         String mapperClassName = getAttribute(indexEl, "mapper", false);

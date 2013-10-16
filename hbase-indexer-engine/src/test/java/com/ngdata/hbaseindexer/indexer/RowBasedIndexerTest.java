@@ -17,10 +17,15 @@ package com.ngdata.hbaseindexer.indexer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+
+import org.apache.lucene.document.DocumentStoredFieldVisitor;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -41,6 +46,7 @@ public class RowBasedIndexerTest {
     
     private static final String TABLE_NAME = "TABLE_A";
     
+    private IndexerConf indexerConf;
     private HTablePool tablePool;
     private SolrInputDocumentWriter solrWriter;
     private SolrUpdateCollector updateCollector;
@@ -49,7 +55,7 @@ public class RowBasedIndexerTest {
     @Before
     public void setUp() {
         
-        IndexerConf indexerConf = new IndexerConfBuilder().table(TABLE_NAME).mappingType(MappingType.ROW).build();
+        indexerConf = spy(new IndexerConfBuilder().table(TABLE_NAME).mappingType(MappingType.ROW).build());
         ResultToSolrMapper mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
         
         tablePool = mock(HTablePool.class);
@@ -57,7 +63,7 @@ public class RowBasedIndexerTest {
         
         updateCollector = new SolrUpdateCollector(10);
         
-        indexer = new RowBasedIndexer("row-based", indexerConf, mapper, tablePool, solrWriter);
+        indexer = new RowBasedIndexer("row-based", indexerConf, TABLE_NAME, mapper, tablePool, solrWriter);
     }
     
     private RowData createEventRowData(String row, KeyValue... keyValues) {
@@ -76,6 +82,20 @@ public class RowBasedIndexerTest {
         assertEquals(1, updateCollector.getDocumentsToAdd().size());
         assertEquals("_row_", updateCollector.getDocumentsToAdd().get("_row_").getFieldValue("id"));
         assertTrue(updateCollector.getIdsToDelete().isEmpty());
+    }
+    
+    @Test
+    public void testCalculateIndexUpdates_AddDocumentWithTableName() throws IOException {
+        
+        doReturn("custom-table-name").when(indexerConf).getTableNameField();
+        
+        KeyValue keyValue = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        RowData rowData = createEventRowData("_row_", keyValue);
+        indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
+        
+        assertEquals(1, updateCollector.getDocumentsToAdd().size());
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
+        assertEquals(TABLE_NAME, documents.get(0).getFieldValue("custom-table-name"));
     }
     
     @Test

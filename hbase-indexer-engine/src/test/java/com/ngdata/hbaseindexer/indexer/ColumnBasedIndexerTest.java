@@ -53,7 +53,7 @@ public class ColumnBasedIndexerTest {
         mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
         solrWriter = mock(DirectSolrInputDocumentWriter.class);
         updateCollector = new SolrUpdateCollector(10);
-        indexer = new ColumnBasedIndexer("column-based", indexerConf, mapper, solrWriter);
+        indexer = new ColumnBasedIndexer("column-based", indexerConf, TABLE_NAME, mapper, solrWriter);
     }
 
     private RowData createEventRowData(String row, KeyValue... keyValues) {
@@ -212,6 +212,22 @@ public class ColumnBasedIndexerTest {
         assertEquals(1, documents.size());
         assertEquals("_row_-_cf_-_qual_", documents.get(0).getFieldValue("id"));
         assertEquals("_cf_", documents.get(0).getFieldValue(CUSTOM_FAMILY_FIELD));
+    }
+    
+    @Test
+    public void testCalculateIndexUpdates_WithTableNameFieldDefined() throws IOException {
+        final String CUSTOM_TABLE_FIELD = "custom-table-field";
+        doReturn(CUSTOM_TABLE_FIELD).when(indexerConf).getTableNameField();
+        
+        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        RowData eventRowData = createEventRowData("_row_", toAdd);
+
+        indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
+
+        assertTrue(updateCollector.getIdsToDelete().isEmpty());
+        List<SolrInputDocument> documents = Lists.newArrayList(updateCollector.getDocumentsToAdd().values());
+        assertEquals(1, documents.size());
+        assertEquals(TABLE_NAME, documents.get(0).getFieldValue(CUSTOM_TABLE_FIELD));
     }
     
 

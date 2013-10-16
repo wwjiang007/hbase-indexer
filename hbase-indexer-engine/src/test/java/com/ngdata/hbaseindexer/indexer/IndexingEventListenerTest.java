@@ -81,7 +81,7 @@ public class IndexingEventListenerTest {
     public void testNonmatchedTable() {
         IndexerConf conf = new IndexerConfBuilder().table(TABLE_A).build();
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, null, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, null, tablePool, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
 
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_B), null, null, null);
@@ -102,7 +102,7 @@ public class IndexingEventListenerTest {
 
         ResultToSolrMapper mapper = mock(ResultToSolrMapper.class);
         when(mapper.isRelevantKV(any(KeyValue.class))).thenReturn(true);
-        Indexer indexer = Indexer.createIndexer("index name", conf, mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -147,7 +147,7 @@ public class IndexingEventListenerTest {
 
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -172,7 +172,7 @@ public class IndexingEventListenerTest {
 
         when(tableA.get(any(Get.class))).thenReturn(newResult(Lists.newArrayList(new KeyValue())));
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -196,7 +196,7 @@ public class IndexingEventListenerTest {
 
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -240,7 +240,7 @@ public class IndexingEventListenerTest {
             }
         };
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, mapper, null, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, mapper, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
 
         List<KeyValue> kvs = Lists.newArrayList(

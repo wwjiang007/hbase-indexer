@@ -56,6 +56,7 @@ public abstract class Indexer {
 
     private String indexerName;
     protected IndexerConf conf;
+    private String tableName;
     private SolrInputDocumentWriter solrWriter;
     protected ResultToSolrMapper mapper;
     protected UniqueKeyFormatter uniqueKeyFormatter;
@@ -65,22 +66,23 @@ public abstract class Indexer {
     /**
      * Instantiate an indexer based on the given {@link IndexerConf}.
      */
-    public static Indexer createIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool,
+    public static Indexer createIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool,
             SolrInputDocumentWriter solrWriter) {
         switch (conf.getMappingType()) {
         case COLUMN:
-            return new ColumnBasedIndexer(indexerName, conf, mapper, solrWriter);
+            return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, solrWriter);
         case ROW:
-            return new RowBasedIndexer(indexerName, conf, mapper, tablePool, solrWriter);
+            return new RowBasedIndexer(indexerName, conf, tableName, mapper, tablePool, solrWriter);
         default:
             throw new IllegalStateException("Can't determine the type of indexing to use for mapping type "
                     + conf.getMappingType());
         }
     }
 
-    Indexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
+    Indexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
         this.indexerName = indexerName;
         this.conf = conf;
+        this.tableName = tableName;
         this.mapper = mapper;
         try {
             this.uniqueKeyFormatter = conf.getUniqueKeyFormatterClass().newInstance();
@@ -143,14 +145,20 @@ public abstract class Indexer {
         IndexerMetricsUtil.shutdownMetrics(mapper.getClass(), indexerName);
     }
     
+    void addTableName(SolrInputDocument document) {
+        if (conf.getTableNameField() != null) {
+            document.addField(conf.getTableNameField(), tableName);
+        }
+    }
+    
 
     static class RowBasedIndexer extends Indexer {
         
         private HTablePool tablePool;
         private Timer rowReadTimer;
 
-        public RowBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool, SolrInputDocumentWriter solrWriter) {
-            super(indexerName, conf, mapper, solrWriter);
+        public RowBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool, SolrInputDocumentWriter solrWriter) {
+            super(indexerName, conf, tableName, mapper, solrWriter);
             this.tablePool = tablePool;
             rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         }
@@ -199,6 +207,7 @@ public abstract class Indexer {
                     // TODO there should probably be some way for the mapper to indicate there was no useful content to
                     // map,  e.g. if there are no fields in the solrWriter document (and should we then perform a delete instead?)
                     updateCollector.add(documentId, document);
+                    addTableName(document);
                     if (log.isDebugEnabled()) {
                         log.debug("Row " + Bytes.toString(rowData.getRow()) + ": added to Solr");
                     }
@@ -234,8 +243,8 @@ public abstract class Indexer {
 
     static class ColumnBasedIndexer extends Indexer {
 
-        public ColumnBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
-            super(indexerName, conf, mapper, solrWriter);
+        public ColumnBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
+            super(indexerName, conf, tableName, mapper, solrWriter);
         }
 
         @Override
@@ -252,6 +261,7 @@ public abstract class Indexer {
                     document.addField(conf.getUniqueKeyField(), documentId);
                     
                     addRowAndFamily(document, keyValue);
+                    addTableName(document);
                     
                     updateCollector.add(documentId, document);
                 }
@@ -281,6 +291,7 @@ public abstract class Indexer {
                         uniqueKeyFormatter.formatFamily(keyValue.getFamily()));
             }
         }
+        
         
         /**
          * Delete all values for a single column family from Solr.

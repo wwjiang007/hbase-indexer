@@ -66,6 +66,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         
         conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, indexingSpec.getIndexConfigXml());
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, indexingSpec.getIndexerName());
+        conf.set(HBaseIndexerMapper.TABLE_NAME_CONF_KEY, indexingSpec.getTableName());
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
         
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());

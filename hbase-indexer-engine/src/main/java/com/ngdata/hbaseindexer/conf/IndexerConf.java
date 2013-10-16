@@ -40,6 +40,7 @@ public class IndexerConf {
     private String uniqueKeyField;
     private String rowField;
     private String columnFamilyField;
+    private String tableNameField;
     private Class<? extends ResultToSolrMapper> mapperClass;
     private Class<? extends UniqueKeyFormatter> uniqueKeyFormatterClass;
     private List<FieldDefinition> fieldDefinitions;
@@ -110,6 +111,14 @@ public class IndexerConf {
         return columnFamilyField;
     }
     
+    /**
+     * Get the name of the Solr field used to identify the HBase table containing the
+     * indexed document.
+     */
+    public String getTableNameField() {
+        return tableNameField;
+    }
+    
     public Class<? extends ResultToSolrMapper> getMapperClass() {
         return mapperClass;
     }
@@ -155,6 +164,10 @@ public class IndexerConf {
     
     public void setColumnFamilyField(String columnFamilyField) {
         this.columnFamilyField = columnFamilyField;
+    }
+    
+    public void setTableNameField(String tableNameField) {
+        this.tableNameField = tableNameField;
     }
     
     void setFieldDefinitions(List<FieldDefinition> fieldDefinitions) {

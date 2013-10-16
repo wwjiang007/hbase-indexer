@@ -63,6 +63,9 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     
     /** Configuration key for setting the direct write flag. */
     public static final String INDEX_DIRECT_WRITE_CONF_KEY = "hbase.indexer.directwrite";
+    
+    /** Configuration key for setting the HBase table name. */
+    public static final String TABLE_NAME_CONF_KEY = "hbase.indexer.table.name";
 
     private static final String CONF_KEYVALUE_SEPARATOR = "=";
 
@@ -108,8 +111,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         super.setup(context);
         
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);
-        // TODO Load the configuration from the distributed cache instead of putting it in the Configuration everywhere
         String indexConfiguration = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_KEY);
+        String tableName = context.getConfiguration().get(TABLE_NAME_CONF_KEY);
         
         if (indexName == null) {
             throw new IllegalStateException("No configuration value supplied for " + INDEX_NAME_CONF_KEY);
@@ -117,6 +120,10 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         
         if (indexConfiguration == null) {
             throw new IllegalStateException("No configuration value supplied for " + INDEX_CONFIGURATION_CONF_KEY);
+        }
+        
+        if (tableName == null) {
+            throw new IllegalStateException("No configuration value supplied for " + TABLE_NAME_CONF_KEY);
         }
 
         IndexerConf indexerConf;
@@ -139,7 +146,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                     indexName, indexerConf, indexConnectionParams);
         solrDocWriter = createSolrWriter(context, indexConnectionParams);
-        indexer = Indexer.createIndexer(indexName, indexerConf, mapper, null, solrDocWriter);
+        indexer = Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, solrDocWriter);
     }
     
     private SolrInputDocumentWriter createSolrWriter(Context context, Map<String,String> indexConnectionParams) throws IOException {

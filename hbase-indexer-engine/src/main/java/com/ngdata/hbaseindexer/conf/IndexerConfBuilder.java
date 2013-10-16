@@ -34,6 +34,7 @@ public class IndexerConfBuilder {
     private String uniqueKeyField;
     private String rowField;
     private String columnFamilyField;
+    private String tableNameField;
     private Class<? extends ResultToSolrMapper> mapperClass;
     private Class<? extends UniqueKeyFormatter> uniqueKeyFormatterClass;
     private IndexerConf.RowReadMode rowReadMode = IndexerConf.RowReadMode.DYNAMIC;
@@ -59,6 +60,7 @@ public class IndexerConfBuilder {
         this.uniqueKeyField = indexerConf.getUniqueKeyField();
         this.rowField = indexerConf.getRowField();
         this.columnFamilyField = indexerConf.getColumnFamilyField();
+        this.tableNameField = indexerConf.getTableNameField();
         this.mapperClass = indexerConf.getMapperClass();
         this.uniqueKeyFormatterClass = indexerConf.getUniqueKeyFormatterClass();
         this.rowReadMode = indexerConf.getRowReadMode();
@@ -95,6 +97,11 @@ public class IndexerConfBuilder {
     
     public IndexerConfBuilder columnFamilyField(String columnFamilyField) {
         this.columnFamilyField = columnFamilyField;
+        return this;
+    }
+    
+    public IndexerConfBuilder tableNameField(String tableNameField) {
+        this.tableNameField = tableNameField;
         return this;
     }
     
@@ -137,6 +144,7 @@ public class IndexerConfBuilder {
         conf.setUniqueKeyField(uniqueKeyField != null ? uniqueKeyField : IndexerConf.DEFAULT_UNIQUE_KEY_FIELD);
         conf.setRowField(rowField);
         conf.setColumnFamilyField(columnFamilyField);
+        conf.setTableNameField(tableNameField);
         conf.setMapperClass(mapperClass);
         conf.setUniqueKeyFormatterClass(uniqueKeyFormatterClass != null ?
                 uniqueKeyFormatterClass : IndexerConf.DEFAULT_UNIQUE_KEY_FORMATTER);
