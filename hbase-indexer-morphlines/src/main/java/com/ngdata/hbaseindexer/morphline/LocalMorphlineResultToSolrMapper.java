@@ -18,14 +18,20 @@ package com.ngdata.hbaseindexer.morphline;
 import static com.ngdata.sep.impl.HBaseShims.newGet;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.TreeMap;
+
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.cloudera.cdk.morphline.api.Command;
 import com.cloudera.cdk.morphline.api.MorphlineCompilationException;
@@ -47,13 +53,6 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrInputDocument;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Performs Result to Solr mapping using morphlines.
@@ -207,7 +206,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
             Record record = new Record();
             record.put(Fields.ATTACHMENT_BODY, result);
             record.put(Fields.ATTACHMENT_MIME_TYPE, MorphlineResultToSolrMapper.OUTPUT_MIME_TYPE);
-            collector.reset();
+            collector.reset(solrUpdateWriter);
             try {
                 Notifications.notifyStartSession(morphline);
                 if (!morphline.process(record)) {
@@ -218,22 +217,10 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
                 numExceptionRecords.mark();
                 morphlineContext.getExceptionHandler().handleException(t, record);
             }
-
-            for (Record resultRecord : collector.getRecords()) {
-                solrUpdateWriter.add(convert(resultRecord));
-            }
         } finally {
+            collector.reset(null);
             timerContext.stop();
         }
-    }
-
-    private SolrInputDocument convert(Record record) {
-        Map<String, Collection<Object>> map = record.getFields().asMap();
-        SolrInputDocument doc = new SolrInputDocument(new HashMap(2 * map.size()));
-        for (Map.Entry<String, Collection<Object>> entry : map.entrySet()) {
-            doc.setField(entry.getKey(), entry.getValue());
-        }
-        return doc;
     }
 
     private boolean getBooleanParameter(String name, boolean defaultValue, Map<String, String> map) {
@@ -251,16 +238,13 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     // /////////////////////////////////////////////////////////////////////////////
     private static final class Collector implements Command {
 
-        private final List<Record> results = new ArrayList();
-
-        public List<Record> getRecords() {
-            return results;
+        private SolrUpdateWriter solrUpdateWriter;
+        
+        public void reset(SolrUpdateWriter solrUpdateWriter) {
+            this.solrUpdateWriter = solrUpdateWriter; // dubious lifecycle management 
+            // this should better be passed in ResultToSolrMapper constructor or configure() method
         }
-
-        public void reset() {
-            results.clear();
-        }
-
+        
         @Override
         public Command getParent() {
             return null;
@@ -273,8 +257,17 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
         @Override
         public boolean process(Record record) {
             Preconditions.checkNotNull(record);
-            results.add(record);
+            solrUpdateWriter.add(convert(record));
             return true;
+        }
+
+        private SolrInputDocument convert(Record record) {
+            Map<String, Collection<Object>> map = record.getFields().asMap();
+            SolrInputDocument doc = new SolrInputDocument(new HashMap(2 * map.size()));
+            for (Map.Entry<String, Collection<Object>> entry : map.entrySet()) {
+                doc.setField(entry.getKey(), entry.getValue());
+            }
+            return doc;
         }
 
     }
