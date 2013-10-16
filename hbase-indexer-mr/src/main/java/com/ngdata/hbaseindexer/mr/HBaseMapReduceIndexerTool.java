@@ -90,7 +90,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         if (hbaseIndexingOpts.isDirectWrite()) {
             int exitCode = runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
             if (exitCode == 0) {
-                SolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
+                CloudSolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
+                solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
                 solrServer.commit(false, false);
                 solrServer.shutdown();
             }
