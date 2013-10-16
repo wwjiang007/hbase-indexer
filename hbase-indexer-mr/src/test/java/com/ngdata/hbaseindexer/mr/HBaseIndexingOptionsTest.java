@@ -136,6 +136,19 @@ public class HBaseIndexingOptionsTest {
         assertFalse(opts.isGeneratedOutputDir());
     }
     
+    @Test
+    public void testEvaluateOutputDir_DryRun() {
+        opts.outputDir = null;
+        opts.isDryRun = true;
+        opts.zkHost = "myzkhost/solr";
+        
+        // Should have no effect
+        opts.evaluateOutputDir();
+        
+        assertNull(opts.outputDir);
+        assertFalse(opts.isGeneratedOutputDir());
+    }
+    
     @Test(expected=IllegalStateException.class)
     public void testEvaluateOutputDir_DirectWrite_NoSolrZkHostDefined() {
         opts.outputDir = null;

@@ -123,14 +123,14 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateOutputDir() {
 
-        if (isDirectWrite()) {
+        if (isDirectWrite() || isDryRun) {
             if (outputDir != null) {
                 throw new IllegalStateException(
-                    "Output directory should not be specified if direct-write (no reducers) is enabled");
+                    "Output directory should not be specified if direct-write or dry-run are enabled");
             }
             if (zkHost == null) {
                 throw new IllegalStateException(
-                    "--zk-host must be specified if num reducers is 0");
+                    "--zk-host must be specified if direct-write or dry-run are enabled");
             }
             return;
         }

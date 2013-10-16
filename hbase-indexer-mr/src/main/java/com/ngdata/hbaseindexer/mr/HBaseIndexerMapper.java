@@ -35,8 +35,6 @@ import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -46,6 +44,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 import org.apache.solr.hadoop.SolrOutputFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Mapper for converting HBase Result objects into index documents.
@@ -71,7 +71,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
     private static final String CONF_VALUE_SEPARATOR = ";";
     
-    private static final Log LOG = LogFactory.getLog(HBaseIndexerMapper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HBaseIndexerMapper.class);
     
     private Indexer indexer;
     private SolrInputDocumentWriter solrDocWriter;
