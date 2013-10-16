@@ -354,6 +354,11 @@ class HBaseIndexingOptions extends OptionsBridge {
             indexConnectionParams.put("solr.collection", collection);
         }
         
+        if (indexerName == null) {
+            indexerName = DEFAULT_INDEXER_NAME;
+        }
+        
+        
         this.indexingSpecification = new IndexingSpecification(
                                             tableName,
                                             indexerName,
