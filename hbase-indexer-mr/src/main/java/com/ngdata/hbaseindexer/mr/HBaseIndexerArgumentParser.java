@@ -61,8 +61,7 @@ class HBaseIndexerArgumentParser {
 
         // TODO Add general help here
         ArgumentParser parser = ArgumentParsers.newArgumentParser(
-                "hadoop [GenericOptions]... jar hbase-indexer-mr-*-job.jar "
-                        + ForkedMapReduceIndexerTool.class.getName(), false).defaultHelp(true);
+                "hadoop [GenericOptions]... jar hbase-indexer-mr-*-job.jar", false).defaultHelp(true);
 
         // TODO Add actual help information
         parser.addArgument("--help", "-help", "-h").help("Show this help message and exit").action(
