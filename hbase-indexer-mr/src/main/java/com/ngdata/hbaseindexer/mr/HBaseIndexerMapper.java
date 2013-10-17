@@ -219,7 +219,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             for (Entry<MetricName, Metric> metricEntry : metricsGroupMap.entrySet()) {
                 MetricName metricName = metricEntry.getKey();
                 Metric metric = metricEntry.getValue();
-                String counterName = metricName.getType() + ":" + metricName.getName();
+                String counterName = metricName.getType() + ": " + metricName.getName();
                 if (metric instanceof Counter) {
                     Counter counter = (Counter)metric;
                     context.getCounter(COUNTER_GROUP, counterName).increment(counter.count());
