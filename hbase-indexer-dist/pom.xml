@@ -58,7 +58,6 @@
             <inherited>false</inherited>
             <configuration>
               <skipAssembly>false</skipAssembly>
-              <attach>false</attach>
               <tarLongFileMode>gnu</tarLongFileMode>
               <appendAssemblyId>false</appendAssemblyId>
               <finalName>hbase-indexer-${project.version}</finalName>
