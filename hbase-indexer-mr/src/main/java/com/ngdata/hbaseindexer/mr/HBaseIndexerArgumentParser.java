@@ -307,7 +307,7 @@ class HBaseIndexerArgumentParser {
             try {
                 opts.evaluate();
             } catch (IllegalStateException ise) {
-                throw new ArgumentParserException(ise, parser);
+                throw new ArgumentParserException(ise.getMessage(), parser);
             }
         } catch (ArgumentParserException e) {
             parser.handleError(e);
