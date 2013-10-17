@@ -18,6 +18,8 @@ package com.ngdata.hbaseindexer.mr;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.SortedMap;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -34,7 +36,14 @@ import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+import com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Metric;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.Timer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -197,6 +206,32 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         } catch (SolrServerException e) {
             throw new RuntimeException(e);
         }
+        
+        copyIndexingMetricsToCounters(context);
     }
 
+    private void copyIndexingMetricsToCounters(Context context) {
+        final String COUNTER_GROUP = "HBase Indexer Metrics";
+        SortedMap<String, SortedMap<MetricName, Metric>> groupedMetrics = Metrics.defaultRegistry().groupedMetrics(
+                new IndexerMetricsUtil.IndexerMetricPredicate());
+        for (Entry<String, SortedMap<MetricName, Metric>> metricsGroupEntry : groupedMetrics.entrySet()) {
+            SortedMap<MetricName, Metric> metricsGroupMap = metricsGroupEntry.getValue();
+            for (Entry<MetricName, Metric> metricEntry : metricsGroupMap.entrySet()) {
+                MetricName metricName = metricEntry.getKey();
+                Metric metric = metricEntry.getValue();
+                String counterName = metricName.getType() + ":" + metricName.getName();
+                if (metric instanceof Counter) {
+                    Counter counter = (Counter)metric;
+                    context.getCounter(COUNTER_GROUP, counterName).increment(counter.count());
+                } else if (metric instanceof Meter) {
+                    Meter meter = (Meter)metric;
+                    context.getCounter(COUNTER_GROUP, counterName).increment(meter.count());
+                } else if (metric instanceof Timer) {
+                    Timer timer = (Timer)metric;
+                    context.getCounter(COUNTER_GROUP, counterName).increment((long)timer.sum());
+                }
+            }
+        }
+    }
+    
 }

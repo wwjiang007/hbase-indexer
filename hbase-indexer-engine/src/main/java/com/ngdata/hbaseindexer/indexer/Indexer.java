@@ -60,6 +60,7 @@ public abstract class Indexer {
     private SolrInputDocumentWriter solrWriter;
     protected ResultToSolrMapper mapper;
     protected UniqueKeyFormatter uniqueKeyFormatter;
+    private Timer indexingTimer;
     
 
 
@@ -91,6 +92,9 @@ public abstract class Indexer {
         }
         ConfigureUtil.configure(uniqueKeyFormatter, conf.getGlobalParams());
         this.solrWriter = solrWriter;
+        this.indexingTimer = Metrics.newTimer(metricName(getClass(),
+                                "Index update calculation timer", indexerName),
+                                 TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
        
     }
     
@@ -120,7 +124,12 @@ public abstract class Indexer {
      */
     public void indexRowData(List<RowData> rowDataList) throws IOException, SolrServerException {
         SolrUpdateCollector updateCollector = new SolrUpdateCollector(rowDataList.size());
-        calculateIndexUpdates(rowDataList, updateCollector);
+        TimerContext timerContext = indexingTimer.time();
+        try {
+            calculateIndexUpdates(rowDataList, updateCollector);
+        } finally {
+            timerContext.stop();
+        }
         if (log.isDebugEnabled()) {
             log.debug(String.format("Indexer %s will send to Solr %s adds and %s deletes", getName(),
                     updateCollector.getDocumentsToAdd().size(), updateCollector.getIdsToDelete().size()));
@@ -141,8 +150,7 @@ public abstract class Indexer {
 
     
     public void stop() {
-        IndexerMetricsUtil.shutdownMetrics(getClass(), indexerName);
-        IndexerMetricsUtil.shutdownMetrics(mapper.getClass(), indexerName);
+        IndexerMetricsUtil.shutdownMetrics(indexerName);
     }
     
     void addTableName(SolrInputDocument document) {
