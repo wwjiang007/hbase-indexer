@@ -158,6 +158,9 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scan = new Scan();
+        scan.setCacheBlocks(false);
+        scan.setCaching(200);
+        
         if (startRow != null) {
             scan.setStartRow(Bytes.toBytesBinary(startRow));
             LOG.debug("Starting row scan at " + startRow);
