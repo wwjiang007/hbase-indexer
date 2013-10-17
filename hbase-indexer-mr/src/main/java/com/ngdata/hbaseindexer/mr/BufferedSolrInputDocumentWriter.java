@@ -20,9 +20,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
-
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
@@ -41,17 +41,20 @@ public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter 
     private final SolrInputDocumentWriter delegateWriter;
     private final int bufferSize;
     private final Map<String, SolrInputDocument> writeBuffer;
+    private final Counter counter;
 
     /**
      * Instantiate with the underlying writer to delegate to, and the size of the internal buffer to use.
      * 
      * @param delegateWriter underlying writer to delegate writes and deletes to
      * @param bufferSize size of the internal write buffer to use
+     * @param counter Hadoop counter for recording metrics
      */
-    public BufferedSolrInputDocumentWriter(SolrInputDocumentWriter delegateWriter, int bufferSize) {
+    public BufferedSolrInputDocumentWriter(SolrInputDocumentWriter delegateWriter, int bufferSize, Counter counter) {
         this.delegateWriter = delegateWriter;
         this.bufferSize = bufferSize;
         this.writeBuffer = Maps.newHashMapWithExpectedSize(bufferSize);
+        this.counter = counter;
     }
 
     @Override
@@ -78,6 +81,7 @@ public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter 
     public void flush() throws SolrServerException, IOException {
         if (!writeBuffer.isEmpty()) {
             delegateWriter.add(ImmutableMap.copyOf(writeBuffer));
+            counter.increment(writeBuffer.size());
             writeBuffer.clear();
         }
     }

@@ -169,7 +169,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             
             return new BufferedSolrInputDocumentWriter(
                     new DirectSolrInputDocumentWriter(conf.get(INDEX_NAME_CONF_KEY), solrServer),
-                    bufferSize);
+                    bufferSize,
+                    context.getCounter(HBaseIndexerCounters.WRITTEN_INDEX_DOCUMENTS));
         } else {
             return new MapReduceSolrInputDocumentWriter(context);
         }
@@ -180,6 +181,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     protected void map(ImmutableBytesWritable key, Result result, Context context) throws IOException,
             InterruptedException {
         
+        context.getCounter(HBaseIndexerCounters.INPUT_ROWS).increment(1L);
         try {
             indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result)));
         } catch (SolrServerException e) {

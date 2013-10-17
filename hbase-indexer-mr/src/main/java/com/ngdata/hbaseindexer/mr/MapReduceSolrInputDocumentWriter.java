@@ -45,6 +45,7 @@ public class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter
                 context.write(
                     new Text(documentEntry.getKey()),
                     new SolrInputDocumentWritable(documentEntry.getValue()));
+                context.getCounter(HBaseIndexerCounters.WRITTEN_INDEX_DOCUMENTS).increment(1L);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);

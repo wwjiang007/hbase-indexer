@@ -18,6 +18,7 @@ package com.ngdata.hbaseindexer.mr;
 import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
@@ -34,11 +36,13 @@ public class BufferedSolrInputDocumentWriterTest {
     
     private SolrInputDocumentWriter delegateWriter;
     private BufferedSolrInputDocumentWriter bufferedWriter;
+    private Counter counter;
     
     @Before
     public void setUp() {
         delegateWriter = mock(SolrInputDocumentWriter.class);
-        bufferedWriter = new BufferedSolrInputDocumentWriter(delegateWriter, 3);
+        counter = mock(Counter.class);
+        bufferedWriter = new BufferedSolrInputDocumentWriter(delegateWriter, 3, counter);
     }
     
 
@@ -91,6 +95,7 @@ public class BufferedSolrInputDocumentWriterTest {
         bufferedWriter.flush();
         
         verify(delegateWriter).add(ImmutableMap.of("b", docB));
+        verify(counter, times(2)).increment(1L);
     }
     
     @Test
@@ -102,6 +107,7 @@ public class BufferedSolrInputDocumentWriterTest {
         
         verify(delegateWriter).add(ImmutableMap.of("a", doc));
         verify(delegateWriter).close();
+        verify(counter).increment(1L);
     }
 
 }
