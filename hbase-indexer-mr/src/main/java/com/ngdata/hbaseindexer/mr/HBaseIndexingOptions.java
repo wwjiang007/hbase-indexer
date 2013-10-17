@@ -159,7 +159,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     void evaluateScan() {
         this.scan = new Scan();
         scan.setCacheBlocks(false);
-        scan.setCaching(200);
+        scan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
         
         if (startRow != null) {
             scan.setStartRow(Bytes.toBytesBinary(startRow));
