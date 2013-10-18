@@ -261,7 +261,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        LOG.info("Cluster reports {} reduce slots", reducers);
+        LOG.info("Cluster reports {} reduce slots", reduceTaskCount);
 
         if (reducers == -2) {
             reduceTaskCount = shards;
