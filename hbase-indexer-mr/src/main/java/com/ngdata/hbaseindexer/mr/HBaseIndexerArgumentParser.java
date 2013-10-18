@@ -239,21 +239,22 @@ class HBaseIndexerArgumentParser {
         Argument hbaseTableNameArg = parser.addArgument("--hbase-table-name").metavar("STRING").help(
                 "Name of the HBase table containing the records to be indexed");
 
-        // TODO Improve doc info on this arg
-        // TODO Do more validation on this file (e.g. is it a valid hbase-indexer config?)
         Argument hbaseIndexerConfigArg = parser.addArgument("--hbase-indexer").metavar("FILE").type(
                 new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead()).help(
-                "Optional HBase indexer xml configuration file");
+                "Optional HBase indexer xml configuration file. If supplied, the options in the "
+                        + "supplied config override the hbase-indexer config in zookeeper.");
 
         ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("Scan parameters");
 
-        // TODO Provide example in doc of "binary string" format
         Argument startRowArg = scanArgumentGroup.addArgument("--hbase-start-row").help(
-                "Binary string representation of start row from which to start indexing (inclusive)");
+                "Binary string representation of start row from which to start indexing (inclusive). "
+                        + "The format of the supplied row key should use two-digit hex values prefixed by "
+                        + "\\x for non-ascii characters (e.g. 'row\\x00'). The semantics of this this "
+                        + "argument are the same as those for the HBase Scan#setStartRow method.");
 
-        // TODO Provide example in doc of "binary string" format
         Argument endRowArg = scanArgumentGroup.addArgument("--hbase-end-row").help(
-                "Binary string representation of end row prefix at which to stop indexing (exclusive)");
+                "Binary string representation of end row prefix at which to stop indexing (exclusive). "
+                        + "See the description of--hbase-start-row for more information");
 
         Argument startTimeArg = scanArgumentGroup.addArgument("--hbase-start-time").metavar("LONG").help(
                 "Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing");
