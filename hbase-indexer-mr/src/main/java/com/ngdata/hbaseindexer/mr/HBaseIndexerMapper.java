@@ -143,7 +143,9 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new RuntimeException(e);
         }
 
-        // TODO Move this to the top-level job setup
+        // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
+        // infrastructure to handle converting an in-memory model into XML (we can only interpret an
+        // XML doc into the internal model), so we need to do this here for now
         if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {
             LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
@@ -194,6 +196,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         try {
             indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result)));
         } catch (SolrServerException e) {
+            // These will only be thrown through if there is an exception on the server side.
+            // Document-based errors will be swallowed and the counter will be incremented
             throw new RuntimeException(e);
         }
 
