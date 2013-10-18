@@ -26,8 +26,8 @@ public enum HBaseIndexerCounters {
     INPUT_ROWS,
     
     /**
-     * Number of index documents written.
+     * Number of index documents output.
      */
-    WRITTEN_INDEX_DOCUMENTS,
+    OUTPUT_INDEX_DOCUMENTS,
     
 }

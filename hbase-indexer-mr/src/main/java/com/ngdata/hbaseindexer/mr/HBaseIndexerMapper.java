@@ -181,7 +181,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             return new BufferedSolrInputDocumentWriter(
                     new DirectSolrInputDocumentWriter(conf.get(INDEX_NAME_CONF_KEY), solrServer),
                     bufferSize,
-                    context.getCounter(HBaseIndexerCounters.WRITTEN_INDEX_DOCUMENTS));
+                    context.getCounter(HBaseIndexerCounters.OUTPUT_INDEX_DOCUMENTS));
         } else {
             return new MapReduceSolrInputDocumentWriter(context);
         }
