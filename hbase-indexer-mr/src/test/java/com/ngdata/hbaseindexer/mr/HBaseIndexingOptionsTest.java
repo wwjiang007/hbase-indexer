@@ -24,12 +24,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.URISyntaxException;
 import java.util.List;
-
-import org.apache.hadoop.hbase.client.Scan;
-
-import org.apache.commons.io.FileUtils;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
@@ -41,8 +36,10 @@ import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
 import org.junit.AfterClass;
@@ -366,7 +363,6 @@ public class HBaseIndexingOptionsTest {
         ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
         WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
 
-        // Create an indexer -- verify INDEXER_ADDED event
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("userindexer")
                 .configuration(Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")))
@@ -420,6 +416,15 @@ public class HBaseIndexingOptionsTest {
     public void testEvaluateIndexingSpecification_IndexerZkSuppliedButNoIndexerNameSupplied() throws Exception {
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = null;
+        
+        opts.evaluateIndexingSpecification();
+    }
+    
+    @Test(expected=IllegalStateException.class)
+    public void testEvaluateIndexingSpecification_NonExistantIndexerSupplied() throws Exception {
+        
+        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.indexerName = "NONEXISTANT";
         
         opts.evaluateIndexingSpecification();
     }

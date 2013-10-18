@@ -23,6 +23,8 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.UUID;
 
+import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
@@ -319,6 +321,8 @@ class HBaseIndexingOptions extends OptionsBridge {
                 if (indexerDefinition.getConnectionParams() != null) {
                     indexConnectionParams.putAll(indexerDefinition.getConnectionParams());
                 }
+            } catch (IndexerNotFoundException infe) {
+                throw new IllegalStateException("Indexer " + indexerName + " doesn't exist");
             } catch (Exception e) {
                 // We won't bother trying to do any recovery here if things don't work out,
                 // so we just throw the wrapped exception up the stack
