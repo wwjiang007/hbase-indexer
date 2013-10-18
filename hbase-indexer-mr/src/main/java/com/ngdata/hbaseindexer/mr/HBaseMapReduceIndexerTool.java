@@ -17,6 +17,9 @@ package com.ngdata.hbaseindexer.mr;
 
 import java.io.IOException;
 
+import org.apache.solr.hadoop.TreeMergeMapper;
+import org.apache.solr.hadoop.Utils;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
@@ -76,6 +79,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());
         
         Job job = Job.getInstance(getConf());
+        job.setJobName(getClass().getName() + "/" + HBaseIndexerMapper.class.getSimpleName());
         job.setJarByClass(HBaseIndexerMapper.class);
         job.setUserClassesTakesPrecedence(true);
         
