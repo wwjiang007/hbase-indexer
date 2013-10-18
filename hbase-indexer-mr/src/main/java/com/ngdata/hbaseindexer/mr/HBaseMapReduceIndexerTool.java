@@ -103,10 +103,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                             System.currentTimeMillis(),
                                             fileSystem,
                                             null, -1, // File-based parameters
-                                            
-                                            // TODO Set these based on heuristics and cmdline args
-                                            -1, // num mappers
-                                            Math.max(hbaseIndexingOpts.reducers, hbaseIndexingOpts.shards)  // num reducers
+                                            -1, // num mappers, only of importance for file-based indexing
+                                            hbaseIndexingOpts.reducers
                                             );
             
 
