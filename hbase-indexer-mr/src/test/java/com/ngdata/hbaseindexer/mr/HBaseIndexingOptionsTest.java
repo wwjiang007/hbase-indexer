@@ -416,6 +416,14 @@ public class HBaseIndexingOptionsTest {
         
     }
     
+    @Test(expected=IllegalStateException.class)
+    public void testEvaluateIndexingSpecification_IndexerZkSuppliedButNoIndexerNameSupplied() throws Exception {
+        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.indexerName = null;
+        
+        opts.evaluateIndexingSpecification();
+    }
+    
     @Test
     public void testEvaluateIndexingSpecification_TableNameFromXmlFile() throws Exception {
         opts.indexerZkHost = null;

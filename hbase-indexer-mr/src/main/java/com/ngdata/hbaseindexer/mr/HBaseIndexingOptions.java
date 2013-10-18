@@ -304,6 +304,11 @@ class HBaseIndexingOptions extends OptionsBridge {
         Map<String,String> indexConnectionParams = Maps.newHashMap();
         
         if (indexerZkHost != null) {
+            
+            if (indexerName == null) {
+                throw new IllegalStateException("--hbase-indexer-name must be supplied if --hbase-indexer-zk is specified");
+            }
+            
             try {
                 StateWatchingZooKeeper zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
                 IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
