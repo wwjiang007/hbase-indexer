@@ -847,7 +847,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     }
 
     secs = (System.currentTimeMillis() - startTime) / 1000.0f;
-    LOG.info("Done. Indexing {} files using {} real mappers into {} reducers took {} secs", new Object[] {numFiles, realMappers, reducers, secs});
+    LOG.info("Done. Indexing data into {} reducers took {} secs", new Object[] {reducers, secs});
 
     int mtreeMergeIterations = 0;
     if (reducers > options.shards) {
