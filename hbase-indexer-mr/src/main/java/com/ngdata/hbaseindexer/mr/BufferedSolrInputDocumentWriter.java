@@ -37,24 +37,28 @@ import org.apache.solr.common.SolrInputDocument;
  * <b>WARNING:</b> this class is not thread-safe, and instances should only be accessed by a single thread.
  */
 public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter {
-    
+
     private final SolrInputDocumentWriter delegateWriter;
     private final int bufferSize;
     private final Map<String, SolrInputDocument> writeBuffer;
-    private final Counter counter;
+    private final Counter docOutputCounter;
+    private final Counter docBatchCounter;
 
     /**
      * Instantiate with the underlying writer to delegate to, and the size of the internal buffer to use.
-     * 
+     *
      * @param delegateWriter underlying writer to delegate writes and deletes to
      * @param bufferSize size of the internal write buffer to use
-     * @param counter Hadoop counter for recording metrics
+     * @param documentOutputCounter Hadoop counter for recording the number of Solr documents output
+     * @param documentBatchOutputCounter Hadoop counter for recording the number of document batches output
      */
-    public BufferedSolrInputDocumentWriter(SolrInputDocumentWriter delegateWriter, int bufferSize, Counter counter) {
+    public BufferedSolrInputDocumentWriter(SolrInputDocumentWriter delegateWriter, int bufferSize,
+            Counter documentOutputCounter, Counter documentBatchOutputCounter) {
         this.delegateWriter = delegateWriter;
         this.bufferSize = bufferSize;
         this.writeBuffer = Maps.newHashMapWithExpectedSize(bufferSize);
-        this.counter = counter;
+        this.docOutputCounter = documentOutputCounter;
+        this.docBatchCounter = documentBatchOutputCounter;
     }
 
     @Override
@@ -74,18 +78,19 @@ public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter 
     public void deleteByQuery(String deleteQuery) throws SolrServerException, IOException {
         delegateWriter.deleteByQuery(deleteQuery);
     }
-    
+
     /**
      * Flush all buffered documents to the underlying writer.
      */
     public void flush() throws SolrServerException, IOException {
         if (!writeBuffer.isEmpty()) {
             delegateWriter.add(ImmutableMap.copyOf(writeBuffer));
-            counter.increment(writeBuffer.size());
+            docOutputCounter.increment(writeBuffer.size());
+            docBatchCounter.increment(1L);
             writeBuffer.clear();
         }
     }
-    
+
     @Override
     public void close() throws SolrServerException, IOException {
         flush();

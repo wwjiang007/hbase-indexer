@@ -66,28 +66,28 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
     /** Configuration key for setting the contents of the indexer config. */
     public static final String INDEX_CONFIGURATION_CONF_KEY = "hbase.indexer.configuration";
-    
+
     /** Configuration key for setting the free-form index connection parameters. */
     public static final String INDEX_CONNECTION_PARAMS_CONF_KEY = "hbase.indexer.index.connectionparams";
-    
+
     /** Configuration key for setting the direct write flag. */
     public static final String INDEX_DIRECT_WRITE_CONF_KEY = "hbase.indexer.directwrite";
-    
+
     /** Configuration key for setting the HBase table name. */
     public static final String TABLE_NAME_CONF_KEY = "hbase.indexer.table.name";
 
     private static final String CONF_KEYVALUE_SEPARATOR = "=";
 
     private static final String CONF_VALUE_SEPARATOR = ";";
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(HBaseIndexerMapper.class);
-    
+
     private Indexer indexer;
     private SolrInputDocumentWriter solrDocWriter;
 
     /**
      * Add the given index connection parameters to a Configuration.
-     * 
+     *
      * @param conf the configuration in which to add the parameters
      * @param connectionParams index connection parameters
      */
@@ -100,7 +100,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
     /**
      * Retrieve index connection parameters from a Configuration.
-     * 
+     *
      * @param conf configuration containing index connection parameters
      * @return index connection parameters
      */
@@ -118,19 +118,19 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        
+
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);
         String indexConfiguration = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_KEY);
         String tableName = context.getConfiguration().get(TABLE_NAME_CONF_KEY);
-        
+
         if (indexName == null) {
             throw new IllegalStateException("No configuration value supplied for " + INDEX_NAME_CONF_KEY);
         }
-        
+
         if (indexConfiguration == null) {
             throw new IllegalStateException("No configuration value supplied for " + INDEX_CONFIGURATION_CONF_KEY);
         }
-        
+
         if (tableName == null) {
             throw new IllegalStateException("No configuration value supplied for " + TABLE_NAME_CONF_KEY);
         }
@@ -150,8 +150,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
         }
-        
-        
+
+
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
@@ -159,39 +159,40 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         solrDocWriter = createSolrWriter(context, indexConnectionParams);
         indexer = Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, solrDocWriter);
     }
-    
+
     private SolrInputDocumentWriter createSolrWriter(Context context, Map<String,String> indexConnectionParams) throws IOException {
         Configuration conf = context.getConfiguration();
         if (conf.getBoolean(INDEX_DIRECT_WRITE_CONF_KEY, false)) {
             String indexZkHost = indexConnectionParams.get(SolrConnectionParams.ZOOKEEPER);
             String collectionName = indexConnectionParams.get(SolrConnectionParams.COLLECTION);
-            
+
             if (indexZkHost == null) {
                 throw new IllegalStateException("No index ZK host defined");
             }
-            
+
             if (collectionName == null) {
                 throw new IllegalStateException("No collection name defined");
             }
             CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
             solrServer.setDefaultCollection(collectionName);
-            
+
             int bufferSize = context.getConfiguration().getInt(SolrOutputFormat.SOLR_RECORD_WRITER_BATCH_SIZE, 100);
-            
+
             return new BufferedSolrInputDocumentWriter(
                     new DirectSolrInputDocumentWriter(conf.get(INDEX_NAME_CONF_KEY), solrServer),
                     bufferSize,
-                    context.getCounter(HBaseIndexerCounters.OUTPUT_INDEX_DOCUMENTS));
+                    context.getCounter(HBaseIndexerCounters.OUTPUT_INDEX_DOCUMENTS),
+                    context.getCounter(HBaseIndexerCounters.OUTPUT_INDEX_DOCUMENT_BATCHES));
         } else {
             return new MapReduceSolrInputDocumentWriter(context);
         }
-        
+
     }
 
     @Override
     protected void map(ImmutableBytesWritable key, Result result, Context context) throws IOException,
             InterruptedException {
-        
+
         context.getCounter(HBaseIndexerCounters.INPUT_ROWS).increment(1L);
         try {
             indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result)));
@@ -202,7 +203,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
     }
-    
+
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         try {
@@ -210,7 +211,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         } catch (SolrServerException e) {
             throw new RuntimeException(e);
         }
-        
+
         copyIndexingMetricsToCounters(context);
     }
 
@@ -237,5 +238,5 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             }
         }
     }
-    
+
 }

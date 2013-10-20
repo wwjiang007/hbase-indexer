@@ -19,15 +19,20 @@ package com.ngdata.hbaseindexer.mr;
  * MapReduce counters for indexing HBase rows.
  */
 public enum HBaseIndexerCounters {
-    
+
     /**
      * Number of HBase rows input to the indexer.
      */
     INPUT_ROWS,
-    
+
     /**
      * Number of index documents output.
      */
     OUTPUT_INDEX_DOCUMENTS,
-    
+
+    /**
+     * Number of index document batches output.
+     */
+    OUTPUT_INDEX_DOCUMENT_BATCHES,
+
 }
