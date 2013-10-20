@@ -17,9 +17,6 @@ package com.ngdata.hbaseindexer.mr;
 
 import java.io.IOException;
 
-import org.apache.solr.hadoop.TreeMergeMapper;
-import org.apache.solr.hadoop.Utils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
@@ -29,7 +26,6 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
-import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
@@ -40,49 +36,52 @@ import org.slf4j.LoggerFactory;
  * Top-level tool for running MapReduce-based indexing pipelines over HBase tables.
  */
 public class HBaseMapReduceIndexerTool extends Configured implements Tool {
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(ForkedMapReduceIndexerTool.class);
-    
+
     public static void main(String[] args) throws Exception {
-        
+
         int res = ToolRunner.run(new Configuration(), new HBaseMapReduceIndexerTool(), args);
         System.exit(res);
     }
-    
+
     @Override
     public int run(String[] args) throws Exception {
-        
+
         HBaseIndexingOptions hbaseIndexingOpts = new HBaseIndexingOptions(getConf());
         Integer exitCode = new HBaseIndexerArgumentParser().parseArgs(args, getConf(), hbaseIndexingOpts);
         if (exitCode != null) {
           return exitCode;
         }
-        
+
         if (hbaseIndexingOpts.isDryRun) {
             return new IndexerDryRun(hbaseIndexingOpts, getConf(), System.out).run();
         } else {
             return runIndexingJob(hbaseIndexingOpts);
         }
     }
-    
+
     public int runIndexingJob(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
-        
+
         Configuration conf = getConf();
 
         IndexingSpecification indexingSpec = hbaseIndexingOpts.getIndexingSpecification();
-        
+
         conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, indexingSpec.getIndexConfigXml());
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, indexingSpec.getIndexerName());
         conf.set(HBaseIndexerMapper.TABLE_NAME_CONF_KEY, indexingSpec.getTableName());
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
-        
+
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());
-        
+
         Job job = Job.getInstance(getConf());
         job.setJobName(getClass().getName() + "/" + HBaseIndexerMapper.class.getSimpleName());
         job.setJarByClass(HBaseIndexerMapper.class);
         job.setUserClassesTakesPrecedence(true);
-        
+        if (hbaseIndexingOpts.fairSchedulerPool != null) {
+            conf.set("mapred.fairscheduler.pool", hbaseIndexingOpts.fairSchedulerPool);
+        }
+
         TableMapReduceUtil.initTableMapperJob(
                                     indexingSpec.getTableName(),
                                     hbaseIndexingOpts.getScan(),
@@ -90,7 +89,8 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                     Text.class,
                                     SolrInputDocumentWritable.class,
                                     job);
-        
+
+
         if (hbaseIndexingOpts.isDirectWrite()) {
             int exitCode = runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
             if (exitCode == 0) {
@@ -110,7 +110,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                             -1, // num mappers, only of importance for file-based indexing
                                             hbaseIndexingOpts.reducers
                                             );
-            
+
 
             if (hbaseIndexingOpts.isGeneratedOutputDir()) {
                 LOG.info("Deleting generated output directory " + hbaseIndexingOpts.outputDir);
@@ -118,12 +118,12 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             }
             return exitCode;
         }
-        
+
     }
 
     /**
      * Write a map-only MR job that writes index documents directly to a live Solr instance.
-     * 
+     *
      * @param job configured job for creating SolrInputDocuments
      * @param conf job configuration
      * @param verbose run in verbose mode
