@@ -48,7 +48,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class HBaseIndexingOptionsTest {
-    
+
     private static MiniZooKeeperCluster ZK_CLUSTER;
     private static File ZK_DIR;
     private static int ZK_CLIENT_PORT;
@@ -73,7 +73,7 @@ public class HBaseIndexingOptionsTest {
         }
         FileUtils.deleteDirectory(ZK_DIR);
     }
-    
+
     private static int getFreePort() {
         ServerSocket socket = null;
         try {
@@ -91,275 +91,275 @@ public class HBaseIndexingOptionsTest {
             }
         }
     }
-    
+
     @Before
     public void setUp() {
         conf = new Configuration();
         opts = new HBaseIndexingOptions(conf);
     }
-    
-    
+
+
     @Test
     public void testIsDirectWrite_True() {
         opts.reducers = 0;
-        
+
         assertTrue(opts.isDirectWrite());
     }
-    
-    
+
+
     @Test
     public void testIsDirectWrite_False() {
         opts.reducers = 1;
         assertFalse(opts.isDirectWrite());
-        
+
         // Different negative values have different meanings in core search MR job
         opts.reducers = -1;
         assertFalse(opts.isDirectWrite());
-        
+
         opts.reducers = -2;
         assertFalse(opts.isDirectWrite());
     }
-    
+
     @Test
     public void testEvaluateOutputDir_DirectWrite() {
         opts.outputDir = null;
         opts.reducers = 0;
         opts.zkHost = "myzkhost/solr";
-        
+
         // Should have no effect
         opts.evaluateOutputDir();
-        
+
         assertNull(opts.outputDir);
         assertFalse(opts.isGeneratedOutputDir());
     }
-    
+
     @Test
     public void testEvaluateOutputDir_DryRun() {
         opts.outputDir = null;
         opts.isDryRun = true;
         opts.zkHost = "myzkhost/solr";
-        
+
         // Should have no effect
         opts.evaluateOutputDir();
-        
+
         assertNull(opts.outputDir);
         assertFalse(opts.isGeneratedOutputDir());
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateOutputDir_DirectWrite_NoSolrZkHostDefined() {
         opts.outputDir = null;
         opts.reducers = 0;
         opts.zkHost = null;
-        
+
         opts.evaluateOutputDir();
     }
-    
+
     @Test
     public void testEvaluateOutputDir_GoLive() {
         opts.outputDir = null;
         opts.reducers = 2;
         opts.goLive = true;
-        
+
         opts.evaluateOutputDir();
 
         Path outputPath = opts.outputDir;
         assertEquals(new Path("/tmp"), outputPath.getParent());
         assertTrue(opts.isGeneratedOutputDir());
     }
-    
+
     @Test
     public void testEvaluateOutputDir_GoLive_UserDefinedOutputDir() {
         opts.outputDir = new Path("/outputdir");
         opts.reducers = 2;
         opts.goLive = true;
-        
+
         opts.evaluateOutputDir();
 
         Path outputPath = opts.outputDir;
         assertEquals(new Path("/outputdir"), outputPath);
         assertFalse(opts.isGeneratedOutputDir());
     }
-    
+
     @Test
     public void testEvaluateOutputDir_GoLive_AlternateTempDirViaConfig() {
         opts.outputDir = null;
         opts.reducers = 2;
         opts.goLive = true;
         conf.set("hbase.search.mr.tmpdir", "/othertmp");
-        
+
         opts.evaluateOutputDir();
 
         Path outputPath = opts.outputDir;
         assertEquals(new Path("/othertmp"), outputPath.getParent());
         assertTrue(opts.isGeneratedOutputDir());
     }
-    
+
     @Test
     public void testEvaluateOutputDir_WriteToFile() {
         opts.outputDir = new Path("/output/path");
         opts.reducers = 2;
-        
+
         // Should have no effect
         opts.evaluateOutputDir();
-        
+
         assertEquals(new Path("/output/path"), opts.outputDir);
         assertFalse(opts.isGeneratedOutputDir());
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateOutputDir_NoOutputDirButNotDirectWriteMode() {
         opts.outputDir = null;
         opts.reducers = 1;
-        
+
         opts.evaluateOutputDir();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateOutputDir_OutputDirSetAlongWithDirectWriteMode() {
         opts.outputDir = new Path("/some/path");
         opts.reducers = 0;
-        
+
         opts.evaluateOutputDir();
     }
-    
+
     @Test
     public void testEvaluateScan_StartRowDefined() throws Exception {
-        
+
         // Set up the dependencies for the indexing specification
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
-        
+
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.startRow = "starthere";
         opts.evaluateScan();
         assertArrayEquals(Bytes.toBytes("starthere"), opts.getScan().getStartRow());
     }
-    
+
     @Test
     public void testEvaluateScan_EndRowDefined() throws Exception {
-        
+
         // Set up the dependencies for the indexing specification
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
-        
+
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.endRow = "endhere";
         opts.evaluateScan();
         assertArrayEquals(Bytes.toBytes("endhere"), opts.getScan().getStopRow());
     }
-    
+
     @Test
     public void testEvaluateScan_StartTimeDefined() throws Exception {
-        
+
         // Set up the dependencies for the indexing specification
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
-        
+
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.startTime = 220777L;
         opts.evaluateScan();
         assertEquals(220777L, opts.getScan().getTimeRange().getMin());
     }
-    
+
     @Test
     public void testEvaluateScan_EndTimeDefined() throws Exception {
-        
+
         // Set up the dependencies for the indexing specification
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
-        
+
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.endTime = 220777L;
         opts.evaluateScan();
         assertEquals(220777L, opts.getScan().getTimeRange().getMax());
     }
-    
+
     @Test
     public void testEvaluateScan_CheckFamilyMap() throws Exception{
         // Check that the Scan only scans values referred to via the
         // ResultToSolrMapper#getGet(byte[]) method
-        
+
         // Set up the dependencies for the indexing specification
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
-        
-        
+
+
         opts.evaluateScan();
-        
+
         Scan scan = opts.getScan();
         assertTrue(scan.getFamilyMap().containsKey(Bytes.toBytes("info")));
         // Should be firstname, lastname, age
         assertEquals(3, scan.getFamilyMap().get(Bytes.toBytes("info")).size());
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateGoLiveArgs_NoZkHostOrSolrHomeDir() {
         opts.solrHomeDir = null;
         opts.zkHost = null;
-        
+
         opts.evaluateGoLiveArgs();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateGoLiveArgs_GoLiveButNoZkAndNoShards() {
         opts.goLive = true;
         opts.zkHost = null;
         opts.shardUrls = null;
-        
+
         opts.evaluateGoLiveArgs();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateGoLiveArgs_ZkHostButNoCollection() {
         opts.zkHost = "myzkhost";
         opts.collection = null;
-        
+
         opts.evaluateGoLiveArgs();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateGoLiveArgs_EmptyShardUrls() {
         opts.solrHomeDir = new File("/solrhome");
         opts.shardUrls = ImmutableList.of();
-        
+
         opts.evaluateGoLiveArgs();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateGoLiveArgs_ZeroShards() {
         opts.solrHomeDir = new File("/solrhome");
         opts.shards = 0;
-        
+
         opts.evaluateGoLiveArgs();
     }
-    
+
     @Test
     public void testEvaluateGoLiveArgs_AutoSetShardCount() {
         opts.solrHomeDir = new File("/solrhome");
         opts.shardUrls = ImmutableList.<List<String>>of(ImmutableList.of("shard_a"), ImmutableList.of("shard_b"));
         opts.shards = null;
-        
+
         opts.evaluateGoLiveArgs();
-        
+
         assertEquals(2, (int)opts.shards);
-        
+
     }
-    
-    
+
+
     @Test
     public void testEvaluateIndexingSpecification_AllFromZooKeeper() throws Exception {
-        
+
         ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
         WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
 
@@ -371,26 +371,26 @@ public class HBaseIndexingOptionsTest {
                         "solr.collection", "mycollection"))
                 .build();
         indexerModel.addIndexer(indexerDef);
-        
+
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "userindexer";
-        
+
         opts.evaluateIndexingSpecification();
         indexerModel.deleteIndexerInternal("userindexer");
-        
+
         IndexingSpecification expectedSpec = new IndexingSpecification(
                             "record", "userindexer",
                             Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
                             ImmutableMap.of(
                                     "solr.zk", "myZkHost/solr",
                                     "solr.collection", "mycollection"));
-        
-        
-        
-        
+
+
+
+
         assertEquals(expectedSpec, opts.getIndexingSpecification());
     }
-    
+
     @Test
     public void testEvaluateIndexingSpecification_AllFromCmdline() throws Exception {
         opts.indexerZkHost = null;
@@ -398,56 +398,77 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = "myZkHost/solr";
         opts.collection = "mycollection";
-        
+
         opts.evaluateIndexingSpecification();
-        
+
         IndexingSpecification expectedSpec = new IndexingSpecification(
                             "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME,
                             Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
                             ImmutableMap.of(
                                     "solr.zk", "myZkHost/solr",
                                     "solr.collection", "mycollection"));
-        
+
         assertEquals(expectedSpec, opts.getIndexingSpecification());
-        
+
     }
-    
+
+    @Test
+    public void testEvaluateIndexingSpecification_SolrClassic() throws Exception {
+        opts.indexerZkHost = null;
+        opts.hbaseTableName = "mytable";
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.zkHost = null;
+        opts.collection = null;
+        opts.solrHomeDir = new File(".");
+
+        opts.evaluateIndexingSpecification();
+
+        IndexingSpecification expectedSpec = new IndexingSpecification(
+                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME,
+                            Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
+                            ImmutableMap.of(
+                                    "solr.mode", "classic",
+                                    "solr.home", opts.solrHomeDir.getAbsolutePath()));
+
+        assertEquals(expectedSpec, opts.getIndexingSpecification());
+    }
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_IndexerZkSuppliedButNoIndexerNameSupplied() throws Exception {
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = null;
-        
+
         opts.evaluateIndexingSpecification();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NonExistantIndexerSupplied() throws Exception {
-        
+
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "NONEXISTANT";
-        
+
         opts.evaluateIndexingSpecification();
     }
-    
+
     @Test
     public void testEvaluateIndexingSpecification_TableNameFromXmlFile() throws Exception {
         opts.indexerZkHost = null;
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = "myZkHost/solr";
         opts.collection = "mycollection";
-        
+
         opts.evaluateIndexingSpecification();
-        
+
         IndexingSpecification expectedSpec = new IndexingSpecification(
                 "record", HBaseIndexingOptions.DEFAULT_INDEXER_NAME,
                 Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
                 ImmutableMap.of(
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"));
-        
+
         assertEquals(expectedSpec, opts.getIndexingSpecification());
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NoIndexXmlSpecified() throws Exception {
         opts.indexerZkHost = null;
@@ -455,10 +476,10 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseTableName = "mytable";
         opts.zkHost = "myZkHost/solr";
         opts.collection = "mycollection";
-        
+
         opts.evaluateIndexingSpecification();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NoZkHostSpecified() throws Exception {
         opts.indexerZkHost = null;
@@ -466,10 +487,10 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseTableName = "mytable";
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.collection = "mycollection";
-        
+
         opts.evaluateIndexingSpecification();
     }
-    
+
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NoCollectionSpecified() throws Exception {
         opts.indexerZkHost = null;
@@ -477,10 +498,10 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseTableName = "mytable";
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = "myZkHost/solr";
-        
+
         opts.evaluateIndexingSpecification();
     }
-    
+
     @Test
     public void testEvaluateIndexingSpecification_CombinationOfCmdlineAndZk() throws Exception {
         ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
@@ -495,25 +516,25 @@ public class HBaseIndexingOptionsTest {
                         "solr.collection", "mycollection"))
                 .build();
         indexerModel.addIndexer(indexerDef);
-        
+
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "userindexer";
         opts.hbaseTableName = "mytable";
         opts.zkHost = "myOtherZkHost/solr";
-        
+
         opts.evaluateIndexingSpecification();
-        
+
         indexerModel.deleteIndexerInternal("userindexer");
-        
+
         IndexingSpecification expectedSpec = new IndexingSpecification(
                 "mytable", "userindexer",
                 Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
                 ImmutableMap.of(
                         "solr.zk", "myOtherZkHost/solr",
                         "solr.collection", "mycollection"));
-        
+
         assertEquals(expectedSpec, opts.getIndexingSpecification());
-        
+
     }
 
 }

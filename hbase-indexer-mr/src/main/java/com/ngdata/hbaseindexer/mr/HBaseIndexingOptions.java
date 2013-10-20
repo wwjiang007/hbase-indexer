@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 class HBaseIndexingOptions extends OptionsBridge {
 
     private static final Logger LOG = LoggerFactory.getLogger(MapReduceIndexerTool.class);
-    
+
     static final String DEFAULT_INDEXER_NAME = "_default_";
 
     private Configuration conf;
@@ -84,7 +84,7 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     /**
      * Determine if this is intended to be a map-only job that writes directly to a live Solr server.
-     * 
+     *
      * @return true if writes are to be done directly into Solr
      */
     public boolean isDirectWrite() {
@@ -97,7 +97,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
         return scan;
     }
-    
+
     public IndexingSpecification getIndexingSpecification() {
         if (indexingSpecification == null) {
             throw new IllegalStateException("Indexing specification has not yet been evaluated");
@@ -108,7 +108,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     /**
      * Evaluate the current state to calculate derived options settings. Validation of the state is also done here, so
      * IllegalStateException will be thrown if incompatible options have been set.
-     * 
+     *
      * @throws IllegalStateException if an illegal combination of options has been set, or needed options are missing
      */
     public void evaluate() {
@@ -136,7 +136,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
             return;
         }
-        
+
         if (goLive) {
             if (outputDir == null) {
                 outputDir = new Path(conf.get("hbase.search.mr.tmpdir", "/tmp"), "search-"
@@ -149,7 +149,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
     }
-    
+
     /**
      * Check if the output directory being used is an auto-generated temporary directory.
      */
@@ -162,7 +162,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         this.scan = new Scan();
         scan.setCacheBlocks(false);
         scan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
-        
+
         if (startRow != null) {
             scan.setStartRow(Bytes.toBytesBinary(startRow));
             LOG.debug("Starting row scan at " + startRow);
@@ -203,7 +203,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             Get get = resultToSolrMapper.getGet(new byte[0]);
             scan.setFamilyMap(get.getFamilyMap());
         }
-        
+
     }
 
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
@@ -244,11 +244,11 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
     private void evaluateNumReducers() {
-        
+
         if (isDirectWrite()) {
             return;
         }
-        
+
         if (shards <= 0) {
             throw new IllegalStateException("Illegal number of shards: " + shards);
         }
@@ -298,19 +298,19 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
         return result;
     }
-    
+
     @VisibleForTesting
     void evaluateIndexingSpecification() {
         String tableName = null;
         String indexerConfigXml = null;
         Map<String,String> indexConnectionParams = Maps.newHashMap();
-        
+
         if (indexerZkHost != null) {
-            
+
             if (indexerName == null) {
                 throw new IllegalStateException("--hbase-indexer-name must be supplied if --hbase-indexer-zk is specified");
             }
-            
+
             try {
                 StateWatchingZooKeeper zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
                 IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
@@ -333,17 +333,19 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new IllegalStateException(
                         "--hbase-indexer must be specified if --hbase-indexer-zk is not specified");
             }
-            if (zkHost == null) {
-                throw new IllegalStateException(
-                        "--zk-host must be specified if --hbase-indexer-zk is not specified");
-            }
-            if (collection == null) {
-                throw new IllegalStateException(
-                        "--collection must be specified if --hbase-indexer-zk is not specified");
+            if (solrHomeDir == null) {
+                if (zkHost == null) {
+                    throw new IllegalStateException(
+                            "--zk-host must be specified if --hbase-indexer-zk is not specified");
+                }
+                if (collection == null) {
+                    throw new IllegalStateException(
+                            "--collection must be specified if --hbase-indexer-zk is not specified");
+                }
             }
         }
-        
-        
+
+
         if (this.hbaseIndexerConfig != null) {
             try {
                 indexerConfigXml = Files.toString(hbaseIndexerConfig, Charsets.UTF_8);
@@ -352,32 +354,37 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new RuntimeException("Error loading " + hbaseIndexerConfig, e);
             }
         }
-        
+
         if (hbaseTableName != null) {
             tableName = hbaseTableName;
         }
-        
-        
-        if (zkHost != null) {
-            indexConnectionParams.put("solr.zk", zkHost);
+
+
+        if (solrHomeDir != null) {
+            indexConnectionParams.put("solr.mode", "classic");
+            indexConnectionParams.put("solr.home", solrHomeDir.getAbsolutePath());
+        } else {
+            if (zkHost != null) {
+                indexConnectionParams.put("solr.zk", zkHost);
+            }
+
+            if (collection != null) {
+                indexConnectionParams.put("solr.collection", collection);
+            }
         }
-        
-        if (collection != null) {
-            indexConnectionParams.put("solr.collection", collection);
-        }
-        
+
         if (indexerName == null) {
             indexerName = DEFAULT_INDEXER_NAME;
         }
-        
-        
+
+
         this.indexingSpecification = new IndexingSpecification(
                                             tableName,
                                             indexerName,
                                             indexerConfigXml,
                                             indexConnectionParams);
     }
-    
+
     private IndexerConf loadIndexerConf(InputStream indexerConfigInputStream) {
         try {
             return new XmlIndexerConfReader().read(indexerConfigInputStream);
@@ -387,9 +394,9 @@ class HBaseIndexingOptions extends OptionsBridge {
             Closer.close(indexerConfigInputStream);
         }
     }
-    
+
     private String getTableNameFromConf(InputStream indexerConfigInputStream) {
-       
+
         return loadIndexerConf(indexerConfigInputStream).getTable();
     }
 }
