@@ -157,7 +157,22 @@ public class HBaseIndexingOptionsTest {
 
         opts.evaluateOutputDir();
     }
+    
+    @Test
+    public void testEvaluateOutputDir_DirectWrite_WithZkBasedIndexer() {
+        opts.outputDir = null;
+        opts.reducers = 0;
+        opts.zkHost = null;
+        opts.indexerName = "indexer";
+        opts.indexerZkHost = "indexerhost";
 
+        // Should have no effect
+        opts.evaluateOutputDir();
+
+        assertNull(opts.outputDir);
+        assertFalse(opts.isGeneratedOutputDir());
+    }
+    
     @Test
     public void testEvaluateOutputDir_GoLive() {
         opts.outputDir = null;
@@ -224,6 +239,61 @@ public class HBaseIndexingOptionsTest {
         opts.reducers = 0;
 
         opts.evaluateOutputDir();
+    }
+    
+    @Test
+    public void testEvaluateIndexingSpecification_PullSolrZkHostFromIndexerDefinition() throws Exception {
+        
+        ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
+        WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
+
+        IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
+                .name("customsolr")
+                .configuration(Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")))
+                .connectionParams(ImmutableMap.of(
+                        "solr.zk", "myZkHost/solr",
+                        "solr.collection", "mycollection"))
+                .build();
+        indexerModel.addIndexer(indexerDef);
+        
+        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.indexerName = "customsolr";
+        opts.zkHost = "customhost/solr";
+        opts.collection = null;
+        
+        opts.evaluateIndexingSpecification();
+        
+        indexerModel.deleteIndexerInternal("customsolr");
+        
+        assertEquals("customhost/solr", opts.zkHost);
+        assertEquals("mycollection", opts.collection);
+    }
+    
+    @Test
+    public void testIndexingSpecification_PullSolrCollectionFromIndexerDefinition() throws Exception {
+        ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
+        WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
+
+        IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
+                .name("customcollection")
+                .configuration(Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")))
+                .connectionParams(ImmutableMap.of(
+                        "solr.zk", "myZkHost/solr",
+                        "solr.collection", "mycollection"))
+                .build();
+        indexerModel.addIndexer(indexerDef);
+        
+        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.indexerName = "customcollection";
+        opts.zkHost = null;
+        opts.collection = "customcollection";
+        
+        opts.evaluateIndexingSpecification();
+        
+        indexerModel.deleteIndexerInternal("customcollection");
+        
+        assertEquals("myZkHost/solr", opts.zkHost);
+        assertEquals("customcollection", opts.collection);
     }
 
     @Test

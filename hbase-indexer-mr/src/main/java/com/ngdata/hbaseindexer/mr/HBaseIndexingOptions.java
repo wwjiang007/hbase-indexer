@@ -117,11 +117,11 @@ class HBaseIndexingOptions extends OptionsBridge {
      * @throws IllegalStateException if an illegal combination of options has been set, or needed options are missing
      */
     public void evaluate() {
+        evaluateIndexingSpecification();
         evaluateOutputDir();
         evaluateGoLiveArgs();
         evaluateShards();
         evaluateNumReducers();
-        evaluateIndexingSpecification();
         evaluateScan();
     }
 
@@ -136,9 +136,9 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new IllegalStateException(
                     "Output directory should not be specified if direct-write or dry-run are enabled");
             }
-            if (zkHost == null) {
+            if (zkHost == null && (indexerName == null || indexerZkHost == null)) {
                 throw new IllegalStateException(
-                    "--zk-host must be specified if direct-write or dry-run are enabled");
+                    "--zk-host must be specified if --reducers is 0 or --dry-run is enabled");
             }
             return;
         }
@@ -350,6 +350,12 @@ class HBaseIndexingOptions extends OptionsBridge {
                 indexerConfigXml = Bytes.toString(indexConfigBytes);
                 if (indexerDefinition.getConnectionParams() != null) {
                     indexConnectionParams.putAll(indexerDefinition.getConnectionParams());
+                }
+                if (zkHost == null) {
+                    zkHost = indexConnectionParams.get("solr.zk");
+                }
+                if (collection == null) {
+                    collection = indexConnectionParams.get("solr.collection");
                 }
             } catch (IndexerNotFoundException infe) {
                 throw new IllegalStateException("Indexer " + indexerName + " doesn't exist");
