@@ -23,8 +23,6 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.UUID;
 
-import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
@@ -37,6 +35,7 @@ import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerModel;
+import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
@@ -49,6 +48,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
 import org.apache.solr.hadoop.MapReduceIndexerTool;
+import org.apache.solr.hadoop.ZooKeeperInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +114,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     public void evaluate() {
         evaluateOutputDir();
         evaluateGoLiveArgs();
+        evaluateShards();
         evaluateNumReducers();
         evaluateIndexingSpecification();
         evaluateScan();
@@ -240,6 +241,27 @@ class HBaseIndexingOptions extends OptionsBridge {
             shards = shardUrls.size();
         }
 
+    }
+    
+    // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
+    private void evaluateShards()  {
+        if (zkHost != null && shards == null) {
+            assert collection != null;
+            ZooKeeperInspector zki = new ZooKeeperInspector();
+            try {
+                shardUrls = zki.extractShardUrls(zkHost, collection);
+            } catch (Exception e) {
+                LOG.debug("Cannot extract SolrCloud shard URLs from ZooKeeper", e);
+                throw new RuntimeException("Cannot extract SolrCloud shard URLs from ZooKeeper", e);
+            }
+            assert shardUrls != null;
+            if (shardUrls.size() == 0) {
+                throw new IllegalStateException("--zk-host requires ZooKeeper " + zkHost
+                        + " to contain at least one SolrCore for collection: " + collection);
+            }
+            shards = shardUrls.size();
+            LOG.debug("Using SolrCloud shard URLs: {}", shardUrls);
+        }
     }
 
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
