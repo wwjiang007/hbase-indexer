@@ -159,12 +159,6 @@
           <scope>test</scope>
           <version>${version.hbase95}</version>
         </dependency>
-        <dependency>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-server</artifactId>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
       </dependencies>  
     </profile>
   </profiles>
