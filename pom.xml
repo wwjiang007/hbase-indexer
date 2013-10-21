@@ -515,7 +515,7 @@
     </repository>
 
     <repository>
-      <id>cdh.repo</id>
+      <id>cdh.repo.snapshots</id>
       <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
       <name>Cloudera Repository</name>
       <snapshots>
