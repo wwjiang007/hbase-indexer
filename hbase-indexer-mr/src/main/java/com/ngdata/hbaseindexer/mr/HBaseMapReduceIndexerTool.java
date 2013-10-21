@@ -112,7 +112,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                     }
                 } else {
                     LOG.error("Output directory '{}' already exists. Run with --overwrite to " +
-                    		"overwrite it, or remove it manually");
+                    		"overwrite it, or remove it manually", hbaseIndexingOpts.outputDir);
                     return 1;
                 }
             }
