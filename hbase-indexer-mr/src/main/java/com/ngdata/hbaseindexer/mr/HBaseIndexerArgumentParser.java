@@ -149,6 +149,12 @@ class HBaseIndexerArgumentParser {
                 }.verifyHasScheme().verifyIsAbsolute().verifyCanWriteParent())
                 .help("HDFS directory to write Solr indexes to. Inside there one output directory per shard will be generated. "
                         + "Example: hdfs://c2202.mycompany.com/user/$USER/test");
+        
+        Argument overwriteOutputDirArg = parser
+                .addArgument("--overwrite")
+                .action(Arguments.storeTrue())
+                .help("Overwrite the output directory if it already exists. Using this parameter will result in " +
+                		"the output directory being recursively deleted at job startup");
 
         Argument solrHomeDirArg = parser
                 .addArgument("--solr-home-dir")
@@ -388,7 +394,7 @@ class HBaseIndexerArgumentParser {
                 .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end time. " +
                 		"This can be either ISO8601, or a JodaTime-compliant datetime format (see " +
                 		"http://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html). " +
-                		"If this parameter is omitted then the timestamps are interpreted as number of" +
+                		"If this parameter is omitted then the timestamps are interpreted as number of " +
                 		"milliseconds since the standard epoch.");
 
         Namespace ns;
@@ -409,6 +415,7 @@ class HBaseIndexerArgumentParser {
 
         opts.inputLists = Collections.EMPTY_LIST;
         opts.outputDir = (Path) ns.get(outputDirArg.getDest());
+        opts.overwriteOutputDir = ns.getBoolean(overwriteOutputDirArg.getDest());
         opts.reducers = ns.getInt(reducersArg.getDest());
         opts.updateConflictResolver = ns.getString(updateConflictResolverArg.getDest());
         opts.fanout = ns.getInt(fanoutArg.getDest());

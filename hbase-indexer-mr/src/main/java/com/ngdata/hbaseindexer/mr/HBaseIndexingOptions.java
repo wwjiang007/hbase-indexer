@@ -80,6 +80,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     public String startTimeString;
     public String endTimeString;
     public String timestampFormat;
+    public boolean overwriteOutputDir;
 
     public HBaseIndexingOptions(Configuration conf) {
         Preconditions.checkNotNull(conf);

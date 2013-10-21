@@ -102,6 +102,21 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             return exitCode;
         } else {
             FileSystem fileSystem = FileSystem.get(getConf());
+            
+            if (fileSystem.exists(hbaseIndexingOpts.outputDir)) {
+                if (hbaseIndexingOpts.overwriteOutputDir) {
+                    LOG.info("Removing existing output directory {}", hbaseIndexingOpts.outputDir);
+                    if (!fileSystem.delete(hbaseIndexingOpts.outputDir, true)) {
+                        LOG.error("Deleting output directory '{}' failed", hbaseIndexingOpts.outputDir);
+                        return 1;
+                    }
+                } else {
+                    LOG.error("Output directory '{}' already exists. Run with --overwrite to " +
+                    		"overwrite it, or remove it manually");
+                    return 1;
+                }
+            }
+            
             int exitCode = ForkedMapReduceIndexerTool.runIndexingPipeline(
                                             job, getConf(), hbaseIndexingOpts.asOptions(),
                                             System.currentTimeMillis(),
