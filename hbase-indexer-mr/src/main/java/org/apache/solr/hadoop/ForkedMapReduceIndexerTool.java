@@ -840,7 +840,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     job.setNumReduceTasks(reducers);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(SolrInputDocumentWritable.class);
-    LOG.info("Indexing {} files using {} real mappers into {} reducers", new Object[] {numFiles, realMappers, reducers});
+    LOG.info("Indexing data into {} reducers", new Object[] {reducers});
     startTime = System.currentTimeMillis();
     if (!waitForCompletion(job, options.isVerbose)) {
       return -1; // job failed
