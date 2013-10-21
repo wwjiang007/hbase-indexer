@@ -41,7 +41,7 @@ import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.HdfsFindTool;
 import org.apache.solr.hadoop.MapReduceIndexerTool;
 import org.apache.solr.hadoop.PathArgumentType;
-import org.apache.solr.hadoop.ToolRunnerHelpFormatter;
+import org.apache.solr.hadoop.ForkedToolRunnerHelpFormatter;
 import org.apache.solr.hadoop.dedup.RetainMostRecentUpdateConflictResolver;
 
 /**
@@ -99,7 +99,7 @@ class HBaseIndexerArgumentParser {
                     public void run(ArgumentParser parser, Argument arg, Map<String, Object> attrs, String flag, Object value) throws ArgumentParserException {
                       parser.printHelp(new PrintWriter(System.out));
                       System.out.println();
-                      System.out.print(ToolRunnerHelpFormatter.getGenericCommandUsage());
+                      System.out.print(ForkedToolRunnerHelpFormatter.getGenericCommandUsage());
                       System.out.println("Examples: \n\n" +
                       		"# (Re)index a table based on a configured indexer\n" +
                       		"hadoop jar hbase-indexer-mr-*-job.jar --zk-host zk01/solr \\\n" +

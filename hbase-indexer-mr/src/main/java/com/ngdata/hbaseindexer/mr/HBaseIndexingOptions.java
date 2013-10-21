@@ -48,7 +48,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
 import org.apache.solr.hadoop.MapReduceIndexerTool;
-import org.apache.solr.hadoop.ZooKeeperInspector;
+import org.apache.solr.hadoop.ForkedZooKeeperInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -247,7 +247,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     private void evaluateShards()  {
         if (zkHost != null && shards == null) {
             assert collection != null;
-            ZooKeeperInspector zki = new ZooKeeperInspector();
+            ForkedZooKeeperInspector zki = new ForkedZooKeeperInspector();
             try {
                 shardUrls = zki.extractShardUrls(zkHost, collection);
             } catch (Exception e) {

@@ -178,7 +178,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
           public void run(ArgumentParser parser, Argument arg, Map<String, Object> attrs, String flag, Object value) throws ArgumentParserException {
             parser.printHelp(new PrintWriter(System.out));
             System.out.println();
-            System.out.print(ToolRunnerHelpFormatter.getGenericCommandUsage());
+            System.out.print(ForkedToolRunnerHelpFormatter.getGenericCommandUsage());
             //ToolRunner.printGenericCommandUsage(System.out);
             System.out.println(
               "Examples: \n\n" +
@@ -812,7 +812,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     } else {
       assert options.zkHost != null;
       // use the config that this collection uses for the SolrHomeCache.
-      ZooKeeperInspector zki = new ZooKeeperInspector();
+      ForkedZooKeeperInspector zki = new ForkedZooKeeperInspector();
       SolrZkClient zkClient = zki.getZkClient(options.zkHost);
       try {
         String configName = zki.readConfigName(zkClient, options.collection);
@@ -1281,7 +1281,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
   private static void verifyZKStructure(Options opts, ArgumentParser parser) throws ArgumentParserException {
     if (opts.zkHost != null) {
       assert opts.collection != null;
-      ZooKeeperInspector zki = new ZooKeeperInspector();
+      ForkedZooKeeperInspector zki = new ForkedZooKeeperInspector();
       try {
         opts.shardUrls = zki.extractShardUrls(opts.zkHost, opts.collection);
       } catch (Exception e) {

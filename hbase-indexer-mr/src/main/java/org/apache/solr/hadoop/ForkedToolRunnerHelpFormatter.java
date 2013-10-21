@@ -35,7 +35,7 @@ import org.apache.hadoop.util.ToolRunner;
  * Nicely formats the output of
  * {@link ToolRunner#printGenericCommandUsage(PrintStream) with the same look and feel that argparse4j uses for help text.
  */
-public class ToolRunnerHelpFormatter {
+public class ForkedToolRunnerHelpFormatter {
 
   public static String getGenericCommandUsage() {
     ByteArrayOutputStream bout = new ByteArrayOutputStream();

@@ -46,9 +46,9 @@ import com.google.common.io.Files;
 /**
  * Extracts SolrCloud information from ZooKeeper.
  */
-public final class ZooKeeperInspector {
+public final class ForkedZooKeeperInspector {
   
-  private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperInspector.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ForkedZooKeeperInspector.class);
   
   public List<List<String>> extractShardUrls(String zkHost, String collection) {
 
