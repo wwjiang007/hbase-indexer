@@ -6,6 +6,7 @@
     unique-key-field="custom-id"
     row-field="custom-row"
     column-family-field="custom-family"
+    table-name-field="custom-table-name"
     mapper="com.ngdata.hbaseindexer.conf.TestResultToSolrMapper"
     unique-key-formatter="com.ngdata.hbaseindexer.uniquekey.HexUniqueKeyFormatter"
     >

@@ -15,6 +15,8 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
+import org.apache.solr.common.SolrInputField;
+
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import org.apache.solr.common.SolrInputDocument;
 
@@ -27,17 +29,24 @@ public class IdAddingSolrUpdateWriter implements SolrUpdateWriter {
     private final String documentId;
     private final SolrUpdateCollector updateCollector;
     private boolean idUsed = false;
+    private final String tableNameField;
+    private final String tableName;
     
     /**
      * Construct with the document id field and doc id to be added when necessary.
      * 
      * @param uniqueKeyField name of the Solr unique key field
      * @param documentId identifier to be used for documents written to this writer.
+     * @param tableNameField name of the field to contain the table name (can be null)
+     * @param tableName name of the HBase table containing the record
      * @param updateCollector collector to which documents are passed through to
      */
-    public IdAddingSolrUpdateWriter(String uniqueKeyField, String documentId, SolrUpdateCollector updateCollector) {
+    public IdAddingSolrUpdateWriter(String uniqueKeyField, String documentId, String tableNameField, String tableName,
+            SolrUpdateCollector updateCollector) {
         this.uniqueKeyField = uniqueKeyField;
         this.documentId = documentId;
+        this.tableNameField = tableNameField;
+        this.tableName = tableName;
         this.updateCollector = updateCollector;
     }
 
@@ -48,14 +57,23 @@ public class IdAddingSolrUpdateWriter implements SolrUpdateWriter {
      */
     @Override
     public void add(SolrInputDocument solrDocument) {
-        if (solrDocument.getField(uniqueKeyField) == null) {
+        String docId = documentId;
+        SolrInputField uniqueKeySolrField = solrDocument.getField(uniqueKeyField);
+        if (uniqueKeySolrField == null) {
             if (idUsed) {
                 throw new IllegalStateException("Document id '" + documentId + "' has already been used by this record");
             }
             solrDocument.addField(uniqueKeyField, documentId);
             idUsed = true;
+        } else {
+            docId = uniqueKeySolrField.getValue().toString();
         }
-        updateCollector.add(solrDocument);
+        
+        if (tableNameField != null) {
+            solrDocument.addField(tableNameField, tableName);
+        }
+        
+        updateCollector.add(docId, solrDocument);
     }
 
 }

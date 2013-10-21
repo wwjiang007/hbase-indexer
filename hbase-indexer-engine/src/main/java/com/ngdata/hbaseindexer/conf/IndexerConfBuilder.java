@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
@@ -33,6 +34,7 @@ public class IndexerConfBuilder {
     private String uniqueKeyField;
     private String rowField;
     private String columnFamilyField;
+    private String tableNameField;
     private Class<? extends ResultToSolrMapper> mapperClass;
     private Class<? extends UniqueKeyFormatter> uniqueKeyFormatterClass;
     private IndexerConf.RowReadMode rowReadMode = IndexerConf.RowReadMode.DYNAMIC;
@@ -40,6 +42,33 @@ public class IndexerConfBuilder {
     private List<FieldDefinition> fieldDefinitions = Lists.newArrayList();
     private List<DocumentExtractDefinition> documentExtractDefinitions = Lists.newArrayList();
     private Map<String,String> globalParams;
+
+    /**
+     * Default constructor.
+     */
+    public IndexerConfBuilder() {
+    }
+    
+    /**
+     * Construct based on an existing {@code IndexerConf}. All initial settings are
+     * copied from the supplied configuration
+     * 
+     * @param indexerConf indexer configuration containing default values
+     */
+    public IndexerConfBuilder(IndexerConf indexerConf) {
+        this.table = indexerConf.getTable();
+        this.uniqueKeyField = indexerConf.getUniqueKeyField();
+        this.rowField = indexerConf.getRowField();
+        this.columnFamilyField = indexerConf.getColumnFamilyField();
+        this.tableNameField = indexerConf.getTableNameField();
+        this.mapperClass = indexerConf.getMapperClass();
+        this.uniqueKeyFormatterClass = indexerConf.getUniqueKeyFormatterClass();
+        this.rowReadMode = indexerConf.getRowReadMode();
+        this.mappingType = indexerConf.getMappingType();
+        this.fieldDefinitions = Lists.newArrayList(indexerConf.getFieldDefinitions());
+        this.documentExtractDefinitions = Lists.newArrayList(indexerConf.getDocumentExtractDefinitions());
+        this.globalParams = Maps.newHashMap(indexerConf.getGlobalParams());
+    }
 
     public IndexerConfBuilder table(String table) {
         this.table = table;
@@ -68,6 +97,11 @@ public class IndexerConfBuilder {
     
     public IndexerConfBuilder columnFamilyField(String columnFamilyField) {
         this.columnFamilyField = columnFamilyField;
+        return this;
+    }
+    
+    public IndexerConfBuilder tableNameField(String tableNameField) {
+        this.tableNameField = tableNameField;
         return this;
     }
     
@@ -110,6 +144,7 @@ public class IndexerConfBuilder {
         conf.setUniqueKeyField(uniqueKeyField != null ? uniqueKeyField : IndexerConf.DEFAULT_UNIQUE_KEY_FIELD);
         conf.setRowField(rowField);
         conf.setColumnFamilyField(columnFamilyField);
+        conf.setTableNameField(tableNameField);
         conf.setMapperClass(mapperClass);
         conf.setUniqueKeyFormatterClass(uniqueKeyFormatterClass != null ?
                 uniqueKeyFormatterClass : IndexerConf.DEFAULT_UNIQUE_KEY_FORMATTER);

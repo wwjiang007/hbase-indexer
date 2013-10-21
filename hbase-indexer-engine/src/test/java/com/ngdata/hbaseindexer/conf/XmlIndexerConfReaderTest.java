@@ -53,6 +53,7 @@ public class XmlIndexerConfReaderTest {
         assertEquals("custom-id", conf.getUniqueKeyField());
         assertEquals("custom-row", conf.getRowField());
         assertEquals("custom-family", conf.getColumnFamilyField());
+        assertEquals("custom-table-name", conf.getTableNameField());
         assertEquals(HexUniqueKeyFormatter.class, conf.getUniqueKeyFormatterClass());
         assertEquals(TestResultToSolrMapper.class, conf.getMapperClass());
 
@@ -83,6 +84,7 @@ public class XmlIndexerConfReaderTest {
         assertEquals(IndexerConf.DEFAULT_UNIQUE_KEY_FIELD, conf.getUniqueKeyField());
         assertNull(conf.getRowField());
         assertNull(conf.getColumnFamilyField());
+        assertNull(conf.getTableNameField());
         assertEquals(IndexerConf.DEFAULT_UNIQUE_KEY_FORMATTER, conf.getUniqueKeyFormatterClass());
         assertEquals(null, conf.getMapperClass());
 

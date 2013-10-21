@@ -30,7 +30,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class RowAndFamilyAddingSolrUpdateWriterTest {
-
+    
     private KeyValue keyValue;
     private UniqueKeyFormatter uniqueKeyFormatter;
     private SolrInputDocument solrDocument;
@@ -69,11 +69,13 @@ public class RowAndFamilyAddingSolrUpdateWriterTest {
 
     @Test
     public void testAdd_RowField() {
-        RowAndFamilyAddingSolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter(null, "_row_",
+        RowAndFamilyAddingSolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter("_row_", null,
                 uniqueKeyFormatter, keyValue, delegateWriter);
         
-        doReturn(new byte[0]).when(keyValue).getRow();
-        doReturn("_rowkey_").when(uniqueKeyFormatter).formatFamily(any(byte[].class));
+        byte[] rowBytes = "_row_".getBytes();
+        
+        doReturn(rowBytes).when(keyValue).getRow();
+        doReturn("_rowkey_").when(uniqueKeyFormatter).formatRow(rowBytes);
         updateWriter.add(solrDocument);
         
         verify(solrDocument).addField("_row_", "_rowkey_");

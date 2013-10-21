@@ -17,7 +17,7 @@ package com.ngdata.hbaseindexer;
 
 public class SolrConnectionParams {
     /**
-     * Solr connection mode. Currently only 'cloud' is supported.
+     * Solr connection mode: "cloud" or "classic".
      */
     public static final String MODE = "solr.mode";
 
@@ -31,4 +31,9 @@ public class SolrConnectionParams {
      * If {@link #MODE} is cloud, this specifies the name of the SolrCloud connection to send requests to.
      */
     public static final String COLLECTION = "solr.collection";
+
+    /**
+     * Solr home directory. Only applicable if {@link #MODE} is "classic".
+     */
+    public static final String SOLR_HOME_DIR = "solr.home";
 }

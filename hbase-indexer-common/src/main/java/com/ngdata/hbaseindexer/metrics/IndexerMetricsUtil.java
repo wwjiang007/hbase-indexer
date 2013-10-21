@@ -26,7 +26,7 @@ public class IndexerMetricsUtil {
 
     public static final String METRIC_GROUP = "hbaseindexer";
 
-    public static void shutdownMetrics(Class<?> metricsOwnerClass, String indexerName) {
+    public static void shutdownMetrics(String indexerName) {
         SortedMap<String, SortedMap<MetricName, Metric>> groupedMetrics = Metrics.defaultRegistry().groupedMetrics(
                 new IndexerMetricPredicate(indexerName));
         for (SortedMap<MetricName, Metric> metricMap : groupedMetrics.values()) {
@@ -37,19 +37,35 @@ public class IndexerMetricsUtil {
     }
 
     /**
-     * MetricPredicate that matches all metrics created by a given class for a given indexer name.
+     * MetricPredicate that matches all HBase Indexer metrics. An indexer name
+     * can optionally be given to only map metrics for a given indexer.
      */
-    static class IndexerMetricPredicate implements MetricPredicate {
+    public static class IndexerMetricPredicate implements MetricPredicate {
 
         private String indexerName;
+        
+        /**
+         * Instantiate a predicate that matches all HBase Indexer metrics.
+         */
+        public IndexerMetricPredicate() {
+            this(null);
+        }
 
+        /**
+         * Instantiate a predicate that matches metrics for a given indexer.
+         * @param indexerName
+         */
         public IndexerMetricPredicate(String indexerName) {
             this.indexerName = indexerName;
         }
 
         @Override
         public boolean matches(MetricName metricName, Metric metric) {
-            return METRIC_GROUP.equals(metricName.getGroup()) && indexerName.equals(metricName.getScope());
+            if (indexerName == null) {
+                return METRIC_GROUP.equals(metricName.getGroup());
+            } else {
+                return METRIC_GROUP.equals(metricName.getGroup()) && indexerName.equals(metricName.getScope());
+            }
         }
 
     }

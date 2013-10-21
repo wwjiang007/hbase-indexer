@@ -42,7 +42,8 @@ public class RowAndFamilyAddingSolrUpdateWriter implements SolrUpdateWriter {
      * @param delegateUpdateWriter update writer to which decorated Solr document are written
      */
     public RowAndFamilyAddingSolrUpdateWriter(String rowField, String columnFamilyField,
-            UniqueKeyFormatter uniqueKeyFormatter, KeyValue keyValue,SolrUpdateWriter delegateUpdateWriter) {
+            UniqueKeyFormatter uniqueKeyFormatter,
+            KeyValue keyValue,SolrUpdateWriter delegateUpdateWriter) {
         this.rowField = rowField;
         this.columnFamilyField = columnFamilyField;
         this.uniqueKeyFormatter = uniqueKeyFormatter;

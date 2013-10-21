@@ -26,11 +26,13 @@
     <version.hbase95>0.95.2-cdh5.0.0-SNAPSHOT</version.hbase95>
     <version.hadoop.hbase95>2.1.0-cdh5.0.0-SNAPSHOT</version.hadoop.hbase95>
     <version.hadoop.mr1>2.0.0-mr1-cdh4.3.0</version.hadoop.mr1>
+    <version.hadoop.mr1.hbase95>2.1.0-mr1-cdh5.0.0-SNAPSHOT</version.hadoop.mr1.hbase95>
     <version.hadoop>2.0.0-cdh4.3.0</version.hadoop>
     <version.zookeeper>3.4.5-cdh4.3.0</version.zookeeper>
     <version.jackson>1.9.2</version.jackson>
     <version.httpclient>4.2.3</version.httpclient>
     <version.cdk>0.8.0</version.cdk>
+    <version.search>1.0.0-SNAPSHOT</version.search>
 
     <!-- Tells maven plugins what file encoding to use -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -70,6 +72,7 @@
     <module>hbase-indexer-morphlines</module>
     <module>hbase-indexer-demo</module>
     <module>hbase-sep</module>
+    <module>hbase-indexer-mr</module>
     <module>hbase-indexer-dist</module>
   </modules>
 
@@ -135,6 +138,11 @@
         <artifactId>cdk-morphlines-all</artifactId>
         <version>${version.cdk}</version>
         <type>pom</type>
+      </dependency>
+      <dependency>
+        <groupId>com.cloudera.search</groupId>
+        <artifactId>search-mr</artifactId>
+        <version>${version.search}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.solr</groupId>
@@ -352,8 +360,21 @@
           <!-- We have to explicitly manage Hadoop dependencies here, since they are optional in HBase -->
           <dependency>
             <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-test</artifactId>
+            <version>${version.hadoop.mr1}</version>
+            <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
             <version>${version.hadoop}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${version.hadoop}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -362,9 +383,21 @@
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-hdfs</artifactId>
+            <version>${version.hadoop}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-minicluster</artifactId>
             <version>${version.hadoop}</version>
             <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-core</artifactId>
+            <version>${version.hadoop.mr1}</version>
           </dependency>
         </dependencies>
       </dependencyManagement>
@@ -404,8 +437,21 @@
           <!-- We have to explicitly manage Hadoop dependencies here, since they are optional in HBase -->
           <dependency>
             <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-test</artifactId>
+            <version>${version.hadoop.mr1.hbase95}</version>
+            <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
             <version>${version.hadoop.hbase95}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>${version.hadoop.hbase95}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -414,10 +460,23 @@
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-hdfs</artifactId>
+            <version>${version.hadoop.hbase95}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-minicluster</artifactId>
             <version>${version.hadoop.hbase95}</version>
             <scope>test</scope>
           </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-core</artifactId>
+            <version>${version.hadoop.mr1.hbase95}</version>
+          </dependency>
+
         </dependencies>
       </dependencyManagement>
 

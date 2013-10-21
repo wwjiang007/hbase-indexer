@@ -20,6 +20,7 @@ import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import com.yammer.metrics.Metrics;
@@ -33,7 +34,7 @@ import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
 
 /**
- * Writes updates (new documents and deletes) to a SolrServer.
+ * Writes updates (new documents and deletes) directly to a SolrServer.
  * <p>
  * There are two main pieces of functionality that this class provides, both related to error handling in Solr:
  * <h3>Selective swallowing of errors</h3>
@@ -49,7 +50,7 @@ import org.apache.solr.common.SolrInputDocument;
  * If a single document in a batch causes an exception to be thrown that is related to the document itself, then each
  * update will be retried individually.
  */
-public class SolrWriter {
+public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
 
     private Log log = LogFactory.getLog(getClass());
     private SolrServer solrServer;
@@ -60,7 +61,7 @@ public class SolrWriter {
     private Meter documentAddErrorMeter;
     private Meter documentDeleteErrorMeter;
 
-    public SolrWriter(String indexName, SolrServer solrServer) {
+    public DirectSolrInputDocumentWriter(String indexName, SolrServer solrServer) {
         this.solrServer = solrServer;
         
         indexAddMeter = Metrics.newMeter(metricName(getClass(), "Index adds", indexName), "Documents added to Solr index",
@@ -96,7 +97,9 @@ public class SolrWriter {
      * If a server occurs while writing the update, the exception will be thrown up the stack. If one or more of the
      * documents contain issues, the error will be logged and swallowed, with all other updates being performed.
      */
-    public void add(Collection<SolrInputDocument> inputDocuments) throws SolrServerException, IOException {
+    @Override
+    public void add(Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+        Collection<SolrInputDocument> inputDocuments = inputDocumentMap.values();
         try {
             solrServer.add(inputDocuments);
             indexAddMeter.mark(inputDocuments.size());
@@ -133,6 +136,7 @@ public class SolrWriter {
      * If a server occurs while performing the delete, the exception will be thrown up the stack. If one or more of the
      * deletes cause issues, the error will be logged and swallowed, with all other updates being performed.
      */
+    @Override
     public void deleteById(List<String> idsToDelete) throws SolrServerException, IOException {
         try {
             solrServer.deleteById(idsToDelete);
@@ -168,6 +172,7 @@ public class SolrWriter {
      * 
      * @param deleteQuery delete query to be executed
      */
+    @Override
     public void deleteByQuery(String deleteQuery) throws SolrServerException, IOException {
         try {
             solrServer.deleteByQuery(deleteQuery);
@@ -182,6 +187,11 @@ public class SolrWriter {
             solrDeleteErrorMeter.mark(1);
             throw sse;
         }
+    }
+    
+    @Override
+    public void close() {
+        solrServer.shutdown();
     }
 
 }

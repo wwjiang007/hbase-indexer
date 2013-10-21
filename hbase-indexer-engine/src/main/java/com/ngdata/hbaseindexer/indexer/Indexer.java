@@ -19,19 +19,12 @@ import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
 import static com.ngdata.sep.impl.HBaseShims.newResult;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -40,10 +33,7 @@ import com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
-import com.ngdata.sep.EventListener;
-import com.ngdata.sep.SepEvent;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import org.apache.commons.logging.Log;
@@ -54,46 +44,47 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
 /**
  * The indexing algorithm. It receives an event from the SEP, handles it based on the configuration, and eventually
  * calls Solr.
  */
-public abstract class Indexer implements EventListener {
+public abstract class Indexer {
 
     protected Log log = LogFactory.getLog(getClass());
 
     private String indexerName;
     protected IndexerConf conf;
-    private SolrWriter solrWriter;
+    protected final String tableName;
+    private SolrInputDocumentWriter solrWriter;
     protected ResultToSolrMapper mapper;
     protected UniqueKeyFormatter uniqueKeyFormatter;
-    private Predicate<SepEvent> tableEqualityPredicate;
-    private final Meter incomingEventsMeter;
-    private final Meter applicableEventsMeter;
+    private Timer indexingTimer;
+    
+
 
     /**
      * Instantiate an indexer based on the given {@link IndexerConf}.
      */
-    public static Indexer createIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool,
-            SolrServer solrServer) {
-        SolrWriter solrWriter = new SolrWriter(indexerName, solrServer);
+    public static Indexer createIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool,
+            SolrInputDocumentWriter solrWriter) {
         switch (conf.getMappingType()) {
         case COLUMN:
-            return new ColumnBasedIndexer(indexerName, conf, mapper, solrWriter);
+            return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, solrWriter);
         case ROW:
-            return new RowBasedIndexer(indexerName, conf, mapper, tablePool, solrWriter);
+            return new RowBasedIndexer(indexerName, conf, tableName, mapper, tablePool, solrWriter);
         default:
             throw new IllegalStateException("Can't determine the type of indexing to use for mapping type "
                     + conf.getMappingType());
         }
     }
 
-    Indexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrWriter solrWriter) {
+    Indexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
         this.indexerName = indexerName;
         this.conf = conf;
+        this.tableName = tableName;
         this.mapper = mapper;
         try {
             this.uniqueKeyFormatter = conf.getUniqueKeyFormatterClass().newInstance();
@@ -102,69 +93,71 @@ public abstract class Indexer implements EventListener {
         }
         ConfigureUtil.configure(uniqueKeyFormatter, conf.getGlobalParams());
         this.solrWriter = solrWriter;
-
-        final byte[] tableNameBytes = Bytes.toBytes(conf.getTable());
-        tableEqualityPredicate = new Predicate<SepEvent>() {
-
-            @Override
-            public boolean apply(@Nullable SepEvent event) {
-                return Arrays.equals(event.getTable(), tableNameBytes);
-            }
-        };
-        
-        incomingEventsMeter = Metrics.newMeter(metricName(getClass(), "Incoming events", indexerName),
-                "Rate of incoming SEP events", TimeUnit.SECONDS);
-        applicableEventsMeter = Metrics.newMeter(metricName(getClass(), "Applicable events", indexerName),
-                "Rate of incoming SEP events that are considered applicable", TimeUnit.SECONDS);
-
-    }
-
-    /**
-     * Build all new documents and ids to delete based on a list of {@code SepEvent}s.
-     * 
-     * @param events events that (potentially) trigger index updates
-     * @param updateCollector collects updates to be written to Solr
-     */
-    abstract void calculateIndexUpdates(List<SepEvent> events, SolrUpdateCollector updateCollector) throws IOException;
-
-    @Override
-    public void processEvents(List<SepEvent> events) {
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("Indexer %s received %s events from SEP", indexerName, events.size()));
-        }
-        try {
-
-            incomingEventsMeter.mark(events.size());
-            events = Lists.newArrayList(Iterables.filter(events, tableEqualityPredicate));
-            SolrUpdateCollector updateCollector = new SolrUpdateCollector(events.size());
-            applicableEventsMeter.mark(events.size());
-
-            calculateIndexUpdates(events, updateCollector);
-
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Indexer %s will send to Solr %s adds and %s deletes", indexerName,
-                        updateCollector.getDocumentsToAdd().size(), updateCollector.getIdsToDelete().size()));
-            }
-
-            if (!updateCollector.getDocumentsToAdd().isEmpty()) {
-                solrWriter.add(updateCollector.getDocumentsToAdd());
-            }
-            if (!updateCollector.getIdsToDelete().isEmpty()) {
-                solrWriter.deleteById(updateCollector.getIdsToDelete());
-            }
-            
-            for (String deleteQuery : updateCollector.getDeleteQueries()) {
-                solrWriter.deleteByQuery(deleteQuery);
-            }
-            
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        this.indexingTimer = Metrics.newTimer(metricName(getClass(),
+                                "Index update calculation timer", indexerName),
+                                 TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+       
     }
     
+    /**
+     * Returns the name of this indexer.
+     * 
+     * @return indexer name
+     */
+    public String getName() {
+        return indexerName;
+    }
+    
+
+    /**
+     * Build all new documents and ids to delete based on a list of {@code RowData}s.
+     * 
+     * @param rowDataList list of RowData instances to be considered for indexing
+     * @param updateCollector collects updates to be written to Solr
+     */
+    abstract void calculateIndexUpdates(List<RowData> rowDataList, SolrUpdateCollector updateCollector) throws IOException;
+    
+
+    /**
+     * Create index documents based on a nested list of RowData instances.
+     * 
+     * @param rowDataList list of RowData instances to be considered for indexing
+     */
+    public void indexRowData(List<RowData> rowDataList) throws IOException, SolrServerException {
+        SolrUpdateCollector updateCollector = new SolrUpdateCollector(rowDataList.size());
+        TimerContext timerContext = indexingTimer.time();
+        try {
+            calculateIndexUpdates(rowDataList, updateCollector);
+        } finally {
+            timerContext.stop();
+        }
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Indexer %s will send to Solr %s adds and %s deletes", getName(),
+                    updateCollector.getDocumentsToAdd().size(), updateCollector.getIdsToDelete().size()));
+        }
+
+        if (!updateCollector.getDocumentsToAdd().isEmpty()) {
+            solrWriter.add(updateCollector.getDocumentsToAdd());
+        }
+        if (!updateCollector.getIdsToDelete().isEmpty()) {
+            solrWriter.deleteById(updateCollector.getIdsToDelete());
+        }
+        
+        for (String deleteQuery : updateCollector.getDeleteQueries()) {
+            solrWriter.deleteByQuery(deleteQuery);
+        }
+        
+    }
+
+    
     public void stop() {
-        IndexerMetricsUtil.shutdownMetrics(getClass(), indexerName);
-        IndexerMetricsUtil.shutdownMetrics(mapper.getClass(), indexerName);
+        IndexerMetricsUtil.shutdownMetrics(indexerName);
+    }
+    
+    void addTableName(SolrInputDocument document) {
+        if (conf.getTableNameField() != null) {
+            document.addField(conf.getTableNameField(), tableName);
+        }
     }
     
 
@@ -173,29 +166,10 @@ public abstract class Indexer implements EventListener {
         private HTablePool tablePool;
         private Timer rowReadTimer;
 
-        public RowBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, HTablePool tablePool, SolrWriter solrWriter) {
-            super(indexerName, conf, mapper, solrWriter);
+        public RowBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool, SolrInputDocumentWriter solrWriter) {
+            super(indexerName, conf, tableName, mapper, solrWriter);
             this.tablePool = tablePool;
             rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
-        }
-
-        /**
-         * Makes a HBase Result object based on the KeyValue's from the SEP event. Usually, this will only be used in
-         * situations where only new data is written (or updates are complete row updates), so we don't expect any
-         * delete-type key-values, but just to be sure we filter them out.
-         */
-        private Result makeResult(List<KeyValue> eventKeyValues) {
-            List<KeyValue> keyValues = new ArrayList<KeyValue>(eventKeyValues.size());
-
-            for (KeyValue kv : eventKeyValues) {
-                if (!kv.isDelete() && !kv.isDeleteFamily()) {
-                    keyValues.add(kv);
-                }
-            }
-
-            // A Result object requires that the KeyValues are sorted (e.g., it does binary search on them)
-            Collections.sort(keyValues, KeyValue.COMPARATOR);
-            return newResult(keyValues);
         }
 
         private Result readRow(byte[] row) throws IOException {
@@ -214,31 +188,34 @@ public abstract class Indexer implements EventListener {
         }
 
         @Override
-        protected void calculateIndexUpdates(List<SepEvent> events, SolrUpdateCollector updateCollector) throws IOException {
+        protected void calculateIndexUpdates(List<RowData> rowDataList, SolrUpdateCollector updateCollector) throws IOException {
 
-            Map<String, SepEvent> idToEvent = calculateUniqueEvents(events);
+            Map<String, RowData> idToRowData = calculateUniqueEvents(rowDataList);
 
-            for (SepEvent event : idToEvent.values()) {
+            for (RowData rowData : idToRowData.values()) {
 
-                Result result = makeResult(event.getKeyValues());
+                Result result = rowData.toResult();
                 if (conf.getRowReadMode() == RowReadMode.DYNAMIC) {
                     if (!mapper.containsRequiredData(result)) {
-                        result = readRow(event.getRow());
+                        result = readRow(rowData.getRow());
                     }
                 }
 
                 boolean rowDeleted = result.isEmpty();
 
+                String documentId = uniqueKeyFormatter.formatRow(rowData.getRow());
                 if (rowDeleted) {
                     // Delete row from Solr as well
-                    updateCollector.deleteById(uniqueKeyFormatter.formatRow(event.getRow()));
+                    updateCollector.deleteById(documentId);
                     if (log.isDebugEnabled()) {
-                        log.debug("Row " + Bytes.toString(event.getRow()) + ": deleted from Solr");
+                        log.debug("Row " + Bytes.toString(rowData.getRow()) + ": deleted from Solr");
                     }
                 } else {
                     IdAddingSolrUpdateWriter idAddingUpdateWriter = new IdAddingSolrUpdateWriter(
                                                                             conf.getUniqueKeyField(),
-                                                                            uniqueKeyFormatter.formatRow(event.getRow()),
+                                                                            uniqueKeyFormatter.formatRow(rowData.getRow()),
+                                                                            conf.getTableNameField(),
+                                                                            tableName,
                                                                             updateCollector);
                     mapper.map(result, idAddingUpdateWriter);
                 }
@@ -246,14 +223,15 @@ public abstract class Indexer implements EventListener {
         }
 
         /**
-         * Calculate a map of Solr document ids to SepEvents, only taking the most recent event for each document id.
+         * Calculate a map of Solr document ids to relevant RowData, only taking the most recent event for each document id..
          */
-        private Map<String, SepEvent> calculateUniqueEvents(List<SepEvent> events) {
-            Map<String, SepEvent> idToEvent = Maps.newHashMap();
-            for (SepEvent event : events) {
+        private Map<String, RowData> calculateUniqueEvents(List<RowData> rowDataList) {
+            Map<String, RowData> idToEvent = Maps.newHashMap();
+            for (RowData rowData : rowDataList) {
+                
                 // Check if the event contains changes to relevant key values
                 boolean relevant = false;
-                for (KeyValue kv : event.getKeyValues()) {
+                for (KeyValue kv : rowData.getKeyValues()) {
                     if (mapper.isRelevantKV(kv) || kv.isDelete()) {
                         relevant = true;
                         break;
@@ -263,7 +241,7 @@ public abstract class Indexer implements EventListener {
                 if (!relevant) {
                     break;
                 }
-                idToEvent.put(uniqueKeyFormatter.formatRow(event.getRow()), event);
+                idToEvent.put(uniqueKeyFormatter.formatRow(rowData.getRow()), rowData);
             }
             return idToEvent;
         }
@@ -272,13 +250,13 @@ public abstract class Indexer implements EventListener {
 
     static class ColumnBasedIndexer extends Indexer {
 
-        public ColumnBasedIndexer(String indexerName, IndexerConf conf, ResultToSolrMapper mapper, SolrWriter solrWriter) {
-            super(indexerName, conf, mapper, solrWriter);
+        public ColumnBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
+            super(indexerName, conf, tableName, mapper, solrWriter);
         }
 
         @Override
-        protected void calculateIndexUpdates(List<SepEvent> events, SolrUpdateCollector updateCollector) throws IOException {
-            Map<String, KeyValue> idToKeyValue = calculateUniqueEvents(events);
+        protected void calculateIndexUpdates(List<RowData> rowDataList, SolrUpdateCollector updateCollector) throws IOException {
+            Map<String, KeyValue> idToKeyValue = calculateUniqueEvents(rowDataList);
             for (Entry<String, KeyValue> idToKvEntry : idToKeyValue.entrySet()) {
                 String documentId = idToKvEntry.getKey();
                 KeyValue keyValue = idToKvEntry.getValue();
@@ -294,9 +272,12 @@ public abstract class Indexer implements EventListener {
                             new IdAddingSolrUpdateWriter(
                                     conf.getUniqueKeyField(),
                                     documentId,
+                                    conf.getTableNameField(),
+                                    tableName,
                                     updateCollector));
                    
                     mapper.map(result, updateWriter);
+
                 }
             }
         }
@@ -347,12 +328,12 @@ public abstract class Indexer implements EventListener {
         }
         
         /**
-         * Calculate a map of Solr document ids to SepEvents, only taking the most recent event for each document id.
+         * Calculate a map of Solr document ids to KeyValue, only taking the most recent event for each document id.
          */
-        private Map<String, KeyValue> calculateUniqueEvents(List<SepEvent> events) {
+        private Map<String, KeyValue> calculateUniqueEvents(List<RowData> rowDataList) {
             Map<String, KeyValue> idToKeyValue = Maps.newHashMap();
-            for (SepEvent event : events) {
-                for (KeyValue kv : event.getKeyValues()) {
+            for (RowData rowData : rowDataList) {
+                for (KeyValue kv : rowData.getKeyValues()) {
                     if (mapper.isRelevantKV(kv)) {
                         String id = uniqueKeyFormatter.formatKeyValue(kv);
                         idToKeyValue.put(id, kv);
