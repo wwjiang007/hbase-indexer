@@ -15,6 +15,8 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import com.ngdata.sep.impl.HBaseShims;
+
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
@@ -34,7 +36,7 @@ public class MockResultToSolrMapper implements ResultToSolrMapper {
 
     @Override
     public Get getGet(byte[] row) {
-        Get get = new Get(row);
+        Get get = HBaseShims.newGet();
         get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("firstname"));
         get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("lastname"));
         get.addColumn(Bytes.toBytes("info"), Bytes.toBytes("age"));

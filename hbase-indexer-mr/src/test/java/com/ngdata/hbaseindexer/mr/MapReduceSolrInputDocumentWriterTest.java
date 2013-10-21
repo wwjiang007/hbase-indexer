@@ -22,6 +22,8 @@ import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 
+import org.mockito.Mockito;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.io.Text;
@@ -40,7 +42,7 @@ public class MapReduceSolrInputDocumentWriterTest {
     
     @Before
     public void setUp() {
-        context = mock(Context.class);
+        context = mock(Context.class, Mockito.RETURNS_DEEP_STUBS);
         mrWriter = new MapReduceSolrInputDocumentWriter(context);
     }
 
