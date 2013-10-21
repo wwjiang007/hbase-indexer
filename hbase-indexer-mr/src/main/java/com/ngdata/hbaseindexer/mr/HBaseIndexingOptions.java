@@ -47,8 +47,11 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
-import org.apache.solr.hadoop.MapReduceIndexerTool;
 import org.apache.solr.hadoop.ForkedZooKeeperInspector;
+import org.apache.solr.hadoop.MapReduceIndexerTool;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,8 +77,9 @@ class HBaseIndexingOptions extends OptionsBridge {
     public String hbaseTableName;
     public String startRow;
     public String endRow;
-    public Long startTime;
-    public Long endTime;
+    public String startTimeString;
+    public String endTimeString;
+    public String timestampFormat;
 
     public HBaseIndexingOptions(Configuration conf) {
         Preconditions.checkNotNull(conf);
@@ -173,6 +177,9 @@ class HBaseIndexingOptions extends OptionsBridge {
             scan.setStopRow(Bytes.toBytesBinary(endRow));
             LOG.debug("Stopping row scan at " + endRow);
         }
+        
+        Long startTime = evaluateTimestamp(startTimeString, timestampFormat);
+        Long endTime = evaluateTimestamp(endTimeString, timestampFormat);
 
         if (startTime != null || endTime != null) {
             long scanStartTime = 0L;
@@ -420,5 +427,43 @@ class HBaseIndexingOptions extends OptionsBridge {
     private String getTableNameFromConf(InputStream indexerConfigInputStream) {
 
         return loadIndexerConf(indexerConfigInputStream).getTable();
+    }
+
+    /**
+     * Evaluate a timestamp string with an optional format. If the format is not present,
+     * the timestamp string is assumed to be a Long.
+     * 
+     * @param timestampString
+     * @param timestampFormat
+     * @return evaluated timestamp, or null if there is no timestamp information supplied
+     */
+    public static Long evaluateTimestamp(String timestampString, String timestampFormat) {
+        if (timestampString == null) {
+            return null;
+        }
+        if (timestampFormat == null) {
+            try {
+                return Long.parseLong(timestampString);
+            } catch (NumberFormatException e) {
+                throw new IllegalStateException("Invalid timestamp value: " + timestampString);
+            }
+        } else {
+            DateTimeFormatter dateTimeFormatter = null;
+            if ("ISO8601".equals(timestampFormat.toUpperCase())) {
+                dateTimeFormatter = ISODateTimeFormat.dateTimeParser();
+            } else {
+                try {
+                    dateTimeFormatter = DateTimeFormat.forPattern(timestampFormat);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalStateException("Invalid timestamp format: " + e.getMessage());
+                }
+            }
+            try {
+                return dateTimeFormatter.parseMillis(timestampString);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException("Can't parse timestamp string '"
+                        + timestampString + "': " + e.getMessage());
+            }
+        }
     }
 }

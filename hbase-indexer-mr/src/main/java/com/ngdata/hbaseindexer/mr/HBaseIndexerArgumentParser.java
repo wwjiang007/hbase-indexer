@@ -374,11 +374,22 @@ class HBaseIndexerArgumentParser {
 
         Argument startTimeArg = scanArgumentGroup
                 .addArgument("--hbase-start-time")
-                .metavar("LONG")
+                .metavar("STRING")
                 .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing");
 
-        Argument endTimeArg = scanArgumentGroup.addArgument("--hbase-end-time").metavar("LONG")
+        Argument endTimeArg = scanArgumentGroup
+                .addArgument("--hbase-end-time")
+                .metavar("STRING")
                 .help("Latest timestamp (exclusive) of HBase cells to be included for indexing");
+        
+        Argument timestampFormatArg = scanArgumentGroup
+                .addArgument("--hbase-timestamp-format")
+                .metavar("STRING")
+                .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end time. " +
+                		"This can be either ISO8601, or a JodaTime-compliant datetime format (see " +
+                		"http://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html). " +
+                		"If this parameter is omitted then the timestamps are interpreted as number of" +
+                		"milliseconds since the standard epoch.");
 
         Namespace ns;
         try {
@@ -420,8 +431,11 @@ class HBaseIndexerArgumentParser {
         opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
         opts.startRow = ns.getString(startRowArg.getDest());
         opts.endRow = ns.getString(endRowArg.getDest());
-        opts.startTime = ns.getLong(startTimeArg.getDest());
-        opts.endTime = ns.getLong(endTimeArg.getDest());
+        // Treat timestamp as a string so that we can use a formatted date
+        // in the future
+        opts.startTimeString = ns.getString(startTimeArg.getDest());
+        opts.endTimeString = ns.getString(endTimeArg.getDest());
+        opts.timestampFormat = ns.getString(timestampFormatArg.getDest());
 
         try {
             try {

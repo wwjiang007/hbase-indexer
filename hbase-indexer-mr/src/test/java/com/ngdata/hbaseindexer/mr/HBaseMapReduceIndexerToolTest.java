@@ -91,6 +91,7 @@ public class HBaseMapReduceIndexerToolTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
+        SOLR_TEST_UTILITY.stop();
         HBASE_ADMIN.close();
         HBASE_TEST_UTILITY.shutdownMiniMapReduceCluster();
         HBASE_TEST_UTILITY.shutdownMiniCluster();
@@ -281,7 +282,7 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.startTime = 2L;
+        opts.startTimeString = "2";
         
         executeIndexPipeline();
         
@@ -303,7 +304,7 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.endTime = 3L;
+        opts.endTimeString = "3";
         
         executeIndexPipeline();
         
@@ -325,8 +326,8 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.startTime = 2L;
-        opts.endTime = 3L;
+        opts.startTimeString = "2";
+        opts.endTimeString = "3";
         
         executeIndexPipeline();
         

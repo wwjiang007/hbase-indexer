@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 
+import org.joda.time.format.DateTimeFormat;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -42,6 +44,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
+import org.joda.time.DateTime;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -263,7 +266,7 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
-        opts.startTime = 220777L;
+        opts.startTimeString = "220777";
         opts.evaluateScan();
         assertEquals(220777L, opts.getScan().getTimeRange().getMin());
     }
@@ -278,7 +281,7 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
-        opts.endTime = 220777L;
+        opts.endTimeString = "220777";
         opts.evaluateScan();
         assertEquals(220777L, opts.getScan().getTimeRange().getMax());
     }
@@ -535,6 +538,48 @@ public class HBaseIndexingOptionsTest {
 
         assertEquals(expectedSpec, opts.getIndexingSpecification());
 
+    }
+    
+    @Test
+    public void testEvaluateTimestamp_NoFormatSupplied() {
+        assertEquals(
+                Long.valueOf(12345),
+                HBaseIndexingOptions.evaluateTimestamp("12345", null));
+    }
+    
+    @Test(expected=IllegalStateException.class)
+    public void testEvaluateTimestamp_NoFormat_NonParseableLong() {
+        HBaseIndexingOptions.evaluateTimestamp("abc", null);
+    }
+    
+    @Test
+    public void testEvaluateTimestamp_ISO8601() {
+        
+        assertEquals(
+                Long.valueOf(1382229540000L),
+                HBaseIndexingOptions.evaluateTimestamp("2013-10-20T00:39:00Z", "iSo8601"));
+    }
+    
+    @Test
+    public void testEvaluateTimestamp_CustomTimestampFormat() {
+        assertEquals(
+                Long.valueOf(DateTimeFormat.forPattern("yyyy/MM/dd HH:mm:ss").parseMillis("2013/10/20 00:39:00")),
+                HBaseIndexingOptions.evaluateTimestamp("2013/10/20 00:39:00", "yyyy/MM/dd HH:mm:ss"));
+    }
+    
+    @Test(expected=IllegalStateException.class)
+    public void testEvaluateTimestamp_InvalidTimestampFormat() {
+        HBaseIndexingOptions.evaluateTimestamp("2013/10/20 00:39", "not a timestamp format");
+    }
+    
+    @Test(expected=IllegalStateException.class)
+    public void testEvaluateTimestamp_TimestampNotAccordingToFormat() {
+        HBaseIndexingOptions.evaluateTimestamp("invalid timestamp data", "yyyy/MM/dd HH:mm");
+    }
+    
+    @Test
+    public void testEvaluateTimestamp_NullTimestamp() {
+        assertNull(HBaseIndexingOptions.evaluateTimestamp(null, null));
     }
 
 }

@@ -83,6 +83,7 @@ public class IndexerDryRunTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
+        SOLR_TEST_UTILITY.stop();
         HBASE_ADMIN.close();
         HBASE_TEST_UTILITY.shutdownMiniCluster();
     }
