@@ -34,7 +34,6 @@ import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
-import com.ngdata.hbaseindexer.model.api.IndexerModel;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
@@ -341,9 +340,10 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new IllegalStateException("--hbase-indexer-name must be supplied if --hbase-indexer-zk is specified");
             }
 
+            StateWatchingZooKeeper zk = null;
             try {
-                StateWatchingZooKeeper zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
-                IndexerModel indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
+                zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
+                IndexerModelImpl indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
                 IndexerDefinition indexerDefinition = indexerModel.getIndexer(indexerName);
                 byte[] indexConfigBytes = indexerDefinition.getConfiguration();
                 tableName = getTableNameFromConf(new ByteArrayInputStream(indexConfigBytes));
@@ -357,12 +357,15 @@ class HBaseIndexingOptions extends OptionsBridge {
                 if (collection == null) {
                     collection = indexConnectionParams.get("solr.collection");
                 }
+                indexerModel.stop();
             } catch (IndexerNotFoundException infe) {
                 throw new IllegalStateException("Indexer " + indexerName + " doesn't exist");
             } catch (Exception e) {
                 // We won't bother trying to do any recovery here if things don't work out,
                 // so we just throw the wrapped exception up the stack
                 throw new RuntimeException(e);
+            } finally {
+                Closer.close(zk);
             }
         } else {
             if (hbaseIndexerConfig == null) {

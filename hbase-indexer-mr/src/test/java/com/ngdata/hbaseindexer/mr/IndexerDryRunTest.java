@@ -78,6 +78,8 @@ public class IndexerDryRunTest {
 
         COLLECTION = new CloudSolrServer(SOLR_TEST_UTILITY.getZkConnectString());
         COLLECTION.setDefaultCollection("collection1");
+        
+        HBASE_ADMIN = new HBaseAdmin(HBASE_TEST_UTILITY.getConfiguration());
 
     }
 
@@ -92,7 +94,6 @@ public class IndexerDryRunTest {
     public void setUp() throws Exception {
         HTableDescriptor tableDescriptor = new HTableDescriptor(TEST_TABLE_NAME);
         tableDescriptor.addFamily(new HColumnDescriptor(TEST_COLFAM_NAME));
-        HBASE_ADMIN = new HBaseAdmin(HBASE_TEST_UTILITY.getConfiguration());
         HBASE_ADMIN.createTable(tableDescriptor);
         
         recordTable = new HTable(HBASE_TEST_UTILITY.getConfiguration(), TEST_TABLE_NAME);

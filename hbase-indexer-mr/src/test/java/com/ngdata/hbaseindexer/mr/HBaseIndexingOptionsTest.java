@@ -26,16 +26,15 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.List;
 
-import org.joda.time.format.DateTimeFormat;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.sep.util.io.Closer;
+import com.ngdata.sep.util.zookeeper.ZkConnectException;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.io.FileUtils;
@@ -44,7 +43,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
-import org.joda.time.DateTime;
+import org.apache.zookeeper.KeeperException;
+import org.joda.time.format.DateTimeFormat;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -55,6 +55,9 @@ public class HBaseIndexingOptionsTest {
     private static MiniZooKeeperCluster ZK_CLUSTER;
     private static File ZK_DIR;
     private static int ZK_CLIENT_PORT;
+    private static ZooKeeperItf ZK;
+    private static IndexerModelImpl INDEXER_MODEL;
+
 
     private Configuration conf;
     private HBaseIndexingOptions opts;
@@ -67,10 +70,17 @@ public class HBaseIndexingOptionsTest {
         ZK_CLUSTER = new MiniZooKeeperCluster();
         ZK_CLUSTER.setDefaultClientPort(ZK_CLIENT_PORT);
         ZK_CLUSTER.startup(ZK_DIR);
+        
+        ZK = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
+        INDEXER_MODEL = new IndexerModelImpl(ZK, "/ngdata/hbaseindexer");
     }
 
     @AfterClass
     public static void tearDownAfterClass() throws Exception {
+        
+        INDEXER_MODEL.stop();
+        Closer.close(ZK);
+        
         if (ZK_CLUSTER != null) {
             ZK_CLUSTER.shutdown();
         }
@@ -94,14 +104,27 @@ public class HBaseIndexingOptionsTest {
             }
         }
     }
+    
+    private void addAndWaitForIndexer(IndexerDefinition indexerDef) throws Exception {
+        long startTime = System.currentTimeMillis();
+        INDEXER_MODEL.addIndexer(indexerDef);
+        
+        // Wait max 5 seconds
+        while (System.currentTimeMillis() - startTime < 5000) {
+            if (INDEXER_MODEL.hasIndexer(indexerDef.getName())) {
+                return;
+            }
+            Thread.sleep(200);
+        }
+        throw new RuntimeException("Failed to add indexer: " + indexerDef);
+    }
 
     @Before
-    public void setUp() {
+    public void setUp() throws ZkConnectException, InterruptedException, KeeperException {
         conf = new Configuration();
         opts = new HBaseIndexingOptions(conf);
     }
-
-
+    
     @Test
     public void testIsDirectWrite_True() {
         opts.reducers = 0;
@@ -244,9 +267,6 @@ public class HBaseIndexingOptionsTest {
     @Test
     public void testEvaluateIndexingSpecification_PullSolrZkHostFromIndexerDefinition() throws Exception {
         
-        ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
-        WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
-
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("customsolr")
                 .configuration(Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")))
@@ -254,7 +274,8 @@ public class HBaseIndexingOptionsTest {
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"))
                 .build();
-        indexerModel.addIndexer(indexerDef);
+        
+        addAndWaitForIndexer(indexerDef);
         
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "customsolr";
@@ -263,7 +284,7 @@ public class HBaseIndexingOptionsTest {
         
         opts.evaluateIndexingSpecification();
         
-        indexerModel.deleteIndexerInternal("customsolr");
+        INDEXER_MODEL.deleteIndexerInternal("customsolr");
         
         assertEquals("customhost/solr", opts.zkHost);
         assertEquals("mycollection", opts.collection);
@@ -271,8 +292,6 @@ public class HBaseIndexingOptionsTest {
     
     @Test
     public void testIndexingSpecification_PullSolrCollectionFromIndexerDefinition() throws Exception {
-        ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
-        WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
 
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("customcollection")
@@ -281,7 +300,8 @@ public class HBaseIndexingOptionsTest {
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"))
                 .build();
-        indexerModel.addIndexer(indexerDef);
+        
+        addAndWaitForIndexer(indexerDef);
         
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "customcollection";
@@ -290,7 +310,7 @@ public class HBaseIndexingOptionsTest {
         
         opts.evaluateIndexingSpecification();
         
-        indexerModel.deleteIndexerInternal("customcollection");
+        INDEXER_MODEL.deleteIndexerInternal("customcollection");
         
         assertEquals("myZkHost/solr", opts.zkHost);
         assertEquals("customcollection", opts.collection);
@@ -433,9 +453,6 @@ public class HBaseIndexingOptionsTest {
     @Test
     public void testEvaluateIndexingSpecification_AllFromZooKeeper() throws Exception {
 
-        ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
-        WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
-
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("userindexer")
                 .configuration(Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")))
@@ -443,14 +460,15 @@ public class HBaseIndexingOptionsTest {
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"))
                 .build();
-        indexerModel.addIndexer(indexerDef);
+        
+        addAndWaitForIndexer(indexerDef);
 
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "userindexer";
 
         opts.evaluateIndexingSpecification();
-        indexerModel.deleteIndexerInternal("userindexer");
-
+        INDEXER_MODEL.deleteIndexerInternal("userindexer");
+        
         IndexingSpecification expectedSpec = new IndexingSpecification(
                             "record", "userindexer",
                             Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
@@ -577,8 +595,6 @@ public class HBaseIndexingOptionsTest {
 
     @Test
     public void testEvaluateIndexingSpecification_CombinationOfCmdlineAndZk() throws Exception {
-        ZooKeeperItf zk = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
-        WriteableIndexerModel indexerModel = new IndexerModelImpl(zk, "/ngdata/hbaseindexer");
 
         // Create an indexer -- verify INDEXER_ADDED event
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
@@ -588,7 +604,7 @@ public class HBaseIndexingOptionsTest {
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"))
                 .build();
-        indexerModel.addIndexer(indexerDef);
+        addAndWaitForIndexer(indexerDef);
 
         opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
         opts.indexerName = "userindexer";
@@ -597,7 +613,7 @@ public class HBaseIndexingOptionsTest {
 
         opts.evaluateIndexingSpecification();
 
-        indexerModel.deleteIndexerInternal("userindexer");
+        INDEXER_MODEL.deleteIndexerInternal("userindexer");
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
                 "mytable", "userindexer",
