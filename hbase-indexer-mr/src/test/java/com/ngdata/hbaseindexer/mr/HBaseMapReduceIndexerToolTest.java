@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -37,6 +38,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.mapred.MiniMRCluster;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
@@ -69,7 +71,7 @@ public class HBaseMapReduceIndexerToolTest {
     @BeforeClass
     public static void setupBeforeClass() throws Exception {
         HBASE_TEST_UTILITY.startMiniCluster();
-        HBASE_TEST_UTILITY.startMiniMapReduceCluster();
+        startMrCluster();
         
         int zkClientPort = HBASE_TEST_UTILITY.getZkCluster().getClientPort();
         
@@ -87,6 +89,23 @@ public class HBaseMapReduceIndexerToolTest {
         COLLECTION2 = new CloudSolrServer(SOLR_TEST_UTILITY.getZkConnectString());
         COLLECTION2.setDefaultCollection("collection2");
         
+    }
+    
+    private static void startMrCluster() throws Exception {
+        // Handle compatibility between HBase 0.94 and HBase 0.95
+        Method startMrClusterMethod = HBASE_TEST_UTILITY.getClass().getMethod("startMiniMapReduceCluster");
+        
+        if (Void.TYPE.equals(startMrClusterMethod.getReturnType())) {
+            // HBase 0.94.x doesn't return a MR cluster, and puts the JobTracker
+            // information directly in its own configuration
+            HBASE_TEST_UTILITY.startMiniMapReduceCluster();
+        } else {
+            // HBase 0.95.x returns a MR cluster, and we have to manually
+            // copy the job tracker address into our configuration
+            MiniMRCluster mrCluster = (MiniMRCluster)startMrClusterMethod.invoke(HBASE_TEST_UTILITY);
+            Configuration conf = HBASE_TEST_UTILITY.getConfiguration();
+            conf.set("mapred.job.tracker", mrCluster.createJobConf().get("mapred.job.tracker"));
+        }
     }
 
     @AfterClass
