@@ -23,6 +23,8 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.UUID;
 
+import com.ngdata.sep.impl.HBaseShims;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
@@ -208,7 +210,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                         indexingSpecification.getIndexerName(),
                         indexerConf,
                         indexingSpecification.getIndexConnectionParams());
-            Get get = resultToSolrMapper.getGet(new byte[0]);
+            Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
             scan.setFamilyMap(get.getFamilyMap());
         }
 
