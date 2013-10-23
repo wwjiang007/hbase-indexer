@@ -24,6 +24,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Properties;
 
+import org.apache.solr.client.solrj.SolrServer;
+
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.util.MavenUtil;
@@ -76,12 +78,7 @@ public class SolrTestingUtility {
 
         // Determine location of Solr war file. The Solr war is a dependency of this project, so we should
         // be able to find it in the local maven repository.
-        Properties properties = new Properties();
-        // solr.properties is created by a plugin in the pom.xml
-        InputStream is = getClass().getResourceAsStream("solr.properties");
-        properties.load(is);
-        is.close();
-        String solrVersion = properties.getProperty("solr.version");
+        String solrVersion = getSolrVersion();
         solrWarPath = MavenUtil.findLocalMavenRepository().getAbsolutePath() +
                 "/org/apache/solr/solr/" + solrVersion + "/solr-" + solrVersion + ".war";
 
@@ -91,6 +88,21 @@ public class SolrTestingUtility {
 
         server = createServer();
         server.start();
+    }
+
+    public String getSolrVersion() throws IOException {
+       
+        Properties properties = new Properties();
+        // solr.properties is created by a plugin in the pom.xml
+        InputStream is = getClass().getResourceAsStream("solr.properties");
+        if (is != null) {
+            properties.load(is);
+            is.close();
+            String solrVersion = properties.getProperty("solr.version");
+            return solrVersion;
+        } else {
+            return SolrServer.class.getPackage().getSpecificationVersion();
+        }
     }
 
     public File getSolrHomeDir() {
