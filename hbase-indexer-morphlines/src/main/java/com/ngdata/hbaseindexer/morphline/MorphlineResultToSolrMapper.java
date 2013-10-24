@@ -22,7 +22,6 @@ import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.common.SolrInputDocument;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
