@@ -85,21 +85,27 @@ public class ResultToSolrMapperFactory {
             ZooKeeper zk = new ZooKeeper(indexConnectionParameters.get(SolrConnectionParams.ZOOKEEPER), 30000,
                     HBaseShims.getEmptyWatcherInstance());
 
-            if (!indexConnectionParameters.containsKey(SolrConnectionParams.COLLECTION)) {
-                throw new IllegalStateException(SolrConnectionParams.COLLECTION + " not defined");
+            IndexSchema indexSchema = null;
+            try {
+                if (!indexConnectionParameters.containsKey(SolrConnectionParams.COLLECTION)) {
+                    throw new IllegalStateException(SolrConnectionParams.COLLECTION + " not defined");
+                }
+    
+                SolrConfigLoader solrConfigLoader = new SolrConfigLoader(
+                        indexConnectionParameters.get(SolrConnectionParams.COLLECTION), zk);
+                try {
+                    SolrConfig solrConfig = solrConfigLoader.loadSolrConfig();
+                    SolrResourceLoader loader = solrConfig.getResourceLoader();
+                    InputSource is = new InputSource(loader.openSchema("schema.xml"));
+                    is.setSystemId(SystemIdResolver.createSystemIdFromResourceName("schema.xml"));
+        
+                    indexSchema = new IndexSchema(solrConfig, "schema.xml", is);
+                } finally {
+                    Closer.close(solrConfigLoader);
+                }
+            } finally {
+                Closer.close(zk);
             }
-
-            SolrConfigLoader solrConfigLoader = new SolrConfigLoader(
-                    indexConnectionParameters.get(SolrConnectionParams.COLLECTION), zk);
-
-            SolrConfig solrConfig = solrConfigLoader.loadSolrConfig();
-            SolrResourceLoader loader = solrConfig.getResourceLoader();
-            InputSource is = new InputSource(loader.openSchema("schema.xml"));
-            is.setSystemId(SystemIdResolver.createSystemIdFromResourceName("schema.xml"));
-
-            IndexSchema indexSchema = new IndexSchema(solrConfig, "schema.xml", is);
-            Closer.close(solrConfigLoader);
-            zk.close();
             return indexSchema;
         }
     }
