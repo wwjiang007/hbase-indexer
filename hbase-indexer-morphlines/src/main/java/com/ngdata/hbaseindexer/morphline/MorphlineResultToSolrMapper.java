@@ -112,6 +112,7 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
     public void configure(Map<String, String> params) {
         Preconditions.checkNotNull(params);
         this.params = ImmutableMap.copyOf(params);
+        this.localMorphlineMapper.get(); // startup: fail fast on morphline compilation error
     }
 
     @Override
