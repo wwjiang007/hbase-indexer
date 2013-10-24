@@ -639,14 +639,6 @@ public class HBaseIndexingOptionsTest {
     }
     
     @Test
-    public void testEvaluateTimestamp_ISO8601() {
-        
-        assertEquals(
-                Long.valueOf(1382229540000L),
-                HBaseIndexingOptions.evaluateTimestamp("2013-10-20T00:39:00Z", "iSo8601"));
-    }
-    
-    @Test
     public void testEvaluateTimestamp_CustomTimestampFormat() {
         assertEquals(
                 Long.valueOf(DateTimeFormat.forPattern("yyyy/MM/dd HH:mm:ss").parseMillis("2013/10/20 00:39:00")),

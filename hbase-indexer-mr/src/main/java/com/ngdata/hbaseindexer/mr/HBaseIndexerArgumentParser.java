@@ -388,8 +388,8 @@ class HBaseIndexerArgumentParser {
                 .addArgument("--hbase-timestamp-format")
                 .metavar("STRING")
                 .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end time. " +
-                		"This can be either ISO8601, or a JodaTime-compliant datetime format (see " +
-                		"http://www.joda.org/joda-time/apidocs/org/joda/time/format/ISODateTimeFormat.html). " +
+                		"This is a java.text.SimpleDateFormat compliant format (see " +
+                		"http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html). " +
                 		"If this parameter is omitted then the timestamps are interpreted as number of " +
                 		"milliseconds since the standard epoch.");
 

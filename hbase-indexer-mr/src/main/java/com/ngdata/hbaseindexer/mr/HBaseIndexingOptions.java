@@ -20,10 +20,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Map;
 import java.util.UUID;
-
-import com.ngdata.sep.impl.HBaseShims;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
@@ -40,6 +40,7 @@ import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
+import com.ngdata.sep.impl.HBaseShims;
 import com.ngdata.sep.util.io.Closer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -50,9 +51,6 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
 import org.apache.solr.hadoop.ForkedZooKeeperInspector;
 import org.apache.solr.hadoop.MapReduceIndexerTool;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -449,7 +447,7 @@ class HBaseIndexingOptions extends OptionsBridge {
      * @param timestampFormat
      * @return evaluated timestamp, or null if there is no timestamp information supplied
      */
-    public static Long evaluateTimestamp(String timestampString, String timestampFormat) {
+    static Long evaluateTimestamp(String timestampString, String timestampFormat) {
         if (timestampString == null) {
             return null;
         }
@@ -460,19 +458,15 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new IllegalStateException("Invalid timestamp value: " + timestampString);
             }
         } else {
-            DateTimeFormatter dateTimeFormatter = null;
-            if ("ISO8601".equals(timestampFormat.toUpperCase())) {
-                dateTimeFormatter = ISODateTimeFormat.dateTimeParser();
-            } else {
-                try {
-                    dateTimeFormatter = DateTimeFormat.forPattern(timestampFormat);
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalStateException("Invalid timestamp format: " + e.getMessage());
-                }
+            SimpleDateFormat dateTimeFormat = null;
+            try {
+                dateTimeFormat = new SimpleDateFormat(timestampFormat);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException("Invalid timestamp format: " + e.getMessage());
             }
             try {
-                return dateTimeFormatter.parseMillis(timestampString);
-            } catch (IllegalArgumentException e) {
+                return dateTimeFormat.parse(timestampString).getTime();
+            } catch (ParseException e) {
                 throw new IllegalStateException("Can't parse timestamp string '"
                         + timestampString + "': " + e.getMessage());
             }
