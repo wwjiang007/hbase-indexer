@@ -31,17 +31,14 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.FeatureControl;
 import net.sourceforge.argparse4j.inf.Namespace;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
-import org.apache.solr.hadoop.HdfsFindTool;
-import org.apache.solr.hadoop.MapReduceIndexerTool;
-import org.apache.solr.hadoop.PathArgumentType;
 import org.apache.solr.hadoop.ForkedToolRunnerHelpFormatter;
+import org.apache.solr.hadoop.PathArgumentType;
 import org.apache.solr.hadoop.dedup.RetainMostRecentUpdateConflictResolver;
 
 /**
@@ -117,7 +114,6 @@ class HBaseIndexerArgumentParser {
                       		"hadoop jar hbase-indexer-mr-*-job.jar --zk-host zk01/solr \\\n" +
                       		"  --hbase-indexer-name docindexer \\\n" +
                       		"  --collection docindexcollection \\\n" +
-                      		"  --shards 6 \\\n" +
                       		"  --go-live\n\n" +
                       		"# (Re)index a table with direct writes to Solr\n" +
                       		"hadoop jar hbase-indexer-mr-*-job.jar --zk-host zk01/solr \\\n" +
