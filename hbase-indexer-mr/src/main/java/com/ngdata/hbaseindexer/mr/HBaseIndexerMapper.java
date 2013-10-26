@@ -58,6 +58,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 import org.apache.solr.hadoop.SolrOutputFormat;
+import org.apache.solr.hadoop.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,7 +124,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-
+        
+        Utils.getLogConfigFile(context.getConfiguration());
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);
         String indexConfiguration = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_KEY);
         String tableName = context.getConfiguration().get(TABLE_NAME_CONF_KEY);

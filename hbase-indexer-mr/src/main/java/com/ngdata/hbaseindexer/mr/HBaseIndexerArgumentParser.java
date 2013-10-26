@@ -71,14 +71,14 @@ class HBaseIndexerArgumentParser {
                         false)
                 .defaultHelp(true)
                 .description(
-                        "MapReduce batch job driver that takes input data from an HBase table and creates Solr index shards and writes the" +
-                        "indexes into HDFS, in a flexible, scalable, and fault-tolerant manner. It also supports merging the output shards" +
+                        "MapReduce batch job driver that takes input data from an HBase table and creates Solr index shards and writes the " +
+                        "indexes into HDFS, in a flexible, scalable, and fault-tolerant manner. It also supports merging the output shards " +
                         "into a set of live customer-facing Solr servers in SolrCloud. Index documents can also optionally be written " +
-                        "directly into a live SolrCloud at while the batch job is running. The program proceeds in one or multiple" +
+                        "directly into a live SolrCloud at while the batch job is running. The program proceeds in one or multiple " +
                         "consecutive MapReduce-based phases, as follows:\n\n" +
-                        "1) Mapper phase: This (parallel) phase scans over the input HBase table, extracts the relevant content, and" +
-                        "transforms it into SolrInputDocuments. If run as a map-only job, this phase also writes the SolrInputDocuments" +
-                        "directly to a live SolrCloud cluster. The conversion from HBase records into Solr documents is performed via a" +
+                        "1) Mapper phase: This (parallel) phase scans over the input HBase table, extracts the relevant content, and " +
+                        "transforms it into SolrInputDocuments. If run as a mapper-only job, this phase also writes the SolrInputDocuments " +
+                        "directly to a live SolrCloud cluster. The conversion from HBase records into Solr documents is performed via a " +
                         "hbase-indexer configuration.\n\n" +
                         "2) Reducer phase: This (parallel) phase loads the mapper's SolrInputDocuments into one EmbeddedSolrServer per reducer. " +
                         "Each such reducer and Solr server can be seen as a (micro) shard. The Solr servers store their data in HDFS.\n\n" +
@@ -88,7 +88,7 @@ class HBaseIndexerArgumentParser {
                         "4) Go-live phase: This optional (parallel) phase merges the output shards of the previous phase into a set of " +
                         "live customer-facing Solr servers in SolrCloud. If this phase is omitted you can expecitly point each Solr " +
                         "server to one of the HDFS output shard directories\n\n" +
-                        "Fault Tolerance: Mapper and reducer task attempts are retried on failure per the standard MapReduce" +
+                        "Fault Tolerance: Mapper and reducer task attempts are retried on failure per the standard MapReduce " +
                         "semantics.");
 
         parser.addArgument("--help", "-help", "-h").help("Show this help message and exit")
@@ -151,7 +151,7 @@ class HBaseIndexerArgumentParser {
                 .addArgument("--overwrite")
                 .action(Arguments.storeTrue())
                 .help("Overwrite the output directory if it already exists. Using this parameter will result in " +
-                		"the output directory being recursively deleted at job startup");
+                		"the output directory being recursively deleted at job startup.");
 
         Argument morphlineFileArg = parser.addArgument("--morphline-file")
             .metavar("FILE")
@@ -277,8 +277,8 @@ class HBaseIndexerArgumentParser {
                 .description(
                         "Arguments that provide information about your Solr cluster. "
                                 + "If you are not using --go-live, pass the --shards argument. If you are building shards for "
-                                + "a Non-SolrCloud cluster, pass the --shard-url argument one or more times. To build indexes for"
-                                + " a replicated cluster with --shard-url, pass replica urls consecutively and also pass --shards. "
+                                + "a Non-SolrCloud cluster, pass the --shard-url argument one or more times. To build indexes for "
+                                + "a replicated cluster with --shard-url, pass replica urls consecutively and also pass --shards. "
                                 + "If you are building shards for a SolrCloud cluster, pass the --zk-host argument. "
                                 + "Using --go-live requires either --shard-url or --zk-host.");
 
@@ -349,31 +349,32 @@ class HBaseIndexerArgumentParser {
 
         ArgumentGroup hbaseIndexerGroup = parser
                 .addArgumentGroup("HBase Indexer parameters")
-                .description("Parameters for specifying the HBase indexer definition and/or where it should be loaded from");
+                .description("Parameters for specifying the HBase indexer definition and/or where it should be loaded from.");
 
         Argument indexerZkHostArg = hbaseIndexerGroup
                 .addArgument("--hbase-indexer-zk")
                 .metavar("STRING")
                 .help("The name of the ZooKeeper host where the indexer definition is stored."
                         + "Defaults to localhost, or the value of environment variable $HBASE_INDEXER_CLI_ZK "
-                        + "if it is present");
+                        + "if it is present.");
 
         Argument indexNameArg = hbaseIndexerGroup.addArgument("--hbase-indexer-name").metavar("STRING")
-                .help("Name of the index to be run in MapReduce mode");
+                .help("Name of the indexer configuration to run in MapReduce mode.");
 
         Argument hbaseIndexerConfigArg = hbaseIndexerGroup
                 .addArgument("--hbase-indexer")
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
-                .help("Optional HBase indexer xml configuration file. If supplied, the options in the "
-                        + "supplied config override the hbase-indexer config in zookeeper.");
+                .help("Relative or absolute path to a local HBase indexer XML configuration file. If "
+                    + "supplied, this overrides the values of the hbase-indexer config fetched from zookeeper, if any.");
 
         Argument hbaseTableNameArg = hbaseIndexerGroup.addArgument("--hbase-table-name").metavar("STRING")
-                .help("Name of the HBase table containing the records to be indexed");
+                .help("Optional name of the HBase table containing the records to be indexed. If "
+                    + "supplied, this overrides the value from the hbase-indexer config.");
 
         ArgumentGroup scanArgumentGroup = parser
                 .addArgumentGroup("Scan parameters")
-                .description("Parameters for tuning the data that is included while reading from HBase");
+                .description("Parameters for specifying what data is included while reading from HBase.");
 
         Argument startRowArg = scanArgumentGroup
                 .addArgument("--hbase-start-row")
@@ -387,26 +388,26 @@ class HBaseIndexerArgumentParser {
                 .addArgument("--hbase-end-row")
                 .metavar("BINARYSTRING")
                 .help("Binary string representation of end row prefix at which to stop indexing (exclusive). "
-                        + "See the description of--hbase-start-row for more information");
+                        + "See the description of --hbase-start-row for more information.");
 
         Argument startTimeArg = scanArgumentGroup
                 .addArgument("--hbase-start-time")
                 .metavar("STRING")
-                .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing");
+                .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing.");
 
         Argument endTimeArg = scanArgumentGroup
                 .addArgument("--hbase-end-time")
                 .metavar("STRING")
-                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing");
+                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing.");
         
         Argument timestampFormatArg = scanArgumentGroup
                 .addArgument("--hbase-timestamp-format")
                 .metavar("STRING")
-                .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end time. " +
+                .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end-time. " +
                 		"This is a java.text.SimpleDateFormat compliant format (see " +
                 		"http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html). " +
                 		"If this parameter is omitted then the timestamps are interpreted as number of " +
-                		"milliseconds since the standard epoch.");
+                		"milliseconds since the standard epoch (Unix time).");
 
         Namespace ns;
         try {

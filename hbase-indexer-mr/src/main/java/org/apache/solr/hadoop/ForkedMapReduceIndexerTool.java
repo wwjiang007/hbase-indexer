@@ -1110,7 +1110,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
   }
 
   // do the same as if the user had typed 'hadoop ... --files <file>'
-  private static void addDistributedCacheFile(File file, Configuration conf) throws IOException {
+  public static void addDistributedCacheFile(File file, Configuration conf) throws IOException {
     String HADOOP_TMP_FILES = "tmpfiles"; // see Hadoop's GenericOptionsParser
     String tmpFiles = conf.get(HADOOP_TMP_FILES, "");
     if (tmpFiles.length() > 0) { // already present?

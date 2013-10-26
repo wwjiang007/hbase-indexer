@@ -31,6 +31,7 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
+import org.apache.solr.hadoop.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,14 +103,20 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         }
 
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());
+        
+        if (hbaseIndexingOpts.fairSchedulerPool != null) {
+            conf.set("mapred.fairscheduler.pool", hbaseIndexingOpts.fairSchedulerPool);
+        }
+
+        if (hbaseIndexingOpts.log4jConfigFile != null) {
+            Utils.setLogConfigFile(hbaseIndexingOpts.log4jConfigFile, getConf());
+            ForkedMapReduceIndexerTool.addDistributedCacheFile(hbaseIndexingOpts.log4jConfigFile, conf);
+        }
 
         Job job = Job.getInstance(getConf());
         job.setJobName(getClass().getSimpleName() + "/" + HBaseIndexerMapper.class.getSimpleName());
         job.setJarByClass(HBaseIndexerMapper.class);
         job.setUserClassesTakesPrecedence(true);
-        if (hbaseIndexingOpts.fairSchedulerPool != null) {
-            conf.set("mapred.fairscheduler.pool", hbaseIndexingOpts.fairSchedulerPool);
-        }
 
         TableMapReduceUtil.initTableMapperJob(
                                     indexingSpec.getTableName(),
