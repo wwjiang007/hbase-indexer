@@ -19,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
@@ -32,8 +33,10 @@ import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.sep.util.io.Closer;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
@@ -41,6 +44,7 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +95,19 @@ public class IndexerDryRun {
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
         }
         
+        if (indexingOpts.morphlineFile != null) {
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, indexingOpts.morphlineFile.getPath());
+        }
+        if (indexingOpts.morphlineId != null) {
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, indexingOpts.morphlineId);
+        }
+        
+        try {
+            ForkedMapReduceIndexerTool.setupMorphlineClasspath();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException("unreachable", e);
+        }
+
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                         indexingSpec.getIndexerName(),
                                                         indexerConf,

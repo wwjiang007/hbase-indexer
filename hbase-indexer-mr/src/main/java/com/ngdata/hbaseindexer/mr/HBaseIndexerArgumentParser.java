@@ -31,6 +31,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.FeatureControl;
 import net.sourceforge.argparse4j.inf.Namespace;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -107,7 +108,7 @@ class HBaseIndexerArgumentParser {
                       		"  --hbase-indexer indexer.xml \\\n" +
                       		"  --hbase-table-name documents\n\n" +
                       		"# (Re)index a table using a local morphline-based indexer configuration\n" +
-                      		"hadoop jar hbase-indexer-mr-*-job.jar --files morphlines.conf \\\n" +
+                      		"hadoop jar hbase-indexer-mr-*-job.jar --morphline-file morphlines.conf \\\n" +
                       		"  --zk-host zk01/solr \\\n" +
                       		"  --hbase-indexer morphline-indexer.xml\n\n" +
                       		"# (Re)index a table in GoLive mode\n" +
@@ -152,6 +153,20 @@ class HBaseIndexerArgumentParser {
                 .help("Overwrite the output directory if it already exists. Using this parameter will result in " +
                 		"the output directory being recursively deleted at job startup");
 
+        Argument morphlineFileArg = parser.addArgument("--morphline-file")
+            .metavar("FILE")
+            .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
+            .help("Relative or absolute path to a local config file that contains one or more morphlines. " +
+                  "The file must be UTF-8 encoded. The file will be uploaded to each MR task. " +
+                  "Example: /path/to/morphlines.conf");
+              
+        Argument morphlineIdArg = parser.addArgument("--morphline-id")
+            .metavar("STRING")
+            .type(String.class)
+            .help("The identifier of the morphline that shall be executed within the morphline config file, " +
+                  "e.g. specified by --morphline-file. If the --morphline-id option is ommitted the first (i.e. " +
+                  "top-most) morphline within the config file is used. Example: morphline1");
+                
         Argument solrHomeDirArg = parser
                 .addArgument("--solr-home-dir")
                 .metavar("DIR")
@@ -346,15 +361,15 @@ class HBaseIndexerArgumentParser {
         Argument indexNameArg = hbaseIndexerGroup.addArgument("--hbase-indexer-name").metavar("STRING")
                 .help("Name of the index to be run in MapReduce mode");
 
-        Argument hbaseTableNameArg = hbaseIndexerGroup.addArgument("--hbase-table-name").metavar("STRING")
-                .help("Name of the HBase table containing the records to be indexed");
-
         Argument hbaseIndexerConfigArg = hbaseIndexerGroup
                 .addArgument("--hbase-indexer")
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Optional HBase indexer xml configuration file. If supplied, the options in the "
                         + "supplied config override the hbase-indexer config in zookeeper.");
+
+        Argument hbaseTableNameArg = hbaseIndexerGroup.addArgument("--hbase-table-name").metavar("STRING")
+                .help("Name of the HBase table containing the records to be indexed");
 
         ArgumentGroup scanArgumentGroup = parser
                 .addArgumentGroup("Scan parameters")
@@ -416,6 +431,8 @@ class HBaseIndexerArgumentParser {
         opts.updateConflictResolver = ns.getString(updateConflictResolverArg.getDest());
         opts.fanout = ns.getInt(fanoutArg.getDest());
         opts.maxSegments = ns.getInt(maxSegmentsArg.getDest());
+        opts.morphlineFile = (File) ns.get(morphlineFileArg.getDest());
+        opts.morphlineId = ns.getString(morphlineIdArg.getDest());
         opts.solrHomeDir = (File) ns.get(solrHomeDirArg.getDest());
         opts.fairSchedulerPool = ns.getString(fairSchedulerPoolArg.getDest());
         opts.isDryRun = ns.getBoolean(dryRunArg.getDest());
@@ -434,8 +451,6 @@ class HBaseIndexerArgumentParser {
         opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
         opts.startRow = ns.getString(startRowArg.getDest());
         opts.endRow = ns.getString(endRowArg.getDest());
-        // Treat timestamp as a string so that we can use a formatted date
-        // in the future
         opts.startTimeString = ns.getString(startTimeArg.getDest());
         opts.endTimeString = ns.getString(endTimeArg.getDest());
         opts.timestampFormat = ns.getString(timestampFormatArg.getDest());

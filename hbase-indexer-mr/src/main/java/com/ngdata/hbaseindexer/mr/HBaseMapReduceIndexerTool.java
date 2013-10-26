@@ -15,6 +15,8 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -31,6 +33,12 @@ import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
+import com.ngdata.hbaseindexer.conf.IndexerConf;
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 
 /**
  * Top-level tool for running MapReduce-based indexing pipelines over HBase tables.
@@ -54,15 +62,16 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
           return exitCode;
         }
 
-        if (hbaseIndexingOpts.isDryRun) {
-            return new IndexerDryRun(hbaseIndexingOpts, getConf(), System.out).run();
-        } else {
-            return runIndexingJob(hbaseIndexingOpts);
-        }
+        return runIndexingJob(hbaseIndexingOpts);
     }
 
     public int runIndexingJob(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
 
+        if (hbaseIndexingOpts.isDryRun) {
+            return new IndexerDryRun(hbaseIndexingOpts, getConf(), System.out).run();
+        }
+
+        long programStartTime = System.currentTimeMillis();
         Configuration conf = getConf();
 
         IndexingSpecification indexingSpec = hbaseIndexingOpts.getIndexingSpecification();
@@ -71,6 +80,26 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, indexingSpec.getIndexerName());
         conf.set(HBaseIndexerMapper.TABLE_NAME_CONF_KEY, indexingSpec.getTableName());
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
+        
+        IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(
+                    indexingSpec.getIndexConfigXml().getBytes()));
+
+        String morphlineFile = indexerConf.getGlobalParams().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
+        if (hbaseIndexingOpts.morphlineFile != null) {
+            morphlineFile = hbaseIndexingOpts.morphlineFile.getPath();
+        }
+        if (morphlineFile != null) {
+            String fileContent = Files.toString(new File(morphlineFile), Charsets.UTF_8);
+            conf.set(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, fileContent);          
+        }
+        
+        String morphlineId = indexerConf.getGlobalParams().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
+        if (hbaseIndexingOpts.morphlineId != null) {
+            morphlineId = hbaseIndexingOpts.morphlineId;
+        }
+        if (morphlineId != null) {
+            conf.set(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+        }
 
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());
 
@@ -98,6 +127,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                 solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
                 solrServer.commit(false, false);
                 solrServer.shutdown();
+                ForkedMapReduceIndexerTool.goodbye(job, programStartTime);
             }
             return exitCode;
         } else {
@@ -119,7 +149,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             
             int exitCode = ForkedMapReduceIndexerTool.runIndexingPipeline(
                                             job, getConf(), hbaseIndexingOpts.asOptions(),
-                                            System.currentTimeMillis(),
+                                            programStartTime,
                                             fileSystem,
                                             null, -1, // File-based parameters
                                             -1, // num mappers, only of importance for file-based indexing

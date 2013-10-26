@@ -53,6 +53,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.FeatureControl;
 import net.sourceforge.argparse4j.inf.Namespace;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -604,6 +605,8 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
         opts.log4jConfigFile = this.log4jConfigFile;
         opts.mappers = this.mappers;
         opts.maxSegments = this.maxSegments;
+        opts.morphlineFile = this.morphlineFile;
+        opts.morphlineId = this.morphlineId;
         opts.outputDir = this.outputDir;
         opts.reducers = this.reducers;
         opts.shards = this.shards;
@@ -1123,15 +1126,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     conf.set(HADOOP_TMP_FILES, tmpFiles);
   }
   
-  private static MorphlineMapRunner setupMorphline(Job job, Options options) throws IOException, URISyntaxException {
-    if (options.morphlineId != null) {
-      job.getConfiguration().set(MorphlineMapRunner.MORPHLINE_ID_PARAM, options.morphlineId);
-    }
-    addDistributedCacheFile(options.morphlineFile, job.getConfiguration());
-    if (!options.isDryRun) {
-      return null;
-    }
-    
+  public static void setupMorphlineClasspath() throws URISyntaxException {
     /*
      * Ensure scripting support for Java via morphline "java" command works even in dryRun mode,
      * i.e. when executed in the client side driver JVM. To do so, collect all classpath URLs from
@@ -1176,10 +1171,6 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
       LOG.trace("dryRun: fullClassPath: {}", fullClassPath);
       System.setProperty("java.class.path", fullClassPath); // see FastJavaScriptEngine.parse()
     }
-    
-    job.getConfiguration().set(MorphlineMapRunner.MORPHLINE_FILE_PARAM, options.morphlineFile.getPath());
-    return new MorphlineMapRunner(
-        job.getConfiguration(), new DryRunDocumentLoader(), options.solrHomeDir.getPath());
   }
   
   /*
@@ -1309,7 +1300,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     return success;
   }
 
-  private static void goodbye(Job job, long startTime) {
+  public static void goodbye(Job job, long startTime) {
     float secs = (System.currentTimeMillis() - startTime) / 1000.0f;
     if (job != null) {
       LOG.info("Succeeded with job: " + getJobInfo(job));

@@ -24,11 +24,14 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 import com.google.common.io.Resources;
 import com.ngdata.hbaseindexer.util.net.NetUtils;
 import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -218,6 +221,48 @@ public class HBaseMapReduceIndexerToolTest {
         executeIndexPipeline();
         
         assertEquals(1, executeSolrQuery("firstname_s:John lastname_s:Doe").size());
+    }
+    
+    @Test
+    public void testIndexer_Morphline() throws Exception {
+        writeHBaseRecord("row1", ImmutableMap.of(
+                                "firstname", "John",
+                                "lastname", "Doe"));
+        
+        opts.reducers = 0;
+        opts.hbaseIndexerConfig = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
+        opts.morphlineFile = new File("src/test/resources/extractHBaseCell.conf");
+        opts.morphlineId = "morphline1";
+        
+        executeIndexPipeline();
+        
+        assertEquals(1, executeSolrQuery("firstname_s:John lastname_s:Doe").size());
+    }
+    
+    @Test
+    public void testIndexer_Morphline_With_DryRun() throws Exception {
+        writeHBaseRecord("row1", ImmutableMap.of(
+                                "firstname", "John",
+                                "lastname", "Doe"));
+        
+        opts.isDryRun = true;
+        opts.reducers = 0;
+        opts.hbaseIndexerConfig = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
+        opts.morphlineFile = new File("src/test/resources/extractHBaseCell.conf");
+        opts.morphlineId = "morphline1";
+        
+        executeIndexPipeline();
+        
+        assertEquals(0, executeSolrQuery("firstname_s:John lastname_s:Doe").size());
+    }
+    
+    private File substituteZkHost(File file) throws IOException {
+      String str = Files.toString(file, Charsets.UTF_8);
+      str = str.replace("_MYPATTERN_", SOLR_TEST_UTILITY.getZkConnectString());
+      File tmp = File.createTempFile("tmpIndexer", ".xml");
+      tmp.deleteOnExit();
+      Files.write(str, tmp, Charsets.UTF_8);
+      return tmp;
     }
     
     @Test

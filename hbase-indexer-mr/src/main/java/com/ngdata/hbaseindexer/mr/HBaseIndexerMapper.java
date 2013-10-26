@@ -16,15 +16,18 @@
 package com.ngdata.hbaseindexer.mr;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
@@ -37,6 +40,7 @@ import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
@@ -44,6 +48,7 @@ import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -151,7 +156,19 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
         }
 
-
+        String morphlineFile = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
+        if (morphlineFile != null) {
+            File tmp = File.createTempFile("morphlines", ".conf");
+            tmp.deleteOnExit();
+            Files.write(morphlineFile, tmp, Charsets.UTF_8);
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, tmp.getPath());
+        }
+        
+        String morphlineId = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
+        if (morphlineId != null) {
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+        }
+        
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
