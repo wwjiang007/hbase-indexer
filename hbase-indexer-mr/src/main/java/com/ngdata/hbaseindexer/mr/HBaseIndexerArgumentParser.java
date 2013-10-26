@@ -210,7 +210,7 @@ class HBaseIndexerArgumentParser {
                 // TODO: also support X% syntax where X is an integer
                 .setDefault(-1)
                 .help("Tuning knob that indicates the number of reducers to index into. "
-                        + "0 indicates that no reducers should be used, and document should be written directly to Solr. "
+                        + "0 indicates that no reducers should be used, and document should be written directly from the mapper tasks to Solr. "
                         + "-1 indicates use all reduce slots available on the cluster. "
                         + "-2 indicates use one reducer per output shard, which disables the mtree merge MR algorithm. "
                         + "The mtree merge MR algorithm improves scalability by spreading load "
@@ -354,7 +354,7 @@ class HBaseIndexerArgumentParser {
         Argument indexerZkHostArg = hbaseIndexerGroup
                 .addArgument("--hbase-indexer-zk")
                 .metavar("STRING")
-                .help("The name of the ZooKeeper host where the indexer definition is stored."
+                .help("The name of the ZooKeeper host where the indexer definition is stored. "
                         + "Defaults to localhost, or the value of environment variable $HBASE_INDEXER_CLI_ZK "
                         + "if it is present.");
 
@@ -366,11 +366,11 @@ class HBaseIndexerArgumentParser {
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Relative or absolute path to a local HBase indexer XML configuration file. If "
-                    + "supplied, this overrides the values of the hbase-indexer config fetched from zookeeper, if any.");
+                    + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name.");
 
         Argument hbaseTableNameArg = hbaseIndexerGroup.addArgument("--hbase-table-name").metavar("STRING")
                 .help("Optional name of the HBase table containing the records to be indexed. If "
-                    + "supplied, this overrides the value from the hbase-indexer config.");
+                    + "supplied, this overrides the value from the --hbase-indexer* options.");
 
         ArgumentGroup scanArgumentGroup = parser
                 .addArgumentGroup("Scan parameters")
