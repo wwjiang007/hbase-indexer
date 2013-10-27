@@ -36,6 +36,9 @@ import org.apache.solr.hadoop.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.Counting;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.SharedMetricRegistries;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -247,6 +250,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
         copyIndexingMetricsToCounters(context);
+        copyIndexingMetrics3ToCounters(context);
     }
 
     private void copyIndexingMetricsToCounters(Context context) {
@@ -273,4 +277,28 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
     }
 
+    private void copyIndexingMetrics3ToCounters(Context context) {
+      for (String name : SharedMetricRegistries.names()) {
+          MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(name);
+          for (Map.Entry<String, com.codahale.metrics.Counter> entry : metricRegistry.getCounters().entrySet()) {
+              addCounting(context, entry.getKey(),  entry.getValue(), 1);
+          }
+          for (Map.Entry<String, com.codahale.metrics.Histogram> entry : metricRegistry.getHistograms().entrySet()) {
+              addCounting(context, entry.getKey(),  entry.getValue(), 1);
+          }
+          for (Map.Entry<String, com.codahale.metrics.Meter> entry : metricRegistry.getMeters().entrySet()) {
+              addCounting(context, entry.getKey(), entry.getValue(), 1);
+          }
+          for (Map.Entry<String, com.codahale.metrics.Timer> entry : metricRegistry.getTimers().entrySet()) {
+              long nanosPerMilliSec = 1000 * 1000;
+              addCounting(context, entry.getKey(), entry.getValue(), nanosPerMilliSec);
+          }
+      }
+   }
+
+    private void addCounting(Context context, String metricName, Counting value, long scale) {
+        final String COUNTER_GROUP = "HBase Indexer Metrics";
+        context.getCounter(COUNTER_GROUP, metricName).increment(value.getCount() / scale);
+    }
+    
 }
