@@ -278,22 +278,22 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     }
 
     private void copyIndexingMetrics3ToCounters(Context context) {
-      for (String name : SharedMetricRegistries.names()) {
-          MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(name);
-          for (Map.Entry<String, com.codahale.metrics.Counter> entry : metricRegistry.getCounters().entrySet()) {
-              addCounting(context, entry.getKey(),  entry.getValue(), 1);
-          }
-          for (Map.Entry<String, com.codahale.metrics.Histogram> entry : metricRegistry.getHistograms().entrySet()) {
-              addCounting(context, entry.getKey(),  entry.getValue(), 1);
-          }
-          for (Map.Entry<String, com.codahale.metrics.Meter> entry : metricRegistry.getMeters().entrySet()) {
-              addCounting(context, entry.getKey(), entry.getValue(), 1);
-          }
-          for (Map.Entry<String, com.codahale.metrics.Timer> entry : metricRegistry.getTimers().entrySet()) {
-              long nanosPerMilliSec = 1000 * 1000;
-              addCounting(context, entry.getKey(), entry.getValue(), nanosPerMilliSec);
-          }
-      }
+        for (String name : SharedMetricRegistries.names()) {
+            MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(name);
+            for (Map.Entry<String, com.codahale.metrics.Counter> entry : metricRegistry.getCounters().entrySet()) {
+                addCounting(context, entry.getKey(),  entry.getValue(), 1);
+            }
+            for (Map.Entry<String, com.codahale.metrics.Histogram> entry : metricRegistry.getHistograms().entrySet()) {
+                addCounting(context, entry.getKey(),  entry.getValue(), 1);
+            }
+            for (Map.Entry<String, com.codahale.metrics.Meter> entry : metricRegistry.getMeters().entrySet()) {
+                addCounting(context, entry.getKey(), entry.getValue(), 1);
+            }
+            for (Map.Entry<String, com.codahale.metrics.Timer> entry : metricRegistry.getTimers().entrySet()) {
+                long nanosPerMilliSec = 1000 * 1000;
+                addCounting(context, entry.getKey(), entry.getValue(), nanosPerMilliSec);
+            }
+        }
    }
 
     private void addCounting(Context context, String metricName, Counting value, long scale) {
