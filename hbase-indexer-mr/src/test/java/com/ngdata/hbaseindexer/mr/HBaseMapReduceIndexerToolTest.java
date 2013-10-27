@@ -70,6 +70,7 @@ public class HBaseMapReduceIndexerToolTest {
     private HTable recordTable;
     
     private HBaseIndexingOptions opts;
+    private Configuration indexerToolConf;
     
     @BeforeClass
     public static void setupBeforeClass() throws Exception {
@@ -140,6 +141,8 @@ public class HBaseMapReduceIndexerToolTest {
        
         opts.updateConflictResolver = RetainMostRecentUpdateConflictResolver.class.getName();
         opts.isVerbose = true;
+        
+        indexerToolConf = new Configuration(HBASE_TEST_UTILITY.getConfiguration());
     }
     
     @After
@@ -182,7 +185,7 @@ public class HBaseMapReduceIndexerToolTest {
      */
     private void executeIndexPipeline() throws Exception, SolrServerException, IOException {
         HBaseMapReduceIndexerTool indexerTool = new HBaseMapReduceIndexerTool();
-        indexerTool.setConf(HBASE_TEST_UTILITY.getConfiguration());
+        indexerTool.setConf(indexerToolConf);
         opts.evaluate();
         int exitCode = indexerTool.run(opts);
         
@@ -233,6 +236,8 @@ public class HBaseMapReduceIndexerToolTest {
         opts.hbaseIndexerConfig = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
         opts.morphlineFile = new File("src/test/resources/extractHBaseCell.conf");
         opts.morphlineId = "morphline1";
+        indexerToolConf.set("morphlineField.forcedMoo", "forcedBaz");
+        indexerToolConf.set("morphlineVariable.myFoo", "myBar");
         
         executeIndexPipeline();
         
@@ -250,6 +255,8 @@ public class HBaseMapReduceIndexerToolTest {
         opts.hbaseIndexerConfig = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
         opts.morphlineFile = new File("src/test/resources/extractHBaseCell.conf");
         opts.morphlineId = "morphline1";
+        indexerToolConf.set("morphlineField.forcedMoo", "forcedBaz");
+        indexerToolConf.set("morphlineVariable.myFoo", "myBar");
         
         executeIndexPipeline();
         
