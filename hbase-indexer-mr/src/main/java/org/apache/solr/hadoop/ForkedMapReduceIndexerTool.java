@@ -39,9 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.zookeeper.KeeperException;
-
-import com.cloudera.cdk.morphline.base.Fields;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.impl.action.HelpArgumentAction;
@@ -79,8 +76,11 @@ import org.apache.solr.hadoop.MapReduceIndexerTool.Options;
 import org.apache.solr.hadoop.dedup.RetainMostRecentUpdateConflictResolver;
 import org.apache.solr.hadoop.morphline.MorphlineMapRunner;
 import org.apache.solr.hadoop.morphline.MorphlineMapper;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.cloudera.cdk.morphline.base.Fields;
 
 
 /**
@@ -767,7 +767,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
 
 
   public static int runIndexingPipeline(Job job, Configuration conf, Options options, long programStartTime, FileSystem fs, Path fullInputList, long numFiles,
-        int realMappers, int reducers) throws IOException, KeeperException, InterruptedException, URISyntaxException,
+        int realMappers, int reducers) throws IOException, KeeperException, InterruptedException,
         ClassNotFoundException, FileNotFoundException {
     long startTime;
     float secs;

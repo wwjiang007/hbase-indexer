@@ -127,12 +127,12 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         Utils.getLogConfigFile(context.getConfiguration());
         
         if (LOG.isTraceEnabled()) {
-          LOG.trace("CWD is {}", new File(".").getCanonicalPath());
-          TreeMap map = new TreeMap();
-          for (Map.Entry<String,String> entry : context.getConfiguration()) {
-            map.put(entry.getKey(), entry.getValue());
-          }
-          LOG.trace("Configuration:\n{}", Joiner.on("\n").join(map.entrySet()));
+            LOG.trace("CWD is {}", new File(".").getCanonicalPath());
+            TreeMap map = new TreeMap();
+            for (Map.Entry<String,String> entry : context.getConfiguration()) {
+                map.put(entry.getKey(), entry.getValue());
+            }
+            LOG.trace("Mapper configuration:\n{}", Joiner.on("\n").join(map.entrySet()));
         }
 
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);

@@ -17,7 +17,6 @@ package com.ngdata.hbaseindexer.mr;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -127,15 +126,18 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
 
 
         if (hbaseIndexingOpts.isDirectWrite()) {
-            int exitCode = runDirectWriteIndexingJob(job, getConf(), hbaseIndexingOpts.isVerbose);
-            if (exitCode == 0) {
-                CloudSolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
-                solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
-                solrServer.commit(false, false);
-                solrServer.shutdown();
-                ForkedMapReduceIndexerTool.goodbye(job, programStartTime);
+            // Run a mapper-only MR job that sends index documents directly to a live Solr instance.
+            job.setOutputFormatClass(NullOutputFormat.class);
+            job.setNumReduceTasks(0);
+            if (!ForkedMapReduceIndexerTool.waitForCompletion(job, hbaseIndexingOpts.isVerbose)) {
+                return -1; // job failed
             }
-            return exitCode;
+            CloudSolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
+            solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
+            solrServer.commit(false, false);
+            solrServer.shutdown();
+            ForkedMapReduceIndexerTool.goodbye(job, programStartTime);
+            return 0;
         } else {
             FileSystem fileSystem = FileSystem.get(getConf());
             
@@ -144,12 +146,12 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                     LOG.info("Removing existing output directory {}", hbaseIndexingOpts.outputDir);
                     if (!fileSystem.delete(hbaseIndexingOpts.outputDir, true)) {
                         LOG.error("Deleting output directory '{}' failed", hbaseIndexingOpts.outputDir);
-                        return 1;
+                        return -1;
                     }
                 } else {
-                    LOG.error("Output directory '{}' already exists. Run with --overwrite to " +
+                    LOG.error("Output directory '{}' already exists. Run with --overwrite-output-dir to " +
                     		"overwrite it, or remove it manually", hbaseIndexingOpts.outputDir);
-                    return 1;
+                    return -1;
                 }
             }
             
@@ -170,21 +172,6 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             return exitCode;
         }
 
-    }
-
-    /**
-     * Write a map-only MR job that writes index documents directly to a live Solr instance.
-     *
-     * @param job configured job for creating SolrInputDocuments
-     * @param conf job configuration
-     * @param verbose run in verbose mode
-     * @return exit code, 0 is successful execution
-     */
-    private int runDirectWriteIndexingJob(Job job, Configuration conf, boolean verbose)
-                throws ClassNotFoundException, IOException, InterruptedException {
-        job.setOutputFormatClass(NullOutputFormat.class);
-        job.setNumReduceTasks(0);
-        return ForkedMapReduceIndexerTool.waitForCompletion(job, verbose) ? 0 : 1;
     }
 
 }

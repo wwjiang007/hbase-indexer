@@ -142,7 +142,7 @@ public class HBaseMapReduceIndexerToolTest {
         opts.updateConflictResolver = RetainMostRecentUpdateConflictResolver.class.getName();
         opts.isVerbose = true;
         
-        indexerToolConf = new Configuration(HBASE_TEST_UTILITY.getConfiguration());
+        indexerToolConf = HBASE_TEST_UTILITY.getConfiguration();
     }
     
     @After
