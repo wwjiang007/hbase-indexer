@@ -371,7 +371,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         } else {
             if (hbaseIndexerConfig == null) {
                 throw new IllegalStateException(
-                        "--hbase-indexer must be specified if --hbase-indexer-zk is not specified");
+                        "--hbase-indexer-file must be specified if --hbase-indexer-zk is not specified");
             }
             if (solrHomeDir == null) {
                 if (zkHost == null) {

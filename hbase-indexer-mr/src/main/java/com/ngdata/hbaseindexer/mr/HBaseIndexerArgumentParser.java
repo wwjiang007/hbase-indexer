@@ -102,39 +102,41 @@ class HBaseIndexerArgumentParser {
                       System.out.println();
                       System.out.print(ForkedToolRunnerHelpFormatter.getGenericCommandUsage());
                       System.out.println("Examples: \n\n" +
-                        "# (Re)index a table based on a indexer config stored in ZK\n" +
+                        "# (Re)index a table in GoLive mode based on a local indexer config file\n" +
                         "hadoop jar hbase-indexer-mr-*-job.jar \\\n" +
+                        "  --hbase-indexer-file indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
-                        "  --hbase-indexer-zk zk01 \\\n" +
-                        "  --hbase-indexer-name docindexer\n\n" +
-                        "# (Re)index a table based on a local indexer configuration file\n" +
-                        "hadoop jar hbase-indexer-mr-*-job.jar \\\n" +
-                        "  --zk-host zk01/solr \\\n" +
-                        "  --hbase-indexer indexer.xml \\\n" +
-                        "  --hbase-table-name documents\n\n" +
+                        "  --collection docindexcollection \\\n" +
+                        "  --go-live\n\n" +
                         "# (Re)index a table in GoLive mode using a local morphline-based indexer config file\n" +
                         "hdfs hadoop --config /etc/hadoop/conf.cloudera.mapreduce1 \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
-                        "  --hbase-indexer /path/to/morphline-indexer.xml \\\n" +
-                        "  --morphline-file /path/to/morphlines.conf  \\\n" +
+                        "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
                         "  --collection docindexcollection \\\n" +
                         "  --go-live \\\n" +
+                        "  --morphline-file /path/to/morphlines.conf \\\n" +
                         "  --output-dir hdfs://c2202.mycompany.com/user/$USER/test \\\n" + 
                         "  --overwrite-output-dir \\\n" + 
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n" + 
                         "# (Re)index a table in GoLive mode\n" +
                         "hadoop jar hbase-indexer-mr-*-job.jar \\\n" +
+                        "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
-                        "  --hbase-indexer-name docindexer \\\n" +
                         "  --collection docindexcollection \\\n" +
                         "  --go-live\n\n" +
-                        "# (Re)index a table with direct writes to Solr\n" +
+                        "# (Re)index a table with direct writes to SolrCloud\n" +
+                        "hadoop jar hbase-indexer-mr-*-job.jar \\\n" +
+                        "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
+                        "  --zk-host zk01/solr \\\n" +
+                        "  --collection docindexcollection \\\n" +
+                        "  --reducers 0\n\n" + 
+                        "# (Re)index a table based on a indexer config stored in ZK\n" +
                         "hadoop jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --zk-host zk01/solr \\\n" +
-                        "  --reducers 0 \\\n" +
-                        "  --hbase-indexer-name docindexer");
+                        "  --hbase-indexer-zk zk01 \\\n" +
+                        "  --hbase-indexer-name docindexer\n\n");
 
                       throw new FoundHelpArgument(); // Trick to prevent processing of any remaining arguments
                     }
@@ -159,7 +161,7 @@ class HBaseIndexerArgumentParser {
                     }
                 }.verifyHasScheme().verifyIsAbsolute().verifyCanWriteParent())
                 .help("HDFS directory to write Solr indexes to. Inside there one output directory per shard will be generated. "
-                        + "Example: hdfs://c2202.mycompany.com/user/$USER/test");
+                    + "Example: hdfs://c2202.mycompany.com/user/$USER/test");
         
         Argument overwriteOutputDirArg = parser.addArgument("--overwrite-output-dir")
                 .action(Arguments.storeTrue())
@@ -357,24 +359,26 @@ class HBaseIndexerArgumentParser {
 
         Argument indexerZkHostArg = hbaseIndexerGroup.addArgument("--hbase-indexer-zk")
                 .metavar("STRING")
-                .help("The name of the ZooKeeper host where the indexer definition is stored. "
-                    + "Defaults to localhost, or the value of environment variable $HBASE_INDEXER_CLI_ZK "
-                    + "if it is present.");
+                .help("The address of the ZooKeeper ensemble from which to fetch the indexer definition named --hbase-indexer-name. "
+                    + "Format is: a list of comma separated host:port pairs, each corresponding to a zk server. "
+                    + "Example: '127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183'");
 
         Argument indexNameArg = hbaseIndexerGroup.addArgument("--hbase-indexer-name")
                 .metavar("STRING")
-                .help("Name of the indexer configuration to run in MapReduce mode.");
+                .help("Name of the indexer configuration to run in MapReduce mode. Example: myIndexer");
 
-        Argument hbaseIndexerConfigArg = hbaseIndexerGroup.addArgument("--hbase-indexer")
+        Argument hbaseIndexerConfigArg = hbaseIndexerGroup.addArgument("--hbase-indexer-file")
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Relative or absolute path to a local HBase indexer XML configuration file. If "
-                    + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name.");
+                    + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name. "
+                    + "Example: /path/to/morphline-hbase-mapper.xml");
 
         Argument hbaseTableNameArg = hbaseIndexerGroup.addArgument("--hbase-table-name")
                 .metavar("STRING")
                 .help("Optional name of the HBase table containing the records to be indexed. If "
-                    + "supplied, this overrides the value from the --hbase-indexer* options.");
+                    + "supplied, this overrides the value from the --hbase-indexer-* options. "
+                    + "Example: myTable");
 
         ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("Scan parameters")
                 .description("Parameters for specifying what data is included while reading from HBase.");
@@ -384,20 +388,24 @@ class HBaseIndexerArgumentParser {
                 .help("Binary string representation of start row from which to start indexing (inclusive). "
                     + "The format of the supplied row key should use two-digit hex values prefixed by "
                     + "\\x for non-ascii characters (e.g. 'row\\x00'). The semantics of this "
-                    + "argument are the same as those for the HBase Scan#setStartRow method.");
+                    + "argument are the same as those for the HBase Scan#setStartRow method. "
+                    + "The default is to include the first row of the table. Example: AAAA");
 
         Argument endRowArg = scanArgumentGroup.addArgument("--hbase-end-row")
                 .metavar("BINARYSTRING")
                 .help("Binary string representation of end row prefix at which to stop indexing (exclusive). "
-                    + "See the description of --hbase-start-row for more information.");
+                    + "See the description of --hbase-start-row for more information. "
+                    + "The default is to include the last row of the table. Example: CCCC");
 
         Argument startTimeArg = scanArgumentGroup.addArgument("--hbase-start-time")
                 .metavar("STRING")
-                .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing.");
+                .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing. "
+                    + "The default is to include all cells. Example: 0");
 
         Argument endTimeArg = scanArgumentGroup.addArgument("--hbase-end-time")
                 .metavar("STRING")
-                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing.");
+                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing. "
+                    + "The default is to include all cells. Example: 123456789");
         
         Argument timestampFormatArg = scanArgumentGroup.addArgument("--hbase-timestamp-format")
                 .metavar("STRING")
@@ -405,7 +413,8 @@ class HBaseIndexerArgumentParser {
                       "This is a java.text.SimpleDateFormat compliant format (see " +
                       "http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html). " +
                       "If this parameter is omitted then the timestamps are interpreted as number of " +
-                      "milliseconds since the standard epoch (Unix time).");
+                      "milliseconds since the standard epoch (Unix time). " +
+                      "Example: yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
         Namespace ns;
         try {
