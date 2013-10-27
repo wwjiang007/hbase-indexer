@@ -62,10 +62,10 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
           return exitCode;
         }
 
-        return runIndexingJob(hbaseIndexingOpts);
+        return run(hbaseIndexingOpts);
     }
 
-    public int runIndexingJob(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
+    public int run(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
 
         if (hbaseIndexingOpts.isDryRun) {
             return new IndexerDryRun(hbaseIndexingOpts, getConf(), System.out).run();

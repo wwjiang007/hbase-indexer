@@ -184,7 +184,7 @@ public class HBaseMapReduceIndexerToolTest {
         HBaseMapReduceIndexerTool indexerTool = new HBaseMapReduceIndexerTool();
         indexerTool.setConf(HBASE_TEST_UTILITY.getConfiguration());
         opts.evaluate();
-        int exitCode = indexerTool.runIndexingJob(opts);
+        int exitCode = indexerTool.run(opts);
         
         assertEquals(0, exitCode);
         
