@@ -160,10 +160,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
         String morphlineFile = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         if (morphlineFile != null) {
-            File tmp = File.createTempFile("morphlines", ".conf");
-            tmp.deleteOnExit();
-            Files.write(morphlineFile, tmp, Charsets.UTF_8);
-            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, tmp.getPath());
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile);
         }
         
         String morphlineId = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
