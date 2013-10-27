@@ -19,4 +19,5 @@
 <indexer table="record" mapper="com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper">
   <param name='morphlineFile' value='target/test-classes/extractHBaseCell.conf'/>
   <param name='morphlineVariable.ENV_ZK_HOST' value='_MYPATTERN_'/>  
+  <param name='morphlineField.forcedFoo' value='forcedBar'/>  
 </indexer>

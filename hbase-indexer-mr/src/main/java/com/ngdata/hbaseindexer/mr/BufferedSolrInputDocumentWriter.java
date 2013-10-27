@@ -19,12 +19,13 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 
 /**
  * {@code SolrInputDocumentWriter} decorator that buffers updates and then writes them in batch.

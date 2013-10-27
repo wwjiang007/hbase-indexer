@@ -97,11 +97,21 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
     public static final String MORPHLINE_ID_PARAM = "morphlineId";
 
     /**
-     * Morphline variables can be passed from the indexer definition config file to the Morphline, e.g.: <param
-     * name="morphlineVariable.zkHost" value="127.0.0.1:2181/solr"/>
+     * Morphline variables can be passed from the CLI or indexer definition config file to the Morphline, e.g.: 
+     * hadoop ... -D morphlineVariable.zkHost=127.0.0.1:2181/solr
+     * or
+     * <param name="morphlineVariable.zkHost" value="127.0.0.1:2181/solr"/>
      */
     public static final String MORPHLINE_VARIABLE_PARAM = "morphlineVariable";
 
+    /**
+     * Record fields can be passed from the CLI or indexer definition config file to the Morphline, e.g.
+     * hadoop ... -D morphlineField._attachment_mimetype=text/csv
+     * or
+     * <param name="morphlineField._attachment_mimetype" value="text/csv"/>
+     */
+    public static final String MORPHLINE_FIELD_PARAM = "morphlineField";
+    
     public static final String OUTPUT_MIME_TYPE = "application/java-hbase-result";
 
     public MorphlineResultToSolrMapper() {

@@ -25,6 +25,18 @@ import java.text.SimpleDateFormat;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.mapred.JobClient;
+import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
+import org.apache.solr.hadoop.ForkedZooKeeperInspector;
+import org.apache.solr.hadoop.MapReduceIndexerTool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
@@ -42,17 +54,6 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
 import com.ngdata.sep.impl.HBaseShims;
 import com.ngdata.sep.util.io.Closer;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
-import org.apache.solr.hadoop.ForkedZooKeeperInspector;
-import org.apache.solr.hadoop.MapReduceIndexerTool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Container for commandline options passed in for HBase Indexer, as well as a bridge to existing MapReduce index

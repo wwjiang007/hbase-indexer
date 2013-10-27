@@ -64,6 +64,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     private HBaseMorphlineContext morphlineContext;
     private Command morphline;
     private String morphlineFileAndId;
+    private final Map<String, String> forcedRecordFields = new HashMap();
     private final Collector collector = new Collector();
     private boolean isSafeMode = false; // safe but slow (debug-only)
 
@@ -121,6 +122,14 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
         Config override = ConfigFactory.parseMap(morphlineVariables);
         this.morphline = new Compiler().compile(new File(morphlineFile), morphlineId, morphlineContext, collector,
                 override);
+        
+        for (Map.Entry<String,String> entry : params.entrySet()) {     
+            String fieldPrefix = MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".";
+            if (entry.getKey().startsWith(fieldPrefix)) {
+                forcedRecordFields.put(entry.getKey().substring(fieldPrefix.length()), entry.getValue());
+            }
+        }
+        LOG.debug("Record fields passed by force to this morphline: {}", forcedRecordFields);
 
         // precompute familyMap; see DefaultResultToSolrMapper ctor
         Get get = newGet();
@@ -206,6 +215,9 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
             Record record = new Record();
             record.put(Fields.ATTACHMENT_BODY, result);
             record.put(Fields.ATTACHMENT_MIME_TYPE, MorphlineResultToSolrMapper.OUTPUT_MIME_TYPE);
+            for (Map.Entry<String, String> entry : forcedRecordFields.entrySet()) {
+                record.replaceValues(entry.getKey(), entry.getValue());
+            }
             collector.reset(solrUpdateWriter);
             try {
                 Notifications.notifyStartSession(morphline);

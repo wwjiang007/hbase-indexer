@@ -21,13 +21,25 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
+import java.util.TreeMap;
 
-import com.google.common.base.Charsets;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.io.Text;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
+import org.apache.solr.hadoop.SolrInputDocumentWritable;
+import org.apache.solr.hadoop.SolrOutputFormat;
+import org.apache.solr.hadoop.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
@@ -48,19 +60,6 @@ import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.TableMapper;
-import org.apache.hadoop.io.Text;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrServer;
-import org.apache.solr.hadoop.SolrInputDocumentWritable;
-import org.apache.solr.hadoop.SolrOutputFormat;
-import org.apache.solr.hadoop.Utils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Mapper for converting HBase Result objects into index documents.
@@ -126,6 +125,16 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         super.setup(context);
         
         Utils.getLogConfigFile(context.getConfiguration());
+        
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("CWD is {}", new File(".").getCanonicalPath());
+          TreeMap map = new TreeMap();
+          for (Map.Entry<String,String> entry : context.getConfiguration()) {
+            map.put(entry.getKey(), entry.getValue());
+          }
+          LOG.trace("Configuration:\n{}", Joiner.on("\n").join(map.entrySet()));
+        }
+
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);
         String indexConfiguration = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_KEY);
         String tableName = context.getConfiguration().get(TABLE_NAME_CONF_KEY);
@@ -166,6 +175,15 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         String morphlineId = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
         if (morphlineId != null) {
             indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+        }
+        
+        for (Map.Entry<String, String> entry : context.getConfiguration()) {
+          if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
+              indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+          }
+          if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
+              indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+          }
         }
         
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
