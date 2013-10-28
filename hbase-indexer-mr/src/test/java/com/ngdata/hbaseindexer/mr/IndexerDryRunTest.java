@@ -102,7 +102,7 @@ public class IndexerDryRunTest {
         opts = new HBaseIndexingOptions(new Configuration());
         opts.zkHost = "127.0.0.1:" + zkPort + "/solr";
         opts.hbaseTableName = Bytes.toString(TEST_TABLE_NAME);
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.collection = "collection1";
         opts.shards = 1;
         opts.reducers = 1;

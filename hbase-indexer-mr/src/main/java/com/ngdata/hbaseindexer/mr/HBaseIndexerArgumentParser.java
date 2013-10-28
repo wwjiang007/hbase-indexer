@@ -452,15 +452,15 @@ class HBaseIndexerArgumentParser {
         opts.goLiveThreads = ns.getInt(goLiveThreadsArg.getDest());
         opts.collection = ns.getString(collectionArg.getDest());
 
-        opts.hbaseIndexerConfig = (File) ns.get(hbaseIndexerConfigArg.getDest());
-        opts.indexerZkHost = ns.getString(indexerZkHostArg.getDest());
-        opts.indexerName = ns.getString(indexNameArg.getDest());
+        opts.hbaseIndexerConfigFile = (File) ns.get(hbaseIndexerConfigArg.getDest());
+        opts.hbaseIndexerZkHost = ns.getString(indexerZkHostArg.getDest());
+        opts.hbaseIndexerName = ns.getString(indexNameArg.getDest());
         opts.hbaseTableName = ns.getString(hbaseTableNameArg.getDest());
-        opts.startRow = ns.getString(startRowArg.getDest());
-        opts.endRow = ns.getString(endRowArg.getDest());
-        opts.startTimeString = ns.getString(startTimeArg.getDest());
-        opts.endTimeString = ns.getString(endTimeArg.getDest());
-        opts.timestampFormat = ns.getString(timestampFormatArg.getDest());
+        opts.hbaseStartRow = ns.getString(startRowArg.getDest());
+        opts.hbaseEndRow = ns.getString(endRowArg.getDest());
+        opts.hbaseStartTimeString = ns.getString(startTimeArg.getDest());
+        opts.hbaseEndTimeString = ns.getString(endTimeArg.getDest());
+        opts.hbaseTimestampFormat = ns.getString(timestampFormatArg.getDest());
 
         try {
             try {

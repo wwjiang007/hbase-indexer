@@ -66,20 +66,20 @@ class HBaseIndexingOptions extends OptionsBridge {
     static final String DEFAULT_INDEXER_NAME = "_default_";
 
     private Configuration conf;
-    private Scan scan;
-    private IndexingSpecification indexingSpecification;
+    private Scan hbaseScan;
+    private IndexingSpecification hbaseIndexingSpecification;
     // Flag that we have created our own output directory
     private boolean generatedOutputDir = false;
 
-    public String indexerZkHost;
-    public String indexerName = DEFAULT_INDEXER_NAME;
-    public File hbaseIndexerConfig;
+    public String hbaseIndexerZkHost;
+    public String hbaseIndexerName = DEFAULT_INDEXER_NAME;
+    public File hbaseIndexerConfigFile;
     public String hbaseTableName;
-    public String startRow;
-    public String endRow;
-    public String startTimeString;
-    public String endTimeString;
-    public String timestampFormat;
+    public String hbaseStartRow;
+    public String hbaseEndRow;
+    public String hbaseStartTimeString;
+    public String hbaseEndTimeString;
+    public String hbaseTimestampFormat;
     public boolean overwriteOutputDir;
 
     public HBaseIndexingOptions(Configuration conf) {
@@ -97,17 +97,17 @@ class HBaseIndexingOptions extends OptionsBridge {
     }
 
     public Scan getScan() {
-        if (scan == null) {
+        if (hbaseScan == null) {
             throw new IllegalStateException("Scan has not yet been evaluated");
         }
-        return scan;
+        return hbaseScan;
     }
 
     public IndexingSpecification getIndexingSpecification() {
-        if (indexingSpecification == null) {
+        if (hbaseIndexingSpecification == null) {
             throw new IllegalStateException("Indexing specification has not yet been evaluated");
         }
-        return indexingSpecification;
+        return hbaseIndexingSpecification;
     }
 
     /**
@@ -136,7 +136,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 throw new IllegalStateException(
                     "Output directory should not be specified if direct-write or dry-run are enabled");
             }
-            if (zkHost == null && (indexerName == null || indexerZkHost == null)) {
+            if (zkHost == null && (hbaseIndexerName == null || hbaseIndexerZkHost == null)) {
                 throw new IllegalStateException(
                     "--zk-host must be specified if --reducers is 0 or --dry-run is enabled");
             }
@@ -165,22 +165,22 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     @VisibleForTesting
     void evaluateScan() {
-        this.scan = new Scan();
-        scan.setCacheBlocks(false);
-        scan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
+        this.hbaseScan = new Scan();
+        hbaseScan.setCacheBlocks(false);
+        hbaseScan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
 
-        if (startRow != null) {
-            scan.setStartRow(Bytes.toBytesBinary(startRow));
-            LOG.debug("Starting row scan at " + startRow);
+        if (hbaseStartRow != null) {
+            hbaseScan.setStartRow(Bytes.toBytesBinary(hbaseStartRow));
+            LOG.debug("Starting row scan at " + hbaseStartRow);
         }
 
-        if (endRow != null) {
-            scan.setStopRow(Bytes.toBytesBinary(endRow));
-            LOG.debug("Stopping row scan at " + endRow);
+        if (hbaseEndRow != null) {
+            hbaseScan.setStopRow(Bytes.toBytesBinary(hbaseEndRow));
+            LOG.debug("Stopping row scan at " + hbaseEndRow);
         }
         
-        Long startTime = evaluateTimestamp(startTimeString, timestampFormat);
-        Long endTime = evaluateTimestamp(endTimeString, timestampFormat);
+        Long startTime = evaluateTimestamp(hbaseStartTimeString, hbaseTimestampFormat);
+        Long endTime = evaluateTimestamp(hbaseEndTimeString, hbaseTimestampFormat);
 
         if (startTime != null || endTime != null) {
             long scanStartTime = 0L;
@@ -194,7 +194,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 LOG.debug("Setting scan end of time range to " + endTime);
             }
             try {
-                scan.setTimeRange(scanStartTime, scanEndTime);
+                hbaseScan.setTimeRange(scanStartTime, scanEndTime);
             } catch (IOException e) {
                 // In reality an IOE will never be thrown here
                 throw new RuntimeException(e);
@@ -203,14 +203,14 @@ class HBaseIndexingOptions extends OptionsBridge {
 
         // Only scan the column families and/or cells that the indexer requires
         // if we're running in row-indexing mode
-        IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(indexingSpecification.getIndexConfigXml().getBytes()));
+        IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(hbaseIndexingSpecification.getIndexConfigXml().getBytes()));
         if (indexerConf.getMappingType() == MappingType.ROW) {
             ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
-                        indexingSpecification.getIndexerName(),
+                        hbaseIndexingSpecification.getIndexerName(),
                         indexerConf,
-                        indexingSpecification.getIndexConnectionParams());
+                        hbaseIndexingSpecification.getIndexConnectionParams());
             Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
-            scan.setFamilyMap(get.getFamilyMap());
+            hbaseScan.setFamilyMap(get.getFamilyMap());
         }
 
     }
@@ -335,17 +335,17 @@ class HBaseIndexingOptions extends OptionsBridge {
         String indexerConfigXml = null;
         Map<String,String> indexConnectionParams = Maps.newHashMap();
 
-        if (indexerZkHost != null) {
+        if (hbaseIndexerZkHost != null) {
 
-            if (indexerName == null) {
+            if (hbaseIndexerName == null) {
                 throw new IllegalStateException("--hbase-indexer-name must be supplied if --hbase-indexer-zk is specified");
             }
 
             StateWatchingZooKeeper zk = null;
             try {
-                zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
+                zk = new StateWatchingZooKeeper(hbaseIndexerZkHost, 30000);
                 IndexerModelImpl indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
-                IndexerDefinition indexerDefinition = indexerModel.getIndexer(indexerName);
+                IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexerName);
                 byte[] indexConfigBytes = indexerDefinition.getConfiguration();
                 tableName = getTableNameFromConf(new ByteArrayInputStream(indexConfigBytes));
                 indexerConfigXml = Bytes.toString(indexConfigBytes);
@@ -360,7 +360,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 }
                 indexerModel.stop();
             } catch (IndexerNotFoundException infe) {
-                throw new IllegalStateException("Indexer " + indexerName + " doesn't exist");
+                throw new IllegalStateException("Indexer " + hbaseIndexerName + " doesn't exist");
             } catch (Exception e) {
                 // We won't bother trying to do any recovery here if things don't work out,
                 // so we just throw the wrapped exception up the stack
@@ -369,7 +369,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 Closer.close(zk);
             }
         } else {
-            if (hbaseIndexerConfig == null) {
+            if (hbaseIndexerConfigFile == null) {
                 throw new IllegalStateException(
                         "--hbase-indexer-file must be specified if --hbase-indexer-zk is not specified");
             }
@@ -386,12 +386,12 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
 
 
-        if (this.hbaseIndexerConfig != null) {
+        if (this.hbaseIndexerConfigFile != null) {
             try {
-                indexerConfigXml = Files.toString(hbaseIndexerConfig, Charsets.UTF_8);
-                tableName = getTableNameFromConf(new FileInputStream(hbaseIndexerConfig));
+                indexerConfigXml = Files.toString(hbaseIndexerConfigFile, Charsets.UTF_8);
+                tableName = getTableNameFromConf(new FileInputStream(hbaseIndexerConfigFile));
             } catch (IOException e) {
-                throw new RuntimeException("Error loading " + hbaseIndexerConfig, e);
+                throw new RuntimeException("Error loading " + hbaseIndexerConfigFile, e);
             }
         }
 
@@ -413,14 +413,14 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        if (indexerName == null) {
-            indexerName = DEFAULT_INDEXER_NAME;
+        if (hbaseIndexerName == null) {
+            hbaseIndexerName = DEFAULT_INDEXER_NAME;
         }
 
 
-        this.indexingSpecification = new IndexingSpecification(
+        this.hbaseIndexingSpecification = new IndexingSpecification(
                                             tableName,
-                                            indexerName,
+                                            hbaseIndexerName,
                                             indexerConfigXml,
                                             indexConnectionParams);
     }

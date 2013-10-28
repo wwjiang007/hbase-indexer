@@ -133,7 +133,7 @@ public class HBaseMapReduceIndexerToolTest {
         opts = new HBaseIndexingOptions(new Configuration());
         opts.zkHost = "127.0.0.1:" + zkPort + "/solr";
         opts.hbaseTableName = Bytes.toString(TEST_TABLE_NAME);
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.collection = "collection1";
         opts.shards = 1;
         opts.reducers = 1;
@@ -233,7 +233,7 @@ public class HBaseMapReduceIndexerToolTest {
                                 "lastname", "Doe"));
         
         opts.reducers = 0;
-        opts.hbaseIndexerConfig = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
+        opts.hbaseIndexerConfigFile = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
         opts.morphlineFile = new File("src/test/resources/extractHBaseCell.conf");
         opts.morphlineId = "morphline1";
         indexerToolConf.set("morphlineField.forcedMoo", "forcedBaz");
@@ -252,7 +252,7 @@ public class HBaseMapReduceIndexerToolTest {
         
         opts.isDryRun = true;
         opts.reducers = 0;
-        opts.hbaseIndexerConfig = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
+        opts.hbaseIndexerConfigFile = substituteZkHost(new File("target/test-classes/morphline_indexer.xml"));
         opts.morphlineFile = new File("src/test/resources/extractHBaseCell.conf");
         opts.morphlineId = "morphline1";
         indexerToolConf.set("morphlineField.forcedMoo", "forcedBaz");
@@ -298,7 +298,7 @@ public class HBaseMapReduceIndexerToolTest {
         writeHBaseRecord("c", ImmutableMap.of("firstname", "Carl"));
         
         opts.reducers = 0;
-        opts.startRow = "b";
+        opts.hbaseStartRow = "b";
         
         executeIndexPipeline();
         
@@ -314,7 +314,7 @@ public class HBaseMapReduceIndexerToolTest {
         writeHBaseRecord("c", ImmutableMap.of("firstname", "Carl"));
         
         opts.reducers = 0;
-        opts.endRow = "c";
+        opts.hbaseEndRow = "c";
         
         executeIndexPipeline();
         
@@ -329,8 +329,8 @@ public class HBaseMapReduceIndexerToolTest {
         writeHBaseRecord("c", ImmutableMap.of("firstname", "Carl"));
         
         opts.reducers = 0;
-        opts.startRow = "b";
-        opts.endRow = "c";
+        opts.hbaseStartRow = "b";
+        opts.hbaseEndRow = "c";
         
         executeIndexPipeline();
         
@@ -352,7 +352,7 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.startTimeString = "2";
+        opts.hbaseStartTimeString = "2";
         
         executeIndexPipeline();
         
@@ -374,7 +374,7 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.endTimeString = "3";
+        opts.hbaseEndTimeString = "3";
         
         executeIndexPipeline();
         
@@ -396,8 +396,8 @@ public class HBaseMapReduceIndexerToolTest {
         recordTable.put(ImmutableList.of(putEarly, putOntime, putLate));
         
         opts.reducers = 0;
-        opts.startTimeString = "2";
-        opts.endTimeString = "3";
+        opts.hbaseStartTimeString = "2";
+        opts.hbaseEndTimeString = "3";
         
         executeIndexPipeline();
         
