@@ -17,6 +17,7 @@ package com.ngdata.hbaseindexer.mr;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 
@@ -48,8 +49,12 @@ import org.apache.solr.hadoop.dedup.RetainMostRecentUpdateConflictResolver;
  */
 class HBaseIndexerArgumentParser {
 
+    private static final String SHOW_NON_SOLR_CLOUD = "--showNonSolrCloud";
+
     private static final Log LOG = LogFactory.getLog(HBaseIndexerArgumentParser.class);
 
+    private boolean showNonSolrCloud = false;
+    
     /**
      * Parses the given command line arguments.
      *
@@ -65,6 +70,8 @@ class HBaseIndexerArgumentParser {
         if (args.length == 0) {
             args = new String[] { "--help" };
         }
+        
+        showNonSolrCloud = Arrays.asList(args).contains(SHOW_NON_SOLR_CLOUD); // intercept it first
         
         ArgumentParser parser = ArgumentParsers
                 .newArgumentParser("hadoop [GenericOptions]... jar hbase-indexer-mr-*-job.jar", false)
@@ -160,11 +167,11 @@ class HBaseIndexerArgumentParser {
         ArgumentGroup solrClusterInfoGroup = parser.addArgumentGroup("Solr cluster arguments")
                 .description(
                       "Arguments that provide information about your Solr cluster. "
-                    + "If you are building shards for a SolrCloud cluster, pass the --zk-host argument. "
+                    + nonSolrCloud("If you are building shards for a SolrCloud cluster, pass the --zk-host argument. "
                     + "If you are building shards for "
                     + "a Non-SolrCloud cluster, pass the --shard-url argument one or more times. To build indexes for "
                     + "a replicated Non-SolrCloud cluster with --shard-url, pass replica urls consecutively and also pass --shards. "
-                    + "Using --go-live requires either --zk-host or --shard-url.");
+                    + "Using --go-live requires either --zk-host or --shard-url."));
 
         Argument zkHostArg = solrClusterInfoGroup.addArgument("--zk-host")
                 .metavar("STRING")
@@ -187,23 +194,23 @@ class HBaseIndexerArgumentParser {
                     + "would be relative to this root - i.e. getting/setting/etc... "
                     + "'/foo/bar' would result in operations being run on "
                     + "'/solr/foo/bar' (from the server perspective).\n"
-                    + "\n"
+                    + nonSolrCloud("\n"
                     + "If --solr-home-dir is not specified, the Solr home directory for the collection "
-                    + "will be downloaded from this ZooKeeper ensemble.");
+                    + "will be downloaded from this ZooKeeper ensemble."));
 
-        Argument shardUrlsArg = solrClusterInfoGroup.addArgument("--shard-url")
+        Argument shardUrlsArg = nonSolrCloud(solrClusterInfoGroup.addArgument("--shard-url")
                 .metavar("URL")
                 .type(String.class)
                 .action(Arguments.append())
                 .help("Solr URL to merge resulting shard into if using --go-live. "
                     + "Example: http://solr001.mycompany.com:8983/solr/collection1. "
                     + "Multiple --shard-url arguments can be specified, one for each desired shard. "
-                    + "If you are merging shards into a SolrCloud cluster, use --zk-host instead.");
-
-        Argument shardsArg = solrClusterInfoGroup.addArgument("--shards")
+                    + "If you are merging shards into a SolrCloud cluster, use --zk-host instead."));
+        
+        Argument shardsArg = nonSolrCloud(solrClusterInfoGroup.addArgument("--shards")
                 .metavar("INTEGER")
                 .type(Integer.class).choices(new RangeArgumentChoice(1, Integer.MAX_VALUE))
-                .help("Number of output shards to generate.");
+                .help("Number of output shards to generate."));
 
         ArgumentGroup goLiveGroup = parser.addArgumentGroup("Go live arguments")
                 .description("Arguments for merging the shards that are built into a live Solr cluster. "
@@ -213,8 +220,8 @@ class HBaseIndexerArgumentParser {
                 .action(Arguments.storeTrue())
                 .help("Allows you to optionally merge the final index shards into a live Solr cluster after they are built. "
                     + "You can pass the ZooKeeper address with --zk-host and the relevant cluster information will be auto detected. "
-                    + "If you are not using a SolrCloud cluster, --shard-url arguments can be used to specify each SolrCore to merge "
-                    + "each shard into.");
+                    + nonSolrCloud("If you are not using a SolrCloud cluster, --shard-url arguments can be used to specify each SolrCore to merge "
+                    + "each shard into."));
 
         Argument collectionArg = goLiveGroup.addArgument("--collection")
                 .metavar("STRING")
@@ -269,9 +276,9 @@ class HBaseIndexerArgumentParser {
                         "  --reducers 0\n\n" + 
                         "# (Re)index a table based on a indexer config stored in ZK\n" +
                         "hadoop jar hbase-indexer-mr-*-job.jar \\\n" +
-                        "  --zk-host zk01/solr \\\n" +
                         "  --hbase-indexer-zk zk01 \\\n" +
-                        "  --hbase-indexer-name docindexer\n\n");
+                        "  --hbase-indexer-name docindexer \\\n" +
+                        "  --go-live\n\n");
 
                       throw new FoundHelpArgument(); // Trick to prevent processing of any remaining arguments
                     }
@@ -317,7 +324,7 @@ class HBaseIndexerArgumentParser {
                       "e.g. specified by --morphline-file. If the --morphline-id option is ommitted the first (i.e. " +
                       "top-most) morphline within the config file is used. Example: morphline1");
                 
-        Argument solrHomeDirArg = optionalGroup.addArgument("--solr-home-dir")
+        Argument solrHomeDirArg = nonSolrCloud(optionalGroup.addArgument("--solr-home-dir")
                 .metavar("DIR")
                 .type(new FileArgumentType() {
                     @Override
@@ -334,7 +341,7 @@ class HBaseIndexerArgumentParser {
                 .required(false)
                 .help("Relative or absolute path to a local dir containing Solr conf/ dir and in particular "
                     + "conf/solrconfig.xml and optionally also lib/ dir. This directory will be uploaded to each MR task. "
-                    + "Example: src/test/resources/solr/minimr");
+                    + "Example: src/test/resources/solr/minimr"));
 
         Argument updateConflictResolverArg = optionalGroup.addArgument("--update-conflict-resolver")
                 .metavar("FQCN")
@@ -372,7 +379,8 @@ class HBaseIndexerArgumentParser {
                 .metavar("INTEGER")
                 .type(Integer.class)
                 .choices(new RangeArgumentChoice(2, Integer.MAX_VALUE))
-                .setDefault(Integer.MAX_VALUE).help(FeatureControl.SUPPRESS);
+                .setDefault(Integer.MAX_VALUE)
+                .help(FeatureControl.SUPPRESS);
 
         Argument maxSegmentsArg = optionalGroup.addArgument("--max-segments")
                 .metavar("INTEGER")
@@ -418,7 +426,11 @@ class HBaseIndexerArgumentParser {
         Argument verboseArg = optionalGroup.addArgument("--verbose", "-v")
                 .action(Arguments.storeTrue())
                 .help("Turn on verbose output.");
-
+        
+        optionalGroup.addArgument(SHOW_NON_SOLR_CLOUD)
+                .action(Arguments.storeTrue())
+                .help("Also show options for Non-SolrCloud mode as part of --help.");
+    
         Namespace ns;
         try {
             ns = parser.parseArgs(args);
@@ -478,7 +490,16 @@ class HBaseIndexerArgumentParser {
 
         return null;
     }
+    
+    // make it a "hidden" option, i.e. the option is functional and enabled but not shown in --help output
+    private Argument nonSolrCloud(Argument arg) {
+        return showNonSolrCloud ? arg : arg.help(FeatureControl.SUPPRESS); 
+    }
 
+    private String nonSolrCloud(String msg) {
+        return showNonSolrCloud ? msg : "";
+    }
+  
     /**
      * Marker trick to prevent processing of any remaining arguments once --help
      * option has been parsed
