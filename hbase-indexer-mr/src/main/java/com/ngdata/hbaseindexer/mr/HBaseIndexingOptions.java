@@ -253,7 +253,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
     private void evaluateShards()  {
-        if (zkHost != null && shards == null) {
+        if (zkHost != null) {
             assert collection != null;
             ForkedZooKeeperInspector zki = new ForkedZooKeeperInspector();
             try {

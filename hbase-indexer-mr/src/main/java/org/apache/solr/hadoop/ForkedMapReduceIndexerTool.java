@@ -787,7 +787,8 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
       throw new IllegalArgumentException("updateConflictResolver must not be null");
     }
     job.getConfiguration().set(SolrReducer.UPDATE_CONFLICT_RESOLVER, options.updateConflictResolver);
-    
+    job.getConfiguration().setInt(SolrOutputFormat.SOLR_RECORD_WRITER_MAX_SEGMENTS, options.maxSegments);
+
     if (options.zkHost != null) {
       assert options.collection != null;
       /*

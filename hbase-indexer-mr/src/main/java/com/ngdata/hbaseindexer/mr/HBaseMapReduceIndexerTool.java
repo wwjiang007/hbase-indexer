@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
@@ -105,6 +106,11 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         if (hbaseIndexingOpts.fairSchedulerPool != null) {
             conf.set("mapred.fairscheduler.pool", hbaseIndexingOpts.fairSchedulerPool);
         }
+        
+        // switch off a false warning about allegedly not implementing Tool
+        // also see http://hadoop.6.n7.nabble.com/GenericOptionsParser-warning-td8103.html
+        // also see https://issues.apache.org/jira/browse/HADOOP-8183
+        getConf().setBoolean("mapred.used.genericoptionsparser", true);
 
         if (hbaseIndexingOpts.log4jConfigFile != null) {
             Utils.setLogConfigFile(hbaseIndexingOpts.log4jConfigFile, getConf());
@@ -124,6 +130,13 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                                     SolrInputDocumentWritable.class,
                                     job);
 
+        int mappers = new JobClient(job.getConfiguration()).getClusterStatus().getMaxMapTasks(); // MR1
+        //mappers = job.getCluster().getClusterStatus().getMapSlotCapacity(); // Yarn only
+        LOG.info("Cluster reports {} mapper slots", mappers);
+
+        LOG.info("Using these parameters: " +
+            "reducers: {}, shards: {}, fanout: {}, maxSegments: {}",
+            new Object[] {hbaseIndexingOpts.reducers, hbaseIndexingOpts.shards, hbaseIndexingOpts.fanout, hbaseIndexingOpts.maxSegments});
 
         if (hbaseIndexingOpts.isDirectWrite()) {
             // Run a mapper-only MR job that sends index documents directly to a live Solr instance.

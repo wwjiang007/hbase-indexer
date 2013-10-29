@@ -137,6 +137,7 @@ public class HBaseMapReduceIndexerToolTest {
         opts.collection = "collection1";
         opts.shards = 1;
         opts.reducers = 1;
+        opts.maxSegments = 1;
         opts.fanout = Integer.MAX_VALUE;
        
         opts.updateConflictResolver = RetainMostRecentUpdateConflictResolver.class.getName();
