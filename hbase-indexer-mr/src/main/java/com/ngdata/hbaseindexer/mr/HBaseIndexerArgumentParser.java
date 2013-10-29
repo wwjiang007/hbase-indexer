@@ -65,7 +65,7 @@ class HBaseIndexerArgumentParser {
         if (args.length == 0) {
             args = new String[] { "--help" };
         }
-
+        
         ArgumentParser parser = ArgumentParsers
                 .newArgumentParser("hadoop [GenericOptions]... jar hbase-indexer-mr-*-job.jar", false)
                 .defaultHelp(true)
@@ -73,12 +73,12 @@ class HBaseIndexerArgumentParser {
                         "MapReduce batch job driver that takes input data from an HBase table and creates Solr index shards and writes the " +
                         "indexes into HDFS, in a flexible, scalable, and fault-tolerant manner. It also supports merging the output shards " +
                         "into a set of live customer-facing Solr servers in SolrCloud. Optionally, documents can be sent directly from the " + 
-                        "mapper tasks to SolrCloud. The program proceeds in one or multiple " +
-                        "consecutive MapReduce-based phases, as follows:\n\n" +
+                        "mapper tasks to SolrCloud, which is a much less scalable approach but enables updating existing documents in SolrCloud. " +
+                        "The program proceeds in one or multiple consecutive MapReduce-based phases, as follows:\n\n" +
                         "1) Mapper phase: This (parallel) phase scans over the input HBase table, extracts the relevant content, and " +
                         "transforms it into SolrInputDocuments. If run as a mapper-only job, this phase also writes the SolrInputDocuments " +
                         "directly to a live SolrCloud cluster. The conversion from HBase records into Solr documents is performed via a " +
-                        "hbase-indexer configuration.\n\n" +
+                        "hbase-indexer configuration and typically based on a morphline.\n\n" +
                         "2) Reducer phase: This (parallel) phase loads the mapper's SolrInputDocuments into one EmbeddedSolrServer per reducer. " +
                         "Each such reducer and Solr server can be seen as a (micro) shard. The Solr servers store their data in HDFS.\n\n" +
                         "3) Mapper-only merge phase: This (parallel) phase merges the set of reducer shards into the number of " +
@@ -94,7 +94,142 @@ class HBaseIndexerArgumentParser {
                         );
                         
 
-        parser.addArgument("--help", "-help", "-h").help("Show this help message and exit")
+        ArgumentGroup hbaseIndexerGroup = parser.addArgumentGroup("HBase Indexer parameters")
+                .description("Parameters for specifying the HBase indexer definition and/or where it should be loaded from.");
+
+        Argument indexerZkHostArg = hbaseIndexerGroup.addArgument("--hbase-indexer-zk")
+                .metavar("STRING")
+                .help("The address of the ZooKeeper ensemble from which to fetch the indexer definition named --hbase-indexer-name. "
+                    + "Format is: a list of comma separated host:port pairs, each corresponding to a zk server. "
+                    + "Example: '127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183'");
+
+        Argument indexNameArg = hbaseIndexerGroup.addArgument("--hbase-indexer-name")
+                .metavar("STRING")
+                .help("The name of the indexer configuration to fetch from the ZooKeeper ensemble specified "
+                    + "with --hbase-indexer-zk. Example: myIndexer");
+
+        Argument hbaseIndexerConfigArg = hbaseIndexerGroup.addArgument("--hbase-indexer-file")
+                .metavar("FILE")
+                .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
+                .help("Relative or absolute path to a local HBase indexer XML configuration file. If "
+                    + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name. "
+                    + "Example: /path/to/morphline-hbase-mapper.xml");
+
+        ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("HBase scan parameters")
+                .description("Parameters for specifying what data is included while reading from HBase.");
+
+        Argument hbaseTableNameArg = scanArgumentGroup.addArgument("--hbase-table-name")
+                .metavar("STRING")
+                .help("Optional name of the HBase table containing the records to be indexed. If "
+                    + "supplied, this overrides the value from the --hbase-indexer-* options. "
+                    + "Example: myTable");
+
+        Argument startRowArg = scanArgumentGroup.addArgument("--hbase-start-row")
+                .metavar("BINARYSTRING")
+                .help("Binary string representation of start row from which to start indexing (inclusive). "
+                    + "The format of the supplied row key should use two-digit hex values prefixed by "
+                    + "\\x for non-ascii characters (e.g. 'row\\x00'). The semantics of this "
+                    + "argument are the same as those for the HBase Scan#setStartRow method. "
+                    + "The default is to include the first row of the table. Example: AAAA");
+
+        Argument endRowArg = scanArgumentGroup.addArgument("--hbase-end-row")
+                .metavar("BINARYSTRING")
+                .help("Binary string representation of end row prefix at which to stop indexing (exclusive). "
+                    + "See the description of --hbase-start-row for more information. "
+                    + "The default is to include the last row of the table. Example: CCCC");
+
+        Argument startTimeArg = scanArgumentGroup.addArgument("--hbase-start-time")
+                .metavar("STRING")
+                .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing. "
+                    + "The default is to include all cells. Example: 0");
+
+        Argument endTimeArg = scanArgumentGroup.addArgument("--hbase-end-time")
+                .metavar("STRING")
+                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing. "
+                    + "The default is to include all cells. Example: 123456789");
+        
+        Argument timestampFormatArg = scanArgumentGroup.addArgument("--hbase-timestamp-format")
+                .metavar("STRING")
+                .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end-time. " +
+                      "This is a java.text.SimpleDateFormat compliant format (see " +
+                      "http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html). " +
+                      "If this parameter is omitted then the timestamps are interpreted as number of " +
+                      "milliseconds since the standard epoch (Unix time). " +
+                      "Example: yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+
+        ArgumentGroup solrClusterInfoGroup = parser.addArgumentGroup("Solr cluster arguments")
+                .description(
+                      "Arguments that provide information about your Solr cluster. "
+                    + "If you are building shards for a SolrCloud cluster, pass the --zk-host argument. "
+                    + "If you are building shards for "
+                    + "a Non-SolrCloud cluster, pass the --shard-url argument one or more times. To build indexes for "
+                    + "a replicated Non-SolrCloud cluster with --shard-url, pass replica urls consecutively and also pass --shards. "
+                    + "Using --go-live requires either --zk-host or --shard-url.");
+
+        Argument zkHostArg = solrClusterInfoGroup.addArgument("--zk-host")
+                .metavar("STRING")
+                .type(String.class)
+                .help("The address of a ZooKeeper ensemble being used by a SolrCloud cluster. "
+                    + "This ZooKeeper ensemble will be examined to determine the number of output "
+                    + "shards to create as well as the Solr URLs to merge the output shards into when using the --go-live option. "
+                    + "Requires that you also pass the --collection to merge the shards into.\n"
+                    + "\n"
+                    + "The --zk-host option implements the same partitioning semantics as the standard SolrCloud "
+                    + "Near-Real-Time (NRT) API. This enables to mix batch updates from MapReduce ingestion with "
+                    + "updates from standard Solr NRT ingestion on the same SolrCloud cluster, "
+                    + "using identical unique document keys.\n"
+                    + "\n"
+                    + "Format is: a list of comma separated host:port pairs, each corresponding to a zk "
+                    + "server. Example: '127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183' If "
+                    + "the optional chroot suffix is used the example would look "
+                    + "like: '127.0.0.1:2181/solr,127.0.0.1:2182/solr,127.0.0.1:2183/solr' "
+                    + "where the client would be rooted at '/solr' and all paths "
+                    + "would be relative to this root - i.e. getting/setting/etc... "
+                    + "'/foo/bar' would result in operations being run on "
+                    + "'/solr/foo/bar' (from the server perspective).\n"
+                    + "\n"
+                    + "If --solr-home-dir is not specified, the Solr home directory for the collection "
+                    + "will be downloaded from this ZooKeeper ensemble.");
+
+        Argument shardUrlsArg = solrClusterInfoGroup.addArgument("--shard-url")
+                .metavar("URL")
+                .type(String.class)
+                .action(Arguments.append())
+                .help("Solr URL to merge resulting shard into if using --go-live. "
+                    + "Example: http://solr001.mycompany.com:8983/solr/collection1. "
+                    + "Multiple --shard-url arguments can be specified, one for each desired shard. "
+                    + "If you are merging shards into a SolrCloud cluster, use --zk-host instead.");
+
+        Argument shardsArg = solrClusterInfoGroup.addArgument("--shards")
+                .metavar("INTEGER")
+                .type(Integer.class).choices(new RangeArgumentChoice(1, Integer.MAX_VALUE))
+                .help("Number of output shards to generate.");
+
+        ArgumentGroup goLiveGroup = parser.addArgumentGroup("Go live arguments")
+                .description("Arguments for merging the shards that are built into a live Solr cluster. "
+                          + "Also see the Cluster arguments.");
+
+        Argument goLiveArg = goLiveGroup.addArgument("--go-live")
+                .action(Arguments.storeTrue())
+                .help("Allows you to optionally merge the final index shards into a live Solr cluster after they are built. "
+                    + "You can pass the ZooKeeper address with --zk-host and the relevant cluster information will be auto detected. "
+                    + "If you are not using a SolrCloud cluster, --shard-url arguments can be used to specify each SolrCore to merge "
+                    + "each shard into.");
+
+        Argument collectionArg = goLiveGroup.addArgument("--collection")
+                .metavar("STRING")
+                .help("The SolrCloud collection to merge shards into when using --go-live and --zk-host. Example: collection1");
+
+        Argument goLiveThreadsArg = goLiveGroup.addArgument("--go-live-threads")
+                .metavar("INTEGER")
+                .type(Integer.class)
+                .choices(new RangeArgumentChoice(1, Integer.MAX_VALUE))
+                .setDefault(1000)
+                .help("Tuning knob that indicates the maximum number of live merges to run in parallel at one time.");
+
+        ArgumentGroup optionalGroup = parser.addArgumentGroup("Optional arguments");
+
+        optionalGroup.addArgument("--help", "-help", "-h").help("Show this help message and exit")
                 .action(new HelpArgumentAction() {
                     @Override
                     public void run(ArgumentParser parser, Argument arg, Map<String, Object> attrs, String flag, Object value) throws ArgumentParserException {
@@ -142,7 +277,7 @@ class HBaseIndexerArgumentParser {
                     }
                   });
 
-        Argument outputDirArg = parser.addArgument("--output-dir")
+        Argument outputDirArg = optionalGroup.addArgument("--output-dir")
                 .metavar("HDFS_URI")
                 .type(new PathArgumentType(conf) {
                     @Override
@@ -163,26 +298,26 @@ class HBaseIndexerArgumentParser {
                 .help("HDFS directory to write Solr indexes to. Inside there one output directory per shard will be generated. "
                     + "Example: hdfs://c2202.mycompany.com/user/$USER/test");
         
-        Argument overwriteOutputDirArg = parser.addArgument("--overwrite-output-dir")
+        Argument overwriteOutputDirArg = optionalGroup.addArgument("--overwrite-output-dir")
                 .action(Arguments.storeTrue())
                 .help("Overwrite the output directory if it already exists. Using this parameter will result in " +
                       "the output directory being recursively deleted at job startup.");
 
-        Argument morphlineFileArg = parser.addArgument("--morphline-file")
+        Argument morphlineFileArg = optionalGroup.addArgument("--morphline-file")
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Relative or absolute path to a local config file that contains one or more morphlines. " +
                       "The file must be UTF-8 encoded. The file will be uploaded to each MR task. " +
                       "Example: /path/to/morphlines.conf");
               
-        Argument morphlineIdArg = parser.addArgument("--morphline-id")
+        Argument morphlineIdArg = optionalGroup.addArgument("--morphline-id")
                 .metavar("STRING")
                 .type(String.class)
                 .help("The identifier of the morphline that shall be executed within the morphline config file, " +
                       "e.g. specified by --morphline-file. If the --morphline-id option is ommitted the first (i.e. " +
                       "top-most) morphline within the config file is used. Example: morphline1");
                 
-        Argument solrHomeDirArg = parser.addArgument("--solr-home-dir")
+        Argument solrHomeDirArg = optionalGroup.addArgument("--solr-home-dir")
                 .metavar("DIR")
                 .type(new FileArgumentType() {
                     @Override
@@ -201,7 +336,7 @@ class HBaseIndexerArgumentParser {
                     + "conf/solrconfig.xml and optionally also lib/ dir. This directory will be uploaded to each MR task. "
                     + "Example: src/test/resources/solr/minimr");
 
-        Argument updateConflictResolverArg = parser.addArgument("--update-conflict-resolver")
+        Argument updateConflictResolverArg = optionalGroup.addArgument("--update-conflict-resolver")
                 .metavar("FQCN")
                 .type(String.class)
                 .setDefault(RetainMostRecentUpdateConflictResolver.class.getName())
@@ -216,7 +351,7 @@ class HBaseIndexerArgumentParser {
                     + "The default RetainMostRecentUpdateConflictResolver implementation ignores all but the most recent document "
                     + "version, based on a configurable numeric Solr field, which defaults to the file_last_modified timestamp");
 
-        Argument reducersArg = parser.addArgument("--reducers")
+        Argument reducersArg = optionalGroup.addArgument("--reducers")
                 .metavar("INTEGER")
                 .type(Integer.class)
                 .choices(new RangeArgumentChoice(-2, Integer.MAX_VALUE))
@@ -233,13 +368,13 @@ class HBaseIndexerArgumentParser {
                     + "merges the output of said large number of reducers to the number of shards expected by the user, "
                     + "again by utilizing more available parallelism on the cluster.");
 
-        Argument fanoutArg = parser.addArgument("--fanout")
+        Argument fanoutArg = optionalGroup.addArgument("--fanout")
                 .metavar("INTEGER")
                 .type(Integer.class)
                 .choices(new RangeArgumentChoice(2, Integer.MAX_VALUE))
                 .setDefault(Integer.MAX_VALUE).help(FeatureControl.SUPPRESS);
 
-        Argument maxSegmentsArg = parser.addArgument("--max-segments")
+        Argument maxSegmentsArg = optionalGroup.addArgument("--max-segments")
                 .metavar("INTEGER")
                 .type(Integer.class)
                 .choices(new RangeArgumentChoice(1, Integer.MAX_VALUE))
@@ -255,7 +390,7 @@ class HBaseIndexerArgumentParser {
                     + "In a nutshell, a small maxSegments value trades indexing latency for subsequently improved query latency. "
                     + "This can be a reasonable trade-off for batch indexing systems.");
 
-        Argument fairSchedulerPoolArg = parser.addArgument("--fair-scheduler-pool")
+        Argument fairSchedulerPoolArg = optionalGroup.addArgument("--fair-scheduler-pool")
                 .metavar("STRING")
                 .help("Optional tuning knob that indicates the name of the fair scheduler pool to submit jobs to. "
                     + "The Fair Scheduler is a pluggable MapReduce scheduler that provides a way to share large clusters. "
@@ -268,153 +403,21 @@ class HBaseIndexerArgumentParser {
                     + "job priorities - the priorities are used as weights to determine the fraction of total compute time "
                     + "that each job gets.");
 
-        Argument dryRunArg = parser.addArgument("--dry-run")
+        Argument dryRunArg = optionalGroup.addArgument("--dry-run")
                 .action(Arguments.storeTrue())
                 .help("Run in local mode and print documents to stdout instead of loading them into Solr. This executes "
                     + "the morphline in the client process (without submitting a job to MR) for quicker turnaround during "
                     + "early trial & debug sessions.");
 
-        Argument log4jConfigFileArg = parser.addArgument("--log4j")
+        Argument log4jConfigFileArg = optionalGroup.addArgument("--log4j")
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Relative or absolute path to a log4j.properties config file on the local file system. This file "
                     + "will be uploaded to each MR task. Example: /path/to/log4j.properties");
 
-        Argument verboseArg = parser.addArgument("--verbose", "-v")
+        Argument verboseArg = optionalGroup.addArgument("--verbose", "-v")
                 .action(Arguments.storeTrue())
                 .help("Turn on verbose output.");
-
-        ArgumentGroup solrClusterInfoGroup = parser.addArgumentGroup("Solr cluster arguments")
-                .description(
-                      "Arguments that provide information about your Solr cluster. "
-                    + "If you are not using --go-live, pass the --shards argument. If you are building shards for "
-                    + "a Non-SolrCloud cluster, pass the --shard-url argument one or more times. To build indexes for "
-                    + "a replicated cluster with --shard-url, pass replica urls consecutively and also pass --shards. "
-                    + "If you are building shards for a SolrCloud cluster, pass the --zk-host argument. "
-                    + "Using --go-live requires either --shard-url or --zk-host.");
-
-        Argument shardUrlsArg = solrClusterInfoGroup.addArgument("--shard-url")
-                .metavar("URL")
-                .type(String.class)
-                .action(Arguments.append())
-                .help("Solr URL to merge resulting shard into if using --go-live. "
-                    + "Example: http://solr001.mycompany.com:8983/solr/collection1. "
-                    + "Multiple --shard-url arguments can be specified, one for each desired shard. "
-                    + "If you are merging shards into a SolrCloud cluster, use --zk-host instead.");
-
-        Argument zkHostArg = solrClusterInfoGroup.addArgument("--zk-host")
-                .metavar("STRING")
-                .type(String.class)
-                .help("The address of a ZooKeeper ensemble being used by a SolrCloud cluster. "
-                    + "This ZooKeeper ensemble will be examined to determine the number of output "
-                    + "shards to create as well as the Solr URLs to merge the output shards into when using the --go-live option. "
-                    + "Requires that you also pass the --collection to merge the shards into.\n"
-                    + "\n"
-                    + "The --zk-host option implements the same partitioning semantics as the standard SolrCloud "
-                    + "Near-Real-Time (NRT) API. This enables to mix batch updates from MapReduce ingestion with "
-                    + "updates from standard Solr NRT ingestion on the same SolrCloud cluster, "
-                    + "using identical unique document keys.\n"
-                    + "\n"
-                    + "Format is: a list of comma separated host:port pairs, each corresponding to a zk "
-                    + "server. Example: '127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183' If "
-                    + "the optional chroot suffix is used the example would look "
-                    + "like: '127.0.0.1:2181/solr,127.0.0.1:2182/solr,127.0.0.1:2183/solr' "
-                    + "where the client would be rooted at '/solr' and all paths "
-                    + "would be relative to this root - i.e. getting/setting/etc... "
-                    + "'/foo/bar' would result in operations being run on "
-                    + "'/solr/foo/bar' (from the server perspective).\n"
-                    + "\n"
-                    + "If --solr-home-dir is not specified, the Solr home directory for the collection "
-                    + "will be downloaded from this ZooKeeper ensemble.");
-
-        Argument shardsArg = solrClusterInfoGroup.addArgument("--shards")
-                .metavar("INTEGER")
-                .type(Integer.class).choices(new RangeArgumentChoice(1, Integer.MAX_VALUE))
-                .help("Number of output shards to generate.");
-
-        ArgumentGroup goLiveGroup = parser.addArgumentGroup("Go live arguments")
-                .description("Arguments for merging the shards that are built into a live Solr cluster. "
-                          + "Also see the Cluster arguments.");
-
-        Argument goLiveArg = goLiveGroup.addArgument("--go-live")
-                .action(Arguments.storeTrue())
-                .help("Allows you to optionally merge the final index shards into a live Solr cluster after they are built. "
-                    + "You can pass the ZooKeeper address with --zk-host and the relevant cluster information will be auto detected. "
-                    + "If you are not using a SolrCloud cluster, --shard-url arguments can be used to specify each SolrCore to merge "
-                    + "each shard into.");
-
-        Argument collectionArg = goLiveGroup.addArgument("--collection")
-                .metavar("STRING")
-                .help("The SolrCloud collection to merge shards into when using --go-live and --zk-host. Example: collection1");
-
-        Argument goLiveThreadsArg = goLiveGroup.addArgument("--go-live-threads")
-                .metavar("INTEGER")
-                .type(Integer.class)
-                .choices(new RangeArgumentChoice(1, Integer.MAX_VALUE))
-                .setDefault(1000)
-                .help("Tuning knob that indicates the maximum number of live merges to run in parallel at one time.");
-
-        ArgumentGroup hbaseIndexerGroup = parser.addArgumentGroup("HBase Indexer parameters")
-                .description("Parameters for specifying the HBase indexer definition and/or where it should be loaded from.");
-
-        Argument indexerZkHostArg = hbaseIndexerGroup.addArgument("--hbase-indexer-zk")
-                .metavar("STRING")
-                .help("The address of the ZooKeeper ensemble from which to fetch the indexer definition named --hbase-indexer-name. "
-                    + "Format is: a list of comma separated host:port pairs, each corresponding to a zk server. "
-                    + "Example: '127.0.0.1:2181,127.0.0.1:2182,127.0.0.1:2183'");
-
-        Argument indexNameArg = hbaseIndexerGroup.addArgument("--hbase-indexer-name")
-                .metavar("STRING")
-                .help("Name of the indexer configuration to run in MapReduce mode. Example: myIndexer");
-
-        Argument hbaseIndexerConfigArg = hbaseIndexerGroup.addArgument("--hbase-indexer-file")
-                .metavar("FILE")
-                .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
-                .help("Relative or absolute path to a local HBase indexer XML configuration file. If "
-                    + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name. "
-                    + "Example: /path/to/morphline-hbase-mapper.xml");
-
-        Argument hbaseTableNameArg = hbaseIndexerGroup.addArgument("--hbase-table-name")
-                .metavar("STRING")
-                .help("Optional name of the HBase table containing the records to be indexed. If "
-                    + "supplied, this overrides the value from the --hbase-indexer-* options. "
-                    + "Example: myTable");
-
-        ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("Scan parameters")
-                .description("Parameters for specifying what data is included while reading from HBase.");
-
-        Argument startRowArg = scanArgumentGroup.addArgument("--hbase-start-row")
-                .metavar("BINARYSTRING")
-                .help("Binary string representation of start row from which to start indexing (inclusive). "
-                    + "The format of the supplied row key should use two-digit hex values prefixed by "
-                    + "\\x for non-ascii characters (e.g. 'row\\x00'). The semantics of this "
-                    + "argument are the same as those for the HBase Scan#setStartRow method. "
-                    + "The default is to include the first row of the table. Example: AAAA");
-
-        Argument endRowArg = scanArgumentGroup.addArgument("--hbase-end-row")
-                .metavar("BINARYSTRING")
-                .help("Binary string representation of end row prefix at which to stop indexing (exclusive). "
-                    + "See the description of --hbase-start-row for more information. "
-                    + "The default is to include the last row of the table. Example: CCCC");
-
-        Argument startTimeArg = scanArgumentGroup.addArgument("--hbase-start-time")
-                .metavar("STRING")
-                .help("Earliest timestamp (inclusive) in time range of HBase cells to be included for indexing. "
-                    + "The default is to include all cells. Example: 0");
-
-        Argument endTimeArg = scanArgumentGroup.addArgument("--hbase-end-time")
-                .metavar("STRING")
-                .help("Latest timestamp (exclusive) of HBase cells to be included for indexing. "
-                    + "The default is to include all cells. Example: 123456789");
-        
-        Argument timestampFormatArg = scanArgumentGroup.addArgument("--hbase-timestamp-format")
-                .metavar("STRING")
-                .help("Timestamp format to be used to interpret --hbase-start-time and --hbase-end-time. " +
-                      "This is a java.text.SimpleDateFormat compliant format (see " +
-                      "http://docs.oracle.com/javase/6/docs/api/java/text/SimpleDateFormat.html). " +
-                      "If this parameter is omitted then the timestamps are interpreted as number of " +
-                      "milliseconds since the standard epoch (Unix time). " +
-                      "Example: yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 
         Namespace ns;
         try {
