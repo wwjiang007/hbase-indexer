@@ -31,7 +31,7 @@ import com.google.common.base.Preconditions;
  * the parameter contained in this class may come from a combination of ZooKeeper
  * and/or command-line arguments.
  */
-public class IndexingSpecification {
+class IndexingSpecification {
     
     private final String tableName;
     

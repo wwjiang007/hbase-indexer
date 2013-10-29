@@ -37,7 +37,7 @@ import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
  * <p>
  * <b>WARNING:</b> this class is not thread-safe, and instances should only be accessed by a single thread.
  */
-public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter {
+class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter {
 
     private final SolrInputDocumentWriter delegateWriter;
     private final int bufferSize;

@@ -54,7 +54,7 @@ import com.ngdata.sep.util.io.Closer;
  * The purpose of this class is to allow for quickly debugging indexing
  * before actually writing it to
  */
-public class IndexerDryRun {
+class IndexerDryRun {
     
     private static final Logger LOG = LoggerFactory.getLogger(IndexerDryRun.class);
 

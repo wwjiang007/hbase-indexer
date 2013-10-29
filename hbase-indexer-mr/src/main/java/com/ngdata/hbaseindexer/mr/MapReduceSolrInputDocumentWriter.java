@@ -31,7 +31,7 @@ import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 /**
  * Writer for {@code SolrInputDocument}s in a MapReduce context.
  */
-public class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter {
+class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter {
     
     private Context context;
     

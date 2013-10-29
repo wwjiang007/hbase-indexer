@@ -213,7 +213,7 @@ public abstract class Indexer {
                 } else {
                     IdAddingSolrUpdateWriter idAddingUpdateWriter = new IdAddingSolrUpdateWriter(
                                                                             conf.getUniqueKeyField(),
-                                                                            uniqueKeyFormatter.formatRow(rowData.getRow()),
+                                                                            documentId,
                                                                             conf.getTableNameField(),
                                                                             tableName,
                                                                             updateCollector);
