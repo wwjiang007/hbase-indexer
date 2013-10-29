@@ -72,8 +72,8 @@ public class IndexerDryRunTest {
         SOLR_TEST_UTILITY = new SolrTestingUtility(zkClientPort, NetUtils.getFreePort());
         SOLR_TEST_UTILITY.start();
         SOLR_TEST_UTILITY.uploadConfig("config1",
-                Resources.toByteArray(Resources.getResource(HBaseMapReduceIndexerToolTest.class, "schema.xml")),
-                Resources.toByteArray(Resources.getResource(HBaseMapReduceIndexerToolTest.class, "solrconfig.xml")));
+                Resources.toByteArray(Resources.getResource(HBaseMapReduceIndexerToolDirectWriteTest.class, "schema.xml")),
+                Resources.toByteArray(Resources.getResource(HBaseMapReduceIndexerToolDirectWriteTest.class, "solrconfig.xml")));
         SOLR_TEST_UTILITY.createCore("collection1_core1", "collection1", "config1", 1);
 
         COLLECTION = new CloudSolrServer(SOLR_TEST_UTILITY.getZkConnectString());
