@@ -80,6 +80,8 @@ class IndexerDryRun {
      * @return 0 if successful, non-zero otherwise
      */
     int run() {
+      
+        long programStartTime = System.currentTimeMillis();
         IndexingSpecification indexingSpec = indexingOpts.getIndexingSpecification();
         
         IndexerConf indexerConf;
@@ -145,7 +147,7 @@ class IndexerDryRun {
             Closer.close(htable);
         }
         
-        
+        ForkedMapReduceIndexerTool.goodbye(null, programStartTime);        
         return 0;
         
     }
