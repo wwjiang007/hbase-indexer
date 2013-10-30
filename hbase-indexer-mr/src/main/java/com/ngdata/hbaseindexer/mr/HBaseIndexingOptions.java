@@ -443,6 +443,16 @@ class HBaseIndexingOptions extends OptionsBridge {
             indexerConf.getGlobalParams().put(
                 MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
         }
+        
+        for (Map.Entry<String, String> entry : conf) {
+            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
+                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+            }
+            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
+                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+            }
+        }
+
         return indexerConf;
     }
 
