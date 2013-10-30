@@ -23,19 +23,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
-import com.google.common.io.Resources;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
-import com.ngdata.hbaseindexer.util.net.NetUtils;
-import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
-import com.ngdata.sep.util.io.Closer;
-import com.ngdata.sep.util.zookeeper.ZkUtil;
-import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -54,6 +41,18 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.hbaseindexer.util.net.NetUtils;
+import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
+import com.ngdata.sep.util.io.Closer;
+import com.ngdata.sep.util.zookeeper.ZkUtil;
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 
 public class HBaseMapReduceIndexerToolDirectWriteTest {
 
@@ -242,9 +241,11 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
         
         indexerToolConf.set("morphlineField.forcedMoo", "forcedBaz");
         indexerToolConf.set("morphlineVariable.myFoo", "myBar");
+        File indexerConfigFile = MRTestUtil.substituteZkHost(
+            new File("target/test-classes/morphline_indexer.xml"), SOLR_TEST_UTILITY.getZkConnectString());
         
         MR_TEST_UTIL.runTool(
-                "--hbase-indexer-file", substituteZkHost(new File("target/test-classes/morphline_indexer.xml")).toString(),
+                "--hbase-indexer-file", indexerConfigFile.toString(),
                 "--morphline-file", new File("src/test/resources/extractHBaseCell.conf").toString(),
                 "--morphline-id", "morphline1",
                 "--reducers", "0",
@@ -262,9 +263,11 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
         
         indexerToolConf.set("morphlineField.forcedMoo", "forcedBaz");
         indexerToolConf.set("morphlineVariable.myFoo", "myBar");
+        File indexerConfigFile = MRTestUtil.substituteZkHost(
+            new File("target/test-classes/morphline_indexer.xml"), SOLR_TEST_UTILITY.getZkConnectString());
         
         MR_TEST_UTIL.runTool(
-                "--hbase-indexer-file", substituteZkHost(new File("target/test-classes/morphline_indexer.xml")).toString(),
+                "--hbase-indexer-file", indexerConfigFile.toString(),
                 "--morphline-file", new File("src/test/resources/extractHBaseCell.conf").toString(),
                 "--morphline-id", "morphline1",
                 "--reducers", "0",
@@ -273,15 +276,6 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
                 "--dry-run");
         
         assertEquals(0, executeSolrQuery("firstname_s:John lastname_s:Doe").size());
-    }
-    
-    private File substituteZkHost(File file) throws IOException {
-      String str = Files.toString(file, Charsets.UTF_8);
-      str = str.replace("_MYPATTERN_", SOLR_TEST_UTILITY.getZkConnectString());
-      File tmp = File.createTempFile("tmpIndexer", ".xml");
-      tmp.deleteOnExit();
-      Files.write(str, tmp, Charsets.UTF_8);
-      return tmp;
     }
     
     @Test

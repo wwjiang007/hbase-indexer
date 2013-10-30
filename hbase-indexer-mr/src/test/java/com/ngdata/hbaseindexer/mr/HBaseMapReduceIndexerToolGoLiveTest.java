@@ -23,16 +23,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
-import com.ngdata.hbaseindexer.util.net.NetUtils;
-import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
-import com.ngdata.sep.util.io.Closer;
-import com.ngdata.sep.util.zookeeper.ZkUtil;
-import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -51,6 +41,17 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.hbaseindexer.util.net.NetUtils;
+import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
+import com.ngdata.sep.util.io.Closer;
+import com.ngdata.sep.util.zookeeper.ZkUtil;
+import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 
 public class HBaseMapReduceIndexerToolGoLiveTest {
 
@@ -227,14 +228,17 @@ public class HBaseMapReduceIndexerToolGoLiveTest {
     @Test
     public void testIndexer_Morphlines() throws Exception {
         
+        File indexerConfigFile = MRTestUtil.substituteZkHost(
+            new File(Resources.getResource("morphline_indexer.xml").toURI()), SOLR_TEST_UTILITY.getZkConnectString());
+
         MR_TEST_UTIL.runTool(
-            "--hbase-indexer-file", new File(Resources.getResource(getClass(), "user_indexer.xml").toURI()).toString(),
+            "--hbase-indexer-file", indexerConfigFile.toString(),
             "--reducers", "4",
             "--fanout", "2",
             "--zk-host", SOLR_ZK,
             "--collection", "collection1",
-            "--morphline-file", new File(Resources.getResource("morphline_indexer.xml").toURI()).toString(),
             "--log4j", new File(Resources.getResource("log4j.properties").toURI()).toString(),
+            "--go-live-threads", "999",
             "--go-live");
         
         assertEquals(RECORD_COUNT, executeSolrQuery("*:*").getNumFound());

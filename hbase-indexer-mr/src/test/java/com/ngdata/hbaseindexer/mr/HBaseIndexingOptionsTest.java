@@ -34,16 +34,16 @@ import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
 import com.ngdata.sep.util.io.Closer;
-import com.ngdata.sep.util.zookeeper.ZkConnectException;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
-import org.apache.zookeeper.KeeperException;
+import org.apache.hadoop.util.ToolRunner;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -120,7 +120,7 @@ public class HBaseIndexingOptionsTest {
     }
 
     @Before
-    public void setUp() throws ZkConnectException, InterruptedException, KeeperException {
+    public void setUp() {
         conf = new Configuration();
         opts = new HBaseIndexingOptions(conf);
     }
@@ -658,6 +658,18 @@ public class HBaseIndexingOptionsTest {
     @Test
     public void testEvaluateTimestamp_NullTimestamp() {
         assertNull(HBaseIndexingOptions.evaluateTimestamp(null, null));
+    }
+
+    @Test
+    public void testHelp() throws Exception {
+      String[] args = new String[] {"--help"};
+      assertEquals(0, ToolRunner.run(new Configuration(), new HBaseMapReduceIndexerTool(), args));
+    }
+
+    @Test
+    public void testHelpWithNonSolrCloud() throws Exception {
+      String[] args = new String[] {"--help", "--showNonSolrCloud"};
+      assertEquals(0, ToolRunner.run(new Configuration(), new HBaseMapReduceIndexerTool(), args));
     }
 
 }

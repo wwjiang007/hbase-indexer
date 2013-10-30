@@ -50,6 +50,7 @@ import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
 import com.ngdata.sep.impl.HBaseShims;
@@ -417,7 +418,6 @@ class HBaseIndexingOptions extends OptionsBridge {
             hbaseIndexerName = DEFAULT_INDEXER_NAME;
         }
 
-
         this.hbaseIndexingSpecification = new IndexingSpecification(
                                             tableName,
                                             hbaseIndexerName,
@@ -426,13 +426,24 @@ class HBaseIndexingOptions extends OptionsBridge {
     }
 
     private IndexerConf loadIndexerConf(InputStream indexerConfigInputStream) {
+        IndexerConf indexerConf;
         try {
-            return new XmlIndexerConfReader().read(indexerConfigInputStream);
+            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);       
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             Closer.close(indexerConfigInputStream);
         }
+        
+        if (morphlineFile != null) {
+            indexerConf.getGlobalParams().put(
+                MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile.getPath());
+        }
+        if (morphlineId != null) {
+            indexerConf.getGlobalParams().put(
+                MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+        }
+        return indexerConf;
     }
 
     private String getTableNameFromConf(InputStream indexerConfigInputStream) {

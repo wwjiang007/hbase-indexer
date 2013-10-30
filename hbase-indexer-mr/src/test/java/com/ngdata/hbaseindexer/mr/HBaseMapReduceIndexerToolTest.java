@@ -20,8 +20,6 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -35,6 +33,9 @@ import org.apache.solr.hadoop.ForkedTestUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
 
 public class HBaseMapReduceIndexerToolTest {
 
@@ -146,14 +147,16 @@ public class HBaseMapReduceIndexerToolTest {
         
         FileSystem fs = FileSystem.get(HBASE_TEST_UTILITY.getConfiguration());
         MR_TEST_UTIL.runTool(
-            "--hbase-indexer-file", new File(Resources.getResource(getClass(), "user_indexer.xml").toURI()).toString(),
+            "--hbase-indexer-file", new File(Resources.getResource("morphline_indexer_without_zk.xml").toURI()).toString(),
             "--solr-home-dir", MINIMR_CONF_DIR.toString(),
             "--output-dir", fs.makeQualified(new Path("/solroutput")).toString(),
             "--shards", "2",
             "--reducers", "8",
             "--fanout", "2",
-            "--morphline-file", new File(Resources.getResource("morphline_indexer.xml").toURI()).toString(),
+            "--morphline-file", new File(Resources.getResource("extractHBaseCellWithoutZk.conf").toURI()).toString(),
             "--overwrite-output-dir",
+            "--hbase-table-name", "record",
+            "--verbose",
             "--log4j", new File(Resources.getResource("log4j.properties").toURI()).toString()
             );
         
@@ -177,6 +180,7 @@ public class HBaseMapReduceIndexerToolTest {
             "--shards", "1",
             "--hbase-start-row", "row0100",
             "--hbase-end-row", "row1000",
+            "--max-segments", "2",
             "--overwrite-output-dir");
         
         ForkedTestUtils.validateSolrServerDocumentCount(

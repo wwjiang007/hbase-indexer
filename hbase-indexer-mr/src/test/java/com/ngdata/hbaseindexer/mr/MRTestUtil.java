@@ -17,12 +17,17 @@ package com.ngdata.hbaseindexer.mr;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.mapred.MiniMRCluster;
 import org.apache.hadoop.util.ToolRunner;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Files;
 
 class MRTestUtil {
     
@@ -60,6 +65,15 @@ class MRTestUtil {
             Configuration conf = hbaseTestUtil.getConfiguration();
             conf.set("mapred.job.tracker", mrCluster.createJobConf().get("mapred.job.tracker"));
         }
+    }
+    
+    public static File substituteZkHost(File file, String zkConnectString) throws IOException {
+      String str = Files.toString(file, Charsets.UTF_8);
+      str = str.replace("_MYPATTERN_", zkConnectString);
+      File tmp = File.createTempFile("tmpIndexer", ".xml");
+      tmp.deleteOnExit();
+      Files.write(str, tmp, Charsets.UTF_8);
+      return tmp;
     }
 
 }
