@@ -135,7 +135,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         if (isDirectWrite() || isDryRun) {
             if (outputDir != null) {
                 throw new IllegalStateException(
-                    "Output directory should not be specified if direct-write or dry-run are enabled");
+                    "--output-dir must not be specified if --reducers is 0 or --dry-run is enabled");
             }
             if (zkHost == null && (hbaseIndexerName == null || hbaseIndexerZkHost == null)) {
                 throw new IllegalStateException(
@@ -152,7 +152,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         } else {
             if (outputDir == null) {
-                throw new IllegalStateException("Must supply an output directory");
+                throw new IllegalStateException("Must supply --output-dir unless --go-live is enabled");
             }
         }
     }

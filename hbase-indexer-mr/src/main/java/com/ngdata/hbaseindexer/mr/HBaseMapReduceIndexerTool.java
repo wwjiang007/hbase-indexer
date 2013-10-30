@@ -32,7 +32,6 @@ import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 import org.apache.solr.hadoop.Utils;
-import org.apache.solr.hadoop.morphline.MorphlineMapRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,7 +88,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             morphlineFile = hbaseIndexingOpts.morphlineFile.getPath();
         }
         if (morphlineFile != null) {
-            conf.set(MorphlineMapRunner.MORPHLINE_FILE_PARAM, new File(morphlineFile).getName());
+            conf.set(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, new File(morphlineFile).getName());
             ForkedMapReduceIndexerTool.addDistributedCacheFile(new File(morphlineFile), conf);
         }
         
