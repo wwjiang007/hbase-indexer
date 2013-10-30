@@ -331,6 +331,7 @@ class HBaseIndexerArgumentParser {
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Relative or absolute path to a local config file that contains one or more morphlines. " +
                       "The file must be UTF-8 encoded. The file will be uploaded to each MR task. " +
+                      "If supplied, this overrides the value from the --hbase-indexer-* options. " +
                       "Example: /path/to/morphlines.conf");
               
         Argument morphlineIdArg = optionalGroup.addArgument("--morphline-id")
@@ -338,7 +339,8 @@ class HBaseIndexerArgumentParser {
                 .type(String.class)
                 .help("The identifier of the morphline that shall be executed within the morphline config file, " +
                       "e.g. specified by --morphline-file. If the --morphline-id option is ommitted the first (i.e. " +
-                      "top-most) morphline within the config file is used. Example: morphline1");
+                      "top-most) morphline within the config file is used. If supplied, this overrides the value " +
+                      "from the --hbase-indexer-* options. Example: morphline1 ");
                 
         Argument solrHomeDirArg = nonSolrCloud(optionalGroup.addArgument("--solr-home-dir")
                 .metavar("DIR")
