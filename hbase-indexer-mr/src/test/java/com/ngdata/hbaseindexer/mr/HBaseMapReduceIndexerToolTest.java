@@ -150,8 +150,12 @@ public class HBaseMapReduceIndexerToolTest {
             "--solr-home-dir", MINIMR_CONF_DIR.toString(),
             "--output-dir", fs.makeQualified(new Path("/solroutput")).toString(),
             "--shards", "2",
+            "--reducers", "8",
+            "--fanout", "2",
             "--morphline-file", new File(Resources.getResource("morphline_indexer.xml").toURI()).toString(),
-            "--overwrite-output-dir");
+            "--overwrite-output-dir",
+            "--log4j", new File(Resources.getResource("log4j.properties").toURI()).toString()
+            );
         
         ForkedTestUtils.validateSolrServerDocumentCount(
                 MINIMR_CONF_DIR,
