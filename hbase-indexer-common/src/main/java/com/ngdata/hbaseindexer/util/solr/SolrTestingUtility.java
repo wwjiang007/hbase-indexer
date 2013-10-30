@@ -22,16 +22,18 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 
-import org.apache.solr.client.solrj.SolrServer;
-
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.util.MavenUtil;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.io.FileUtils;
+import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.cloud.OnReconnect;
 import org.apache.solr.common.cloud.SolrZkClient;
@@ -56,11 +58,17 @@ public class SolrTestingUtility {
     private File solrHomeDir;
     private int zkClientPort;
     private String zkConnectString;
+    private Map<String,String> configProperties;
 
     public SolrTestingUtility(int zkClientPort, int solrPort) throws IOException {
+        this(zkClientPort, solrPort, ImmutableMap.<String,String>of());
+    }
+    
+    public SolrTestingUtility(int zkClientPort, int solrPort, Map<String,String> configProperties) throws IOException {
         this.zkClientPort = zkClientPort;
         this.zkConnectString = "localhost:" + zkClientPort + "/solr";
         this.solrPort = solrPort;
+        this.configProperties = configProperties;
     }
 
     public void start() throws Exception {
@@ -75,6 +83,10 @@ public class SolrTestingUtility {
         // Set required system properties
         System.setProperty("solr.solr.home", solrHomeDir.getAbsolutePath());
         System.setProperty("zkHost", zkConnectString);
+        
+        for (Entry<String, String> entry : configProperties.entrySet()) {
+            System.setProperty(entry.getKey().toString(), entry.getValue());
+        }
 
         // Determine location of Solr war file. The Solr war is a dependency of this project, so we should
         // be able to find it in the local maven repository.
@@ -153,6 +165,9 @@ public class SolrTestingUtility {
 
         System.getProperties().remove("solr.solr.home");
         System.getProperties().remove("zkHost");
+        for (String configPropertyKey : configProperties.keySet()) {
+            System.getProperties().remove(configPropertyKey);
+        }
     }
 
 
