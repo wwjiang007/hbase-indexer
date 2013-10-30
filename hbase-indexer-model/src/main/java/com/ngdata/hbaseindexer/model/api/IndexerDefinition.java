@@ -216,6 +216,11 @@ public class IndexerDefinition {
     public boolean equals(Object obj) {
         return EqualsBuilder.reflectionEquals(this, obj);
     }
+    
+    @Override
+    public String toString() {
+        return "Indexer '" + name + "', state=" + lifecycleState;
+    }
 
     public static enum LifecycleState {
         /**

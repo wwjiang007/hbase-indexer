@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -91,7 +92,8 @@ public class IndexerModelImplTest {
 
             // Verify that a fresh indexer model has the index
             model2 = new IndexerModelImpl(zk2, "/test");
-            assertEquals(1, model2.getIndexers().size());
+            Collection<IndexerDefinition> indexers = model2.getIndexers();
+            assertEquals("Expected indexer1, got " + indexers, 1, indexers.size());
             assertTrue(model2.hasIndexer("indexer1"));
 
             // Update the indexer -- verify INDEXER_UPDATED event
@@ -156,19 +158,20 @@ public class IndexerModelImplTest {
         ZooKeeperItf zk2 = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
         WriteableIndexerModel model1 = null;
         WriteableIndexerModel model2 = null;
+        String indexerName = "lock_test_indexer";
         try {
             model1 = new IndexerModelImpl(zk1, "/test");
             model2 = new IndexerModelImpl(zk2, "/test");
 
             // Create an index
             IndexerDefinition indexer1 = new IndexerDefinitionBuilder()
-                    .name("lock_test_indexer")
+                    .name(indexerName)
                     .configuration("foo".getBytes())
                     .build();
             model1.addIndexer(indexer1);
 
             // Lock the index via the first client
-            String lock = model1.lockIndexer("lock_test_indexer");
+            String lock = model1.lockIndexer(indexerName);
 
             // Try to update it via the second client
             indexer1 = new IndexerDefinitionBuilder()
@@ -188,6 +191,8 @@ public class IndexerModelImplTest {
             model1.updateIndexer(indexer1, lock);
 
             model1.unlockIndexer(lock);
+            
+            model1.deleteIndexerInternal(indexerName);
         } finally {
             Closer.close(model1);
             Closer.close(model2);
