@@ -15,13 +15,18 @@
  */
 package com.ngdata.hbaseindexer.uniquekey;
 
+import com.ngdata.hbaseindexer.Configurable;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
+
+import java.util.Map;
 
 public class UniqueKeyFormatterFactory {
     private Class formatterClass;
+    private Map<String,String> globalParams;
 
     public UniqueKeyFormatterFactory (IndexerConf conf) {
         this.formatterClass = conf.getUniqueKeyFormatterClass();
+        this.globalParams = conf.getGlobalParams();
     }
 
     public UniqueKeyFormatter newUniqueKeyFormatter(String tableName) {
@@ -29,6 +34,9 @@ public class UniqueKeyFormatterFactory {
             UniqueKeyFormatter uniqueKeyFormatter = (UniqueKeyFormatter)formatterClass.newInstance();
             if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
                 ((UniqueTableKeyFormatter) uniqueKeyFormatter).setTable(tableName);
+            }
+            if (uniqueKeyFormatter instanceof Configurable) {
+                ((Configurable)uniqueKeyFormatter).configure(globalParams);
             }
             return uniqueKeyFormatter;
         } catch (Exception e) {
