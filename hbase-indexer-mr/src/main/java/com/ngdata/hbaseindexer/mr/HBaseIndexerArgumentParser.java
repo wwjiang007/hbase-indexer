@@ -245,7 +245,7 @@ class HBaseIndexerArgumentParser {
                       System.out.print(ForkedToolRunnerHelpFormatter.getGenericCommandUsage());
                       System.out.println("Examples: \n\n" +
                         "# (Re)index a table in GoLive mode based on a local indexer config file\n" +
-                        "hdfs hadoop --config /etc/hbase/conf \\\n" +
+                        "hadoop --config /etc/hbase/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --hbase-indexer-file indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
@@ -255,7 +255,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" + 
                         
                         "# (Re)index a table in GoLive mode using a local morphline-based indexer config file\n" +
-                        "hdfs hadoop --config /etc/hbase/conf \\\n" +
+                        "hadoop --config /etc/hbase/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
@@ -268,7 +268,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table in GoLive mode\n" +
-                        "hdfs hadoop --config /etc/hbase/conf \\\n" +
+                        "hadoop --config /etc/hbase/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
@@ -278,7 +278,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table with direct writes to SolrCloud\n" +
-                        "hdfs hadoop --config /etc/hbase/conf \\\n" +
+                        "hadoop --config /etc/hbase/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
@@ -288,7 +288,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table based on a indexer config stored in ZK\n" +
-                        "hdfs hadoop --config /etc/hbase/conf \\\n" +
+                        "hadoop --config /etc/hbase/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --hbase-indexer-zk zk01 \\\n" +
                         "  --hbase-indexer-name docindexer \\\n" +
