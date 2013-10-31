@@ -41,7 +41,7 @@
 # Below are what we set by default.  May only work with SUN JVM.
 # For more on why as well as other possible settings,
 # see http://wiki.apache.org/hadoop/PerformanceTuning
-export HBASE_INDEXER_OPTS="-XX:+UseConcMarkSweepGC"
+export HBASE_INDEXER_OPTS="$HBASE_INDEXER_OPTS -XX:+UseConcMarkSweepGC"
 
 # Uncomment below to enable java garbage collection logging for the server-side processes
 # this enables basic gc logging for the server processes to the .out file
