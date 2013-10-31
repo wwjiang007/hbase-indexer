@@ -248,17 +248,18 @@ class HBaseIndexerArgumentParser {
                         "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
+                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-file indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
                         "  --collection docindexcollection \\\n" +
                         "  --go-live \\\n" +
-                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n" + 
                         
                         "# (Re)index a table in GoLive mode using a local morphline-based indexer config file\n" +
                         "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
+                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
                         "  --collection docindexcollection \\\n" +
@@ -266,39 +267,38 @@ class HBaseIndexerArgumentParser {
                         "  --morphline-file /path/to/morphlines.conf \\\n" +
                         "  --output-dir hdfs://c2202.mycompany.com/user/$USER/test \\\n" + 
                         "  --overwrite-output-dir \\\n" + 
-                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table in GoLive mode\n" +
                         "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
+                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
                         "  --collection docindexcollection \\\n" +
                         "  --go-live \\\n" +
-                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table with direct writes to SolrCloud\n" +
                         "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
+                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
                         "  --zk-host zk01/solr \\\n" +
                         "  --collection docindexcollection \\\n" +
                         "  --reducers 0 \\\n" +
-                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table based on a indexer config stored in ZK\n" +
                         "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
+                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-zk zk01 \\\n" +
                         "  --hbase-indexer-name docindexer \\\n" +
                         "  --go-live \\\n" +
-                        "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n"); 
 
                       throw new FoundHelpArgument(); // Trick to prevent processing of any remaining arguments
