@@ -15,8 +15,10 @@
  */
 package com.ngdata.hbaseindexer;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.master.IndexerMaster;
 import com.ngdata.hbaseindexer.model.api.IndexerProcessRegistry;
 import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
@@ -28,6 +30,8 @@ import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
 import com.ngdata.sep.SepModel;
 import com.ngdata.sep.impl.SepModelImpl;
 import com.ngdata.sep.util.io.Closer;
+import com.sun.jersey.api.core.PackagesResourceConfig;
+import com.sun.jersey.spi.container.servlet.ServletContainer;
 import com.yammer.metrics.reporting.GangliaReporter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,6 +39,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.util.Strings;
 import org.apache.hadoop.net.DNS;
+
+import org.mortbay.jetty.Connector;
+import org.mortbay.jetty.Server;
+import org.mortbay.jetty.nio.SelectChannelConnector;
+import org.mortbay.jetty.servlet.Context;
+import org.mortbay.jetty.servlet.ServletHolder;
+import org.springframework.web.context.support.GenericWebApplicationContext;
+import org.springframework.web.context.support.ServletContextResourceLoader;
+import org.springframework.web.servlet.DispatcherServlet;
+
+import javax.servlet.ServletConfig;
 
 public class Main {
     private Log log = LogFactory.getLog(getClass());
@@ -44,6 +59,7 @@ public class Main {
     private IndexerMaster indexerMaster;
     private IndexerSupervisor indexerSupervisor;
     private StateWatchingZooKeeper zk;
+    private Server server;
 
     public static void main(String[] args) throws Exception {
         new Main().run(args);
@@ -93,7 +109,35 @@ public class Main {
                                         indexerProcessRegistry, tablePool, conf);
 
         indexerSupervisor.init();
+        startHttpServer();
         
+    }
+
+    private void startHttpServer () {
+        server = new Server();
+        SelectChannelConnector selectChannelConnector = new SelectChannelConnector();
+        selectChannelConnector.setPort(11060);
+        server.setConnectors(new Connector[] { selectChannelConnector });
+
+        PackagesResourceConfig packagesResourceConfig =new PackagesResourceConfig("com/ngdata/hbaseindexer/rest");
+
+        ServletHolder servletHolder = new ServletHolder(new ServletContainer(packagesResourceConfig));
+        servletHolder.setName("HBase-Indexer");
+
+
+        Context context = new Context(server, "/", Context.NO_SESSIONS);
+        context.addServlet(servletHolder, "/*");
+        context.setContextPath("/");
+        context.setAttribute("indexerModel", indexerModel);
+        context.setAttribute("indexerSupervisor", indexerSupervisor);
+
+        server.setHandler(context);
+
+        try {
+            server.start();
+        } catch (Exception e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
     }
     
     private void setupMetrics(Configuration conf) {
@@ -107,6 +151,8 @@ public class Main {
     }
 
     public void stopServices() {
+        log.debug("Stopping HTTP server");
+        Closer.close(server);
         log.debug("Stopping indexer supervisor");
         Closer.close(indexerSupervisor);
         log.debug("Stopping indexer master");

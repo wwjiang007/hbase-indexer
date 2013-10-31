@@ -174,6 +174,11 @@ public class IndexerSupervisor {
         return indexers.keySet();
     }
 
+    public Indexer getIndexer(String name) {
+        return indexers.get(name).indexer;
+    }
+
+
     private SolrServer getSolrServer(IndexerDefinition indexerDef) throws MalformedURLException {
         if (!"solr".equals(indexerDef.getConnectionType())) {
             throw new RuntimeException("Only indexers with connectionType=solr are supported, but found type: '"

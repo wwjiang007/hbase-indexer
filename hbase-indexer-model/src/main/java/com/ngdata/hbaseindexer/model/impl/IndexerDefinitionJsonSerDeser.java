@@ -42,16 +42,24 @@ public class IndexerDefinitionJsonSerDeser {
     public static IndexerDefinitionJsonSerDeser INSTANCE = new IndexerDefinitionJsonSerDeser();
 
     public IndexerDefinitionBuilder fromJsonBytes(byte[] json) {
+        return fromJsonBytes(json, new IndexerDefinitionBuilder());
+    }
+
+    public IndexerDefinitionBuilder fromJsonBytes(byte[] json, IndexerDefinitionBuilder indexerDefinitionBuilder) {
         ObjectNode node;
         try {
             node = (ObjectNode)new ObjectMapper().readTree(new ByteArrayInputStream(json));
         } catch (IOException e) {
             throw new RuntimeException("Error parsing indexer definition JSON.", e);
         }
-        return fromJson(node);
+        return fromJson(node, indexerDefinitionBuilder);
     }
 
     public IndexerDefinitionBuilder fromJson(ObjectNode node) {
+        return fromJson(node, new IndexerDefinitionBuilder());
+    }
+
+    public IndexerDefinitionBuilder fromJson(ObjectNode node, IndexerDefinitionBuilder indexerDefinitionBuilder) {
         String name = JsonUtil.getString(node, "name");
         LifecycleState lifecycleState = LifecycleState.valueOf(JsonUtil.getString(node, "lifecycleState"));
         IncrementalIndexingState incrementalIndexingState = IncrementalIndexingState.valueOf(JsonUtil.getString(node, "incrementalIndexingState"));
@@ -110,22 +118,21 @@ public class IndexerDefinitionJsonSerDeser {
 
         int occVersion = JsonUtil.getInt(node, "occVersion");
 
-        IndexerDefinitionBuilder builder = new IndexerDefinitionBuilder();
-        builder.name(name);
-        builder.lifecycleState(lifecycleState);
-        builder.incrementalIndexingState(incrementalIndexingState);
-        builder.batchIndexingState(batchIndexingState);
-        builder.subscriptionId(queueSubscriptionId);
-        builder.subscriptionTimestamp(subscriptionTimestamp);
-        builder.configuration(configuration);
-        builder.connectionType(connectionType);
-        builder.connectionParams(connectionParams);
-        builder.activeBatchBuildInfo(activeBatchBuild);
-        builder.lastBatchBuildInfo(lastBatchBuild);
-        builder.batchIndexConfiguration(batchIndexConfiguration);
-        builder.defaultBatchIndexConfiguration(defaultBatchIndexConfiguration);
-        builder.occVersion(occVersion);
-        return builder;
+        indexerDefinitionBuilder.name(name);
+        indexerDefinitionBuilder.lifecycleState(lifecycleState);
+        indexerDefinitionBuilder.incrementalIndexingState(incrementalIndexingState);
+        indexerDefinitionBuilder.batchIndexingState(batchIndexingState);
+        indexerDefinitionBuilder.subscriptionId(queueSubscriptionId);
+        indexerDefinitionBuilder.subscriptionTimestamp(subscriptionTimestamp);
+        indexerDefinitionBuilder.configuration(configuration);
+        indexerDefinitionBuilder.connectionType(connectionType);
+        indexerDefinitionBuilder.connectionParams(connectionParams);
+        indexerDefinitionBuilder.activeBatchBuildInfo(activeBatchBuild);
+        indexerDefinitionBuilder.lastBatchBuildInfo(lastBatchBuild);
+        indexerDefinitionBuilder.batchIndexConfiguration(batchIndexConfiguration);
+        indexerDefinitionBuilder.defaultBatchIndexConfiguration(defaultBatchIndexConfiguration);
+        indexerDefinitionBuilder.occVersion(occVersion);
+        return indexerDefinitionBuilder;
     }
 
     private byte[] getByteArrayProperty(ObjectNode node, String property) {
