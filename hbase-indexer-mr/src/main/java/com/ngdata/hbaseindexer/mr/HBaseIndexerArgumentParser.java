@@ -323,7 +323,7 @@ class HBaseIndexerArgumentParser {
         
         Argument overwriteOutputDirArg = optionalGroup.addArgument("--overwrite-output-dir")
                 .action(Arguments.storeTrue())
-                .help("Overwrite the output directory if it already exists. Using this parameter will result in " +
+                .help("Overwrite the directory specified by --output-dir if it already exists. Using this parameter will result in " +
                       "the output directory being recursively deleted at job startup.");
 
         Argument morphlineFileArg = optionalGroup.addArgument("--morphline-file")
