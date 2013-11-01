@@ -250,8 +250,8 @@ class HBaseIndexerArgumentParser {
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-file indexer.xml \\\n" +
-                        "  --zk-host zk01/solr \\\n" +
-                        "  --collection docindexcollection \\\n" +
+                        "  --zk-host 127.0.0.1/solr \\\n" +
+                        "  --collection collection1 \\\n" +
                         "  --go-live \\\n" +
                         "  --log4j src/test/resources/log4j.properties\n\n" + 
                         
@@ -260,11 +260,11 @@ class HBaseIndexerArgumentParser {
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
-                        "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
-                        "  --zk-host zk01/solr \\\n" +
-                        "  --collection docindexcollection \\\n" +
+                        "  --hbase-indexer-file src/test/resources/morphline_indexer_without_zk.xml \\\n" +
+                        "  --zk-host 127.0.0.1/solr \\\n" +
+                        "  --collection collection1 \\\n" +
                         "  --go-live \\\n" +
-                        "  --morphline-file /path/to/morphlines.conf \\\n" +
+                        "  --morphline-file src/test/resources/morphlines.conf \\\n" +
                         "  --output-dir hdfs://c2202.mycompany.com/user/$USER/test \\\n" + 
                         "  --overwrite-output-dir \\\n" + 
                         "  --log4j src/test/resources/log4j.properties\n\n" +
@@ -274,9 +274,9 @@ class HBaseIndexerArgumentParser {
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
-                        "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
-                        "  --zk-host zk01/solr \\\n" +
-                        "  --collection docindexcollection \\\n" +
+                        "  --hbase-indexer-file indexer.xml \\\n" +
+                        "  --zk-host 127.0.0.1/solr \\\n" +
+                        "  --collection collection1 \\\n" +
                         "  --go-live \\\n" +
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
@@ -285,9 +285,9 @@ class HBaseIndexerArgumentParser {
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
-                        "  --hbase-indexer-file /path/to/morphline-indexer.xml \\\n" +
-                        "  --zk-host zk01/solr \\\n" +
-                        "  --collection docindexcollection \\\n" +
+                        "  --hbase-indexer-file indexer.xml \\\n" +
+                        "  --zk-host 127.0.0.1/solr \\\n" +
+                        "  --collection collection1 \\\n" +
                         "  --reducers 0 \\\n" +
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         

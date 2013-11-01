@@ -29,9 +29,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1125,70 +1122,6 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     assert additionalTmpFiles.length() > 0;
     tmpFiles += additionalTmpFiles;
     conf.set(HADOOP_TMP_FILES, tmpFiles);
-  }
-  
-  public static void setupMorphlineClasspath() throws URISyntaxException {
-    /*
-     * Ensure scripting support for Java via morphline "java" command works even in dryRun mode,
-     * i.e. when executed in the client side driver JVM. To do so, collect all classpath URLs from
-     * the class loaders chain that org.apache.hadoop.util.RunJar (hadoop jar xyz-job.jar) and
-     * org.apache.hadoop.util.GenericOptionsParser (--libjars) have installed, then tell
-     * FastJavaScriptEngine.parse() where to find classes that JavaBuilder scripts might depend on.
-     * This ensures that scripts that reference external java classes compile without exceptions
-     * like this:
-     * 
-     * ... caused by compilation failed: mfm:///MyJavaClass1.java:2: package
-     * com.cloudera.cdk.morphline.api does not exist
-     */
-    LOG.trace("dryRun: java.class.path: {}", System.getProperty("java.class.path"));
-    String fullClassPath = "";
-    ClassLoader loader = Thread.currentThread().getContextClassLoader(); // see org.apache.hadoop.util.RunJar
-    while (loader != null) { // walk class loaders, collect all classpath URLs
-      if (loader instanceof URLClassLoader) {
-        URL[] classPathPartURLs = ((URLClassLoader) loader).getURLs(); // see org.apache.hadoop.util.RunJar
-        LOG.trace("dryRun: classPathPartURLs: {}", Arrays.asList(classPathPartURLs));
-        StringBuilder classPathParts = new StringBuilder();
-        for (URL url : classPathPartURLs) {
-          File file = new File(url.toURI());
-          if (classPathPartURLs.length > 0) {
-            classPathParts.append(File.pathSeparator);
-          }
-          classPathParts.append(file.getPath());
-        }
-        LOG.trace("dryRun: classPathParts: {}", classPathParts);
-        String separator = File.pathSeparator;
-        if (fullClassPath.length() == 0 || classPathParts.length() == 0) {
-          separator = "";
-        }
-        fullClassPath = classPathParts + separator + fullClassPath;
-      }
-      loader = loader.getParent();
-    }
-    
-    // tell FastJavaScriptEngine.parse() where to find the classes that the script might depend on
-    if (fullClassPath.length() > 0) {
-      assert System.getProperty("java.class.path") != null;
-      fullClassPath = System.getProperty("java.class.path") + File.pathSeparator + fullClassPath;
-      LOG.trace("dryRun: fullClassPath: {}", fullClassPath);
-      System.setProperty("java.class.path", fullClassPath); // see FastJavaScriptEngine.parse()
-    }
-  }
-  
-  /*
-   * Executes the morphline in the current process (without submitting a job to MR) for quicker
-   * turnaround during trial & debug sessions
-   */
-  private static void dryRun(Job job, MorphlineMapRunner runner, FileSystem fs, Path fullInputList) throws IOException {
-    BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(fullInputList), "UTF-8"));
-    try {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        runner.map(line, job.getConfiguration(), null);
-      }
-      runner.cleanup();
-    } finally {
-      reader.close();
-    }
   }
   
   private static int createTreeMergeInputDirList(Job job, Path outputReduceDir, FileSystem fs, Path fullInputList)

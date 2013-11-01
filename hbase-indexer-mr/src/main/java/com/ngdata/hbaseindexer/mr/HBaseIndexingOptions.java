@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Map;
@@ -33,9 +32,9 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
-import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.ForkedZooKeeperInspector;
 import org.apache.solr.hadoop.MapReduceIndexerTool;
+import org.apache.solr.hadoop.MorphlineClasspathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -208,12 +207,8 @@ class HBaseIndexingOptions extends OptionsBridge {
         // if we're running in row-indexing mode
         IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(hbaseIndexingSpecification.getIndexConfigXml().getBytes()));
         if (indexerConf.getMappingType() == MappingType.ROW) {
-            try {
-                ForkedMapReduceIndexerTool.setupMorphlineClasspath();
-            } catch (URISyntaxException e) {
-                throw new RuntimeException("unreachable", e);
-            }
-
+            MorphlineClasspathUtil.setupJavaCompilerClasspath();
+            
             ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                         hbaseIndexingSpecification.getIndexerName(),
                         indexerConf,

@@ -19,7 +19,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +30,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
+import org.apache.solr.hadoop.MorphlineClasspathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,12 +113,8 @@ class IndexerDryRun {
             }
         }
 
-        try {
-            ForkedMapReduceIndexerTool.setupMorphlineClasspath();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException("unreachable", e);
-        }
-
+        MorphlineClasspathUtil.setupJavaCompilerClasspath();
+        
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                         indexingSpec.getIndexerName(),
                                                         indexerConf,
