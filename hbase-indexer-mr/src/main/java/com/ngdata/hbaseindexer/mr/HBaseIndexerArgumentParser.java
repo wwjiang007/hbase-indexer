@@ -245,7 +245,7 @@ class HBaseIndexerArgumentParser {
                       System.out.print(ForkedToolRunnerHelpFormatter.getGenericCommandUsage());
                       System.out.println("Examples: \n\n" +
                         "# (Re)index a table in GoLive mode based on a local indexer config file\n" +
-                        "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
+                        "hadoop --config /etc/hadoop/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
@@ -256,7 +256,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" + 
                         
                         "# (Re)index a table in GoLive mode using a local morphline-based indexer config file\n" +
-                        "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
+                        "hadoop --config /etc/hadoop/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
@@ -270,7 +270,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table in GoLive mode\n" +
-                        "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
+                        "hadoop --config /etc/hadoop/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
@@ -281,7 +281,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table with direct writes to SolrCloud\n" +
-                        "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
+                        "hadoop --config /etc/hadoop/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
@@ -292,7 +292,7 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" +
                         
                         "# (Re)index a table based on a indexer config stored in ZK\n" +
-                        "hadoop --config /etc/hadoop/conf.cloudera.MAPREDUCE-1 \\\n" +
+                        "hadoop --config /etc/hadoop/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
