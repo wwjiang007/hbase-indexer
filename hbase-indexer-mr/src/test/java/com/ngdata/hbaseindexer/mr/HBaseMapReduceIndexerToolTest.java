@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
@@ -50,6 +51,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 public class HBaseMapReduceIndexerToolTest {
 
@@ -118,11 +120,8 @@ public class HBaseMapReduceIndexerToolTest {
     
     @Before
     public void setUp() throws Exception {
-        HTableDescriptor tableDescriptor = new HTableDescriptor(TEST_TABLE_NAME);
-        tableDescriptor.addFamily(new HColumnDescriptor(TEST_COLFAM_NAME));
         HBASE_ADMIN = new HBaseAdmin(HBASE_TEST_UTILITY.getConfiguration());
-        HBASE_ADMIN.createTable(tableDescriptor);
-        
+        HTableDescriptor tableDescriptor = createHTable(TEST_TABLE_NAME);
         recordTable = new HTable(HBASE_TEST_UTILITY.getConfiguration(), TEST_TABLE_NAME);
         
         int zkPort = HBASE_TEST_UTILITY.getZkCluster().getClientPort();
@@ -137,6 +136,7 @@ public class HBaseMapReduceIndexerToolTest {
        
         opts.updateConflictResolver = RetainMostRecentUpdateConflictResolver.class.getName();
         opts.isVerbose = true;
+        opts.hBaseAdmin = HBASE_ADMIN;
     }
     
     @After
@@ -156,6 +156,14 @@ public class HBaseMapReduceIndexerToolTest {
         QueryResponse response = COLLECTION1.query(new SolrQuery("*:*"));
         assertTrue(response.getResults().isEmpty());
     }
+
+    private HTableDescriptor createHTable (byte[] tableName) throws Exception{
+        HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
+        tableDescriptor.addFamily(new HColumnDescriptor(TEST_COLFAM_NAME));
+        HBASE_ADMIN.createTable(tableDescriptor);
+
+        return tableDescriptor;
+    }
     
     /**
      * Write String values to HBase. Direct string-to-bytes encoding is used for
@@ -167,11 +175,26 @@ public class HBaseMapReduceIndexerToolTest {
      * @param qualifiersAndValues map of column qualifiers to cell values
      */
     private void writeHBaseRecord(String row, Map<String,String> qualifiersAndValues) throws IOException {
+        writeHBaseRecord(row, qualifiersAndValues, recordTable);
+    }
+
+    /**
+     * Write String values to HBase. Direct string-to-bytes encoding is used for
+     * writing all values to HBase. All values are stored in the TEST_COLFAM_NAME
+     * column family.
+     *
+     *
+     * @param row row key under which are to be stored
+     * @param qualifiersAndValues map of column qualifiers to cell values
+     * @param table htable to write to
+     */
+    private void writeHBaseRecord(String row, Map<String,String> qualifiersAndValues, HTable table) throws IOException {
         Put put = new Put(Bytes.toBytes(row));
         for (Entry<String, String> entry : qualifiersAndValues.entrySet()) {
             put.add(TEST_COLFAM_NAME, Bytes.toBytes(entry.getKey()), Bytes.toBytes(entry.getValue()));
         }
-        recordTable.put(put);
+
+        table.put(put);
     }
     
     /**
@@ -368,6 +391,38 @@ public class HBaseMapReduceIndexerToolTest {
         executeIndexPipeline();
         
         // TODO Validate output
+    }
+
+    @Test
+    public void testIndexer_Multitable() throws Exception {
+        String tablePrefix = "_multitable_";
+        HTableDescriptor descriptorA = createHTable((tablePrefix + "a_").getBytes(Charsets.UTF_8));
+        HTableDescriptor descriptorB = createHTable((tablePrefix + "b_").getBytes(Charsets.UTF_8));
+        HTable recordTable2 = new HTable(HBASE_TEST_UTILITY.getConfiguration(), tablePrefix + "a_");
+        HTable recordTable3 =  new HTable(HBASE_TEST_UTILITY.getConfiguration(), tablePrefix + "b_");
+
+        opts.hbaseTableName = tablePrefix + ".*";
+        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "multitable_indexer.xml").toURI());
+        opts.reducers = 0;
+
+        try {
+            writeHBaseRecord("row1", ImmutableMap.of(
+                    "firstname", "John",
+                    "lastname", "Doe"), recordTable2);
+            writeHBaseRecord("row2", ImmutableMap.of(
+                    "firstname", "John",
+                    "lastname", "Doe"), recordTable3);
+
+            executeIndexPipeline();
+
+            assertEquals(2, executeSolrQuery("firstname_s:John lastname_s:Doe").size());
+        } finally {
+            HBASE_ADMIN.disableTables(opts.hbaseTableName);
+            HBASE_ADMIN.deleteTables(opts.hbaseTableName);
+
+            recordTable2.close();
+            recordTable3.close();
+        }
     }
 
 }

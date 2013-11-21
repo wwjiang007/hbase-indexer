@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -48,6 +49,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.hbase.mapreduce.TableSplit;
 import org.apache.hadoop.io.Text;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
@@ -195,7 +197,16 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
         context.getCounter(HBaseIndexerCounters.INPUT_ROWS).increment(1L);
         try {
-            indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result)));
+            TableSplit tableSplit;
+            if (context.getInputSplit() instanceof TableSplit) {
+                tableSplit = (TableSplit)context.getInputSplit();
+                indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result,
+                        tableSplit.getTableName())));
+            } else {
+                throw new IOException("Input split not of type "  + TableSplit.class + " but " +
+                        context.getInputSplit().getClass());
+            }
+
         } catch (SolrServerException e) {
             // These will only be thrown through if there is an exception on the server side.
             // Document-based errors will be swallowed and the counter will be incremented

@@ -43,6 +43,11 @@ public class SepEventRowData implements RowData {
     }
 
     @Override
+    public byte[] getTable() {
+        return sepEvent.getTable();
+    }
+
+    @Override
     public List<KeyValue> getKeyValues() {
         return sepEvent.getKeyValues();
     }

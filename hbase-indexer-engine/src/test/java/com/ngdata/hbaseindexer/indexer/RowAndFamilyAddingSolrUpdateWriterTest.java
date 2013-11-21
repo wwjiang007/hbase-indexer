@@ -82,4 +82,15 @@ public class RowAndFamilyAddingSolrUpdateWriterTest {
         verify(delegateWriter).add(solrDocument);
     }
 
+    @Test
+    public void testDeleteById() {
+        RowAndFamilyAddingSolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter("_row_", null,
+                uniqueKeyFormatter, keyValue, delegateWriter);
+        byte[] rowBytes = "_row_".getBytes();
+        doReturn("_rowkey_").when(uniqueKeyFormatter).formatRow(rowBytes);
+        updateWriter.deleteById(uniqueKeyFormatter.formatRow(rowBytes));
+
+        verify(delegateWriter).deleteById("_rowkey_");
+    }
+
 }

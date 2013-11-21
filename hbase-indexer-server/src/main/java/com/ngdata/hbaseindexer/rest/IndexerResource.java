@@ -18,6 +18,7 @@ package com.ngdata.hbaseindexer.rest;
 import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
@@ -27,6 +28,7 @@ import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
 import com.ngdata.hbaseindexer.model.impl.IndexerDefinitionJsonSerDeser;
 import com.ngdata.hbaseindexer.supervisor.IndexerSupervisor;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ObjectNode;
@@ -45,6 +47,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -136,16 +139,30 @@ public class IndexerResource {
     @POST
     @Path("{name}")
     public void indexOn(@QueryParam("action") String action, @PathParam("name") String indexName,
-                        @QueryParam("id")final String rowkey) throws Exception {
+                        @QueryParam("id")final String rowkey, @QueryParam("table") String tableName) throws Exception {
         if ("index".equals(action)) {            
             Indexer indexer = getIndexerSupervisor().getIndexer(indexName);
             List<RowData> rowData = new ArrayList<RowData>();
-            rowData.add(new KeyRowData(rowkey.getBytes(Charsets.UTF_8)));
+
+            if (tableName != null || tableName.isEmpty()) {
+                tableName = fetchIndexerTableName(indexName);
+            }
+
+            rowData.add(new KeyRowData(rowkey.getBytes(Charsets.UTF_8), tableName.getBytes(Charsets.UTF_8)));
             indexer.indexRowData(rowData);            
         } else {
             throw new WebApplicationException(
                     Response.status(Response.Status.BAD_REQUEST).entity("Unsupported POST action: " + action).build());
         }
+    }
+
+    private String fetchIndexerTableName (String indexerName) throws Exception{
+        // best effort since this could be a pattern ...
+        IndexerDefinition indexerDefinition = get(indexerName);
+        String tableName = new XmlIndexerConfReader().read(
+                new ByteArrayInputStream(indexerDefinition.getConfiguration())).getTable();
+        // TODO we should fail if the table does not exist
+        return tableName;
     }
      
 
@@ -155,7 +172,7 @@ public class IndexerResource {
     @POST
     @Path("")
     public void index(@QueryParam("action") String action, @QueryParam("indexes") String commaSeparatedIndexNames,
-                      @QueryParam("id") String rowKey) throws Exception {
+                      @QueryParam("id") String rowKey, @QueryParam("table") String tableName) throws Exception {
         IndexerSupervisor indexerSupervisor = getIndexerSupervisor();
         Set<String> indexNames = parse(commaSeparatedIndexNames);
         if (indexNames.isEmpty()) {
@@ -163,7 +180,7 @@ public class IndexerResource {
         }
 
         for (String indexName : indexNames) {
-            indexOn(action, indexName, rowKey);
+            indexOn(action, indexName, rowKey, tableName);
         }
     }
 
@@ -187,8 +204,11 @@ public class IndexerResource {
     
     private static class KeyRowData implements RowData {
         private byte[] rowKey;
-        public KeyRowData(byte[] rowKey) {
-            this.rowKey = rowKey;            
+        private byte[] tableName;
+
+        public KeyRowData(byte[] rowKey, byte[] tableName) {
+            this.rowKey = rowKey;
+            this.tableName = tableName;
         }
         
         @Override
@@ -204,6 +224,11 @@ public class IndexerResource {
         @Override
         public Result toResult() {            
             return new Result(getKeyValues());
+        }
+
+        @Override
+        public byte[] getTable() {
+            return tableName;
         }
     }
 }

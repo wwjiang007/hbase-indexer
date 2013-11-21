@@ -18,11 +18,7 @@ package com.ngdata.hbaseindexer.indexer;
 import static com.ngdata.sep.impl.HBaseShims.newResult;
 import static junit.framework.Assert.assertEquals;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -32,6 +28,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
@@ -53,6 +50,8 @@ import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Matchers;
+import org.mockito.verification.VerificationMode;
 
 public class IndexingEventListenerTest {
 
@@ -70,8 +69,8 @@ public class IndexingEventListenerTest {
         tablePool = mock(HTablePool.class);
         tableA = mock(HTableInterface.class);
         tableB = mock(HTableInterface.class);
-        when(tablePool.getTable(TABLE_A)).thenReturn(tableA);
-        when(tablePool.getTable(TABLE_B)).thenReturn(tableB);
+        when(tablePool.getTable(TABLE_A.getBytes(Charsets.UTF_8))).thenReturn(tableA);
+        when(tablePool.getTable(TABLE_B.getBytes(Charsets.UTF_8))).thenReturn(tableB);
     }
 
     /**
@@ -83,7 +82,7 @@ public class IndexingEventListenerTest {
         IndexerConf conf = new IndexerConfBuilder().table(TABLE_A).build();
 
         Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, null, tablePool, solrDocumentWriter);
-        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_B), null, null, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
@@ -104,7 +103,7 @@ public class IndexingEventListenerTest {
         ResultToSolrMapper mapper = mock(ResultToSolrMapper.class);
         when(mapper.isRelevantKV(any(KeyValue.class))).thenReturn(true);
         Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
-        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
                 Bytes.toBytes("qual"), Bytes.toBytes("value")));
@@ -149,7 +148,7 @@ public class IndexingEventListenerTest {
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
 
         Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
-        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
                 Bytes.toBytes("qual"), Bytes.toBytes("val")));
@@ -174,7 +173,7 @@ public class IndexingEventListenerTest {
         when(tableA.get(any(Get.class))).thenReturn(newResult(Lists.newArrayList(new KeyValue())));
 
         Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
-        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
                 Bytes.toBytes("qual"), Bytes.toBytes("value")));
@@ -198,7 +197,7 @@ public class IndexingEventListenerTest {
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
 
         Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
-        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
                 Bytes.toBytes("qual"), Bytes.toBytes("value")));
@@ -241,7 +240,7 @@ public class IndexingEventListenerTest {
         };
 
         Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, mapper, null, solrDocumentWriter);
-        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A.getBytes());
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(
                 new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("messages"), Bytes.toBytes("msg1"),
@@ -262,5 +261,38 @@ public class IndexingEventListenerTest {
                 return (String)input.getFieldValue("id");
             }}));
         assertEquals(Sets.newHashSet("row1-messages-msg1","row1-messages-msg2"), documentIds);
+    }
+
+    @Test
+    public void testMultitableEvents() throws Exception {
+        final String tablePrefix = "_multitable_";
+        final String multiTableAName = tablePrefix + "a_";
+        final String multiTableBName = tablePrefix + "_multitable_b_";
+
+        final HTableInterface multitableA = mock(HTableInterface.class);
+        final HTableInterface multitableB = mock(HTableInterface.class);
+        when(tablePool.getTable(multiTableAName.getBytes(Charsets.UTF_8))).thenReturn(multitableA);
+        when(tablePool.getTable(multiTableBName.getBytes(Charsets.UTF_8))).thenReturn(multitableB);
+
+        final IndexerConf indexerConf = new IndexerConfBuilder().table(tablePrefix + ".*").build();
+        ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
+        Indexer indexer = Indexer.createIndexer("index name", indexerConf, tablePrefix+ ".*", mapper, tablePool, solrDocumentWriter);
+        IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, tablePrefix+ ".*");
+        List<KeyValue> kvs = Lists.newArrayList(
+                new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("messages"), Bytes.toBytes("msg1"),
+                        Bytes.toBytes("the message")), new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("messages"),
+                Bytes.toBytes("msg2"), Bytes.toBytes("another message")));
+
+        SepEvent event = new SepEvent(Bytes.toBytes(TABLE_B), null, null, null);
+        indexingEventListener.processEvents(Collections.singletonList(event));
+        verifyZeroInteractions(multitableA, multitableB, tableB, solrDocumentWriter);
+
+        event = new SepEvent(Bytes.toBytes(multiTableBName), "row1".getBytes(Charsets.UTF_8), kvs, null);
+        indexingEventListener.processEvents(Collections.singletonList(event));
+        verify(solrDocumentWriter, atLeastOnce()).add(anyMap());
+
+        event = new SepEvent(Bytes.toBytes(multiTableAName), "row1".getBytes(Charsets.UTF_8), kvs, null);
+        indexingEventListener.processEvents(Collections.singletonList(event));
+        verify(solrDocumentWriter, atLeastOnce()).add(anyMap());
     }
 }

@@ -25,11 +25,12 @@ import org.apache.hadoop.hbase.client.Result;
  * read from HBase.
  */
 public class ResultWrappingRowData implements RowData {
-    
     private final Result result;
-    
-    public ResultWrappingRowData(Result result) {
+    private byte[] tableName;
+
+    public ResultWrappingRowData(Result result, byte[] tableName) {
         this.result = result;
+        this.tableName = tableName;
     }
 
     @Override
@@ -45,6 +46,11 @@ public class ResultWrappingRowData implements RowData {
     @Override
     public Result toResult() {
         return result;
+    }
+
+    @Override
+    public byte[] getTable() {
+        return new byte[0];  //To change body of implemented methods use File | Settings | File Templates.
     }
 
 }

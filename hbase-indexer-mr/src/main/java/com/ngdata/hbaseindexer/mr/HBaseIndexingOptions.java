@@ -22,12 +22,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.ConfKeys;
@@ -44,7 +47,9 @@ import com.ngdata.sep.impl.HBaseShims;
 import com.ngdata.sep.util.io.Closer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapred.JobClient;
@@ -64,8 +69,11 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     static final String DEFAULT_INDEXER_NAME = "_default_";
 
+    @VisibleForTesting
+    protected HBaseAdmin hBaseAdmin;
+
     private Configuration conf;
-    private Scan scan;
+    private List<Scan> scans;
     private IndexingSpecification indexingSpecification;
     // Flag that we have created our own output directory
     private boolean generatedOutputDir = false;
@@ -95,11 +103,11 @@ class HBaseIndexingOptions extends OptionsBridge {
         return reducers == 0;
     }
 
-    public Scan getScan() {
-        if (scan == null) {
+    public List<Scan> getScans() {
+        if (scans == null) {
             throw new IllegalStateException("Scan has not yet been evaluated");
         }
-        return scan;
+        return scans;
     }
 
     public IndexingSpecification getIndexingSpecification() {
@@ -164,53 +172,70 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     @VisibleForTesting
     void evaluateScan() {
-        this.scan = new Scan();
-        scan.setCacheBlocks(false);
-        scan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
-
-        if (startRow != null) {
-            scan.setStartRow(Bytes.toBytesBinary(startRow));
-            LOG.debug("Starting row scan at " + startRow);
-        }
-
-        if (endRow != null) {
-            scan.setStopRow(Bytes.toBytesBinary(endRow));
-            LOG.debug("Stopping row scan at " + endRow);
-        }
-        
-        Long startTime = evaluateTimestamp(startTimeString, timestampFormat);
-        Long endTime = evaluateTimestamp(endTimeString, timestampFormat);
-
-        if (startTime != null || endTime != null) {
-            long scanStartTime = 0L;
-            long scanEndTime = Long.MAX_VALUE;
-            if (startTime != null) {
-                scanStartTime = startTime;
-                LOG.debug("Setting scan start of time range to " + startTime);
-            }
-            if (endTime != null) {
-                scanEndTime = endTime;
-                LOG.debug("Setting scan end of time range to " + endTime);
-            }
-            try {
-                scan.setTimeRange(scanStartTime, scanEndTime);
-            } catch (IOException e) {
-                // In reality an IOE will never be thrown here
-                throw new RuntimeException(e);
-            }
-        }
-
-        // Only scan the column families and/or cells that the indexer requires
-        // if we're running in row-indexing mode
+        this.scans = Lists.newArrayList();
         IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(indexingSpecification.getIndexConfigXml().getBytes()));
-        if (indexerConf.getMappingType() == MappingType.ROW) {
-            ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
+        HTableDescriptor[] tables = new HTableDescriptor[0];
+        try {
+            HBaseAdmin admin = getHbaseAdmin();
+            tables = admin.listTables(indexerConf.getTable());
+        } catch (IOException e) {
+            new RuntimeException("Error occurred fetching hbase tables", e);
+        }
+        for (HTableDescriptor descriptor : tables) {
+            Scan scan = new Scan();
+            scan.setCacheBlocks(false);
+            scan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
+
+            if (startRow != null) {
+                scan.setStartRow(Bytes.toBytesBinary(startRow));
+                LOG.debug("Starting row scan at " + startRow);
+            }
+
+            if (endRow != null) {
+                scan.setStopRow(Bytes.toBytesBinary(endRow));
+                LOG.debug("Stopping row scan at " + endRow);
+            }
+
+            Long startTime = evaluateTimestamp(startTimeString, timestampFormat);
+            Long endTime = evaluateTimestamp(endTimeString, timestampFormat);
+
+            if (startTime != null || endTime != null) {
+                long scanStartTime = 0L;
+                long scanEndTime = Long.MAX_VALUE;
+                if (startTime != null) {
+                    scanStartTime = startTime;
+                    LOG.debug("Setting scan start of time range to " + startTime);
+                }
+                if (endTime != null) {
+                    scanEndTime = endTime;
+                    LOG.debug("Setting scan end of time range to " + endTime);
+                }
+                try {
+                    scan.setTimeRange(scanStartTime, scanEndTime);
+                } catch (IOException e) {
+                    // In reality an IOE will never be thrown here
+                    throw new RuntimeException(e);
+                }
+            }
+
+            // Only scan the column families and/or cells that the indexer requires
+            // if we're running in row-indexing mode
+
+            if (indexerConf.getMappingType() == MappingType.ROW) {
+                ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                         indexingSpecification.getIndexerName(),
                         indexerConf,
                         indexingSpecification.getIndexConnectionParams());
-            Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
-            scan.setFamilyMap(get.getFamilyMap());
+                Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
+                scan.setFamilyMap(get.getFamilyMap());
+            }
+
+            scan.setAttribute(Scan.SCAN_ATTRIBUTES_TABLE_NAME, descriptor.getName());
+
+            scans.add(scan);
+
         }
+
 
     }
 
@@ -248,6 +273,13 @@ class HBaseIndexingOptions extends OptionsBridge {
             shards = shardUrls.size();
         }
 
+    }
+
+    private HBaseAdmin getHbaseAdmin() throws IOException {
+        if (hBaseAdmin == null) {
+            hBaseAdmin = new HBaseAdmin(conf);
+        }
+        return hBaseAdmin;
     }
     
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool

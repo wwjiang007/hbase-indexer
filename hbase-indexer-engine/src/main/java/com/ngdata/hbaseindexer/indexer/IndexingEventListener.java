@@ -20,9 +20,11 @@ import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -51,20 +53,21 @@ public class IndexingEventListener implements EventListener {
      * Instantiate with the underlying indexer, and the name of the table for which events are to be intercepted.
      * 
      * @param indexer indexer engine that will create index documents from incoming event data
-     * @param targetTableName name of the table for which updates are to be indexed
+     * @param targetTableNameExpression name of the table for which updates are to be indexed
      */
-    public IndexingEventListener(Indexer indexer, final byte[] targetTableName) {
+    public IndexingEventListener(Indexer indexer, final String targetTableNameExpression) {
         this.indexer = indexer;
         incomingEventsMeter = Metrics.newMeter(metricName(getClass(), "Incoming events", indexer.getName()),
                 "Rate of incoming SEP events", TimeUnit.SECONDS);
         applicableEventsMeter = Metrics.newMeter(metricName(getClass(), "Applicable events", indexer.getName()),
                 "Rate of incoming SEP events that are considered applicable", TimeUnit.SECONDS);
-        
+
+        final Pattern tableNamePattern = Pattern.compile(targetTableNameExpression);
         tableEqualityPredicate = new Predicate<SepEvent>() {
 
             @Override
             public boolean apply(@Nullable SepEvent event) {
-                return Arrays.equals(event.getTable(), targetTableName);
+                return tableNamePattern.matcher(new String(event.getTable(), Charsets.UTF_8)).matches();
             }
         };
 

@@ -19,6 +19,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Lists;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
 import org.junit.Before;
@@ -115,6 +116,15 @@ public class IdAddingSolrUpdateWriterTest {
         verify(solrDoc).addField(UNIQUE_KEY_FIELD, DOCUMENT_ID);
         verify(solrDoc).addField("tableNameField", TABLE_NAME);
         verify(updateCollector).add(DOCUMENT_ID, solrDoc);
+    }
+
+    @Test
+    public void testDeleteById() {
+        IdAddingSolrUpdateWriter updateWriter = new IdAddingSolrUpdateWriter(UNIQUE_KEY_FIELD, DOCUMENT_ID,
+                null, TABLE_NAME, updateCollector);
+        updateWriter.deleteById(DOCUMENT_ID);
+
+        verify(updateCollector).deleteById(DOCUMENT_ID);
     }
 
 }

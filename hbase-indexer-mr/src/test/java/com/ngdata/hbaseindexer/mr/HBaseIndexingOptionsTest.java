@@ -40,6 +40,8 @@ import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
@@ -49,6 +51,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 public class HBaseIndexingOptionsTest {
 
@@ -120,9 +123,15 @@ public class HBaseIndexingOptionsTest {
     }
 
     @Before
-    public void setUp() throws ZkConnectException, InterruptedException, KeeperException {
+    public void setUp() throws ZkConnectException, InterruptedException, KeeperException, IOException {
         conf = new Configuration();
         opts = new HBaseIndexingOptions(conf);
+
+        HBaseAdmin hBaseAdmin = Mockito.mock(HBaseAdmin.class);
+        Mockito.when(hBaseAdmin.listTables("record")).thenReturn(new HTableDescriptor[]{
+                new HTableDescriptor("record")
+        });
+        opts.hBaseAdmin = hBaseAdmin;
     }
     
     @Test
@@ -328,7 +337,7 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.startRow = "starthere";
         opts.evaluateScan();
-        assertArrayEquals(Bytes.toBytes("starthere"), opts.getScan().getStartRow());
+        assertArrayEquals(Bytes.toBytes("starthere"), opts.getScans().get(0).getStartRow());
     }
 
     @Test
@@ -343,7 +352,7 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.endRow = "endhere";
         opts.evaluateScan();
-        assertArrayEquals(Bytes.toBytes("endhere"), opts.getScan().getStopRow());
+        assertArrayEquals(Bytes.toBytes("endhere"), opts.getScans().get(0).getStopRow());
     }
 
     @Test
@@ -358,7 +367,7 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.startTimeString = "220777";
         opts.evaluateScan();
-        assertEquals(220777L, opts.getScan().getTimeRange().getMin());
+        assertEquals(220777L, opts.getScans().get(0).getTimeRange().getMin());
     }
 
     @Test
@@ -373,7 +382,7 @@ public class HBaseIndexingOptionsTest {
         opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.endTimeString = "220777";
         opts.evaluateScan();
-        assertEquals(220777L, opts.getScan().getTimeRange().getMax());
+        assertEquals(220777L, opts.getScans().get(0).getTimeRange().getMax());
     }
 
     @Test
@@ -390,7 +399,7 @@ public class HBaseIndexingOptionsTest {
 
         opts.evaluateScan();
 
-        Scan scan = opts.getScan();
+        Scan scan = opts.getScans().get(0);
         assertTrue(scan.getFamilyMap().containsKey(Bytes.toBytes("info")));
         // Should be firstname, lastname, age
         assertEquals(3, scan.getFamilyMap().get(Bytes.toBytes("info")).size());

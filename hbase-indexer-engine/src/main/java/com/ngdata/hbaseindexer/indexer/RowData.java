@@ -34,6 +34,13 @@ public interface RowData {
     byte[] getRow();
 
     /**
+     * Get the HBase table name the row belongs to
+     *
+     * @return the table name in bytes
+     */
+    byte[] getTable();
+
+    /**
      * Get the underlying list of {@code KeyValue}s.
      * 
      * @return underlying KeyValues

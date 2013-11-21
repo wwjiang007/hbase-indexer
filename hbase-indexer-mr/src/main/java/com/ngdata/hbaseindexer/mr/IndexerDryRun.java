@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
@@ -104,14 +105,15 @@ public class IndexerDryRun {
                                 null,
                                 documentWriter);
         
-        Scan scan = indexingOpts.getScan();
+        Scan scan = indexingOpts.getScans().get(0);
         
         HTable htable = null;
         try {
             htable = new HTable(hbaseConf, indexingSpec.getTableName());
             ResultScanner scanner = htable.getScanner(scan);
             for (Result result : scanner) {
-                indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result)));
+                indexer.indexRowData(ImmutableList.<RowData>of(new ResultWrappingRowData(result,
+                        indexingSpec.getTableName().getBytes(Charsets.UTF_8))));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

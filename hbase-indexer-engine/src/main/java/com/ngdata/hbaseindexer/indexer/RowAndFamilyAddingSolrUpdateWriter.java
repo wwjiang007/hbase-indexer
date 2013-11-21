@@ -63,5 +63,14 @@ public class RowAndFamilyAddingSolrUpdateWriter implements SolrUpdateWriter {
         
         delegateUpdateWriter.add(solrDocument);
     }
-    
+
+    @Override
+    public void deleteById(String documentId) {
+        delegateUpdateWriter.deleteById(documentId);
+    }
+
+    @Override
+    public void deleteByQuery(String query) {
+        delegateUpdateWriter.deleteByQuery(query);
+    }
 }

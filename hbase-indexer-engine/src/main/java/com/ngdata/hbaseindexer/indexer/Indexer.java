@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -33,6 +34,7 @@ import com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
+import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatterFactory;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
@@ -60,7 +62,7 @@ public abstract class Indexer {
     protected final String tableName;
     private SolrInputDocumentWriter solrWriter;
     protected ResultToSolrMapper mapper;
-    protected UniqueKeyFormatter uniqueKeyFormatter;
+    protected UniqueKeyFormatterFactory uniqueKeyFormatterFactory;
     private Timer indexingTimer;
     
 
@@ -87,11 +89,11 @@ public abstract class Indexer {
         this.tableName = tableName;
         this.mapper = mapper;
         try {
-            this.uniqueKeyFormatter = conf.getUniqueKeyFormatterClass().newInstance();
+            this.uniqueKeyFormatterFactory = new UniqueKeyFormatterFactory(conf);
         } catch (Exception e) {
             throw new RuntimeException("Problem instantiating the UniqueKeyFormatter.", e);
         }
-        ConfigureUtil.configure(uniqueKeyFormatter, conf.getGlobalParams());
+        ConfigureUtil.configure(uniqueKeyFormatterFactory, conf.getGlobalParams());
         this.solrWriter = solrWriter;
         this.indexingTimer = Metrics.newTimer(metricName(getClass(),
                                 "Index update calculation timer", indexerName),
@@ -172,12 +174,12 @@ public abstract class Indexer {
             rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         }
 
-        private Result readRow(byte[] row) throws IOException {
+        private Result readRow(RowData rowData) throws IOException {
             TimerContext timerContext = rowReadTimer.time();
             try {
-                HTableInterface table = tablePool.getTable(conf.getTable());
+                HTableInterface table = tablePool.getTable(rowData.getTable());
                 try {
-                    Get get = mapper.getGet(row);
+                    Get get = mapper.getGet(rowData.getRow());
                     return table.get(get);
                 } finally {
                     table.close();
@@ -193,11 +195,13 @@ public abstract class Indexer {
             Map<String, RowData> idToRowData = calculateUniqueEvents(rowDataList);
 
             for (RowData rowData : idToRowData.values()) {
+                String tableName = new String(rowData.getTable(), Charsets.UTF_8);
+                UniqueKeyFormatter uniqueKeyFormatter = uniqueKeyFormatterFactory.newUniqueKeyFormatter(tableName);
 
                 Result result = rowData.toResult();
                 if (conf.getRowReadMode() == RowReadMode.DYNAMIC) {
                     if (!mapper.containsRequiredData(result)) {
-                        result = readRow(rowData.getRow());
+                        result = readRow(rowData);
                     }
                 }
 
@@ -213,7 +217,7 @@ public abstract class Indexer {
                 } else {
                     IdAddingSolrUpdateWriter idAddingUpdateWriter = new IdAddingSolrUpdateWriter(
                                                                             conf.getUniqueKeyField(),
-                                                                            uniqueKeyFormatter.formatRow(rowData.getRow()),
+                                                                            documentId,
                                                                             conf.getTableNameField(),
                                                                             tableName,
                                                                             updateCollector);
@@ -228,7 +232,9 @@ public abstract class Indexer {
         private Map<String, RowData> calculateUniqueEvents(List<RowData> rowDataList) {
             Map<String, RowData> idToEvent = Maps.newHashMap();
             for (RowData rowData : rowDataList) {
-                
+                String tableName = new String(rowData.getTable(), Charsets.UTF_8);
+                UniqueKeyFormatter uniqueKeyFormatter = uniqueKeyFormatterFactory.newUniqueKeyFormatter(tableName);
+
                 // Check if the event contains changes to relevant key values
                 boolean relevant = false;
                 for (KeyValue kv : rowData.getKeyValues()) {
@@ -256,12 +262,14 @@ public abstract class Indexer {
 
         @Override
         protected void calculateIndexUpdates(List<RowData> rowDataList, SolrUpdateCollector updateCollector) throws IOException {
-            Map<String, KeyValue> idToKeyValue = calculateUniqueEvents(rowDataList);
-            for (Entry<String, KeyValue> idToKvEntry : idToKeyValue.entrySet()) {
+            Map<String, KeyValueFormatter> idToKeyValue = calculateUniqueEvents(rowDataList);
+            for (Entry<String, KeyValueFormatter> idToKvEntry : idToKeyValue.entrySet()) {
                 String documentId = idToKvEntry.getKey();
-                KeyValue keyValue = idToKvEntry.getValue();
-                if (idToKvEntry.getValue().isDelete()) {
-                    handleDelete(documentId, keyValue, updateCollector);
+
+                KeyValue keyValue = idToKvEntry.getValue().keyValue;
+                UniqueKeyFormatter uniqueKeyFormatter = idToKvEntry.getValue().uniqueKeyFormatter;
+                if (keyValue.isDelete()) {
+                    handleDelete(documentId, keyValue, updateCollector, uniqueKeyFormatter);
                 } else {
                     Result result = newResult(Collections.singletonList(keyValue));
                     SolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter(
@@ -282,14 +290,15 @@ public abstract class Indexer {
             }
         }
         
-        private void handleDelete(String documentId, KeyValue deleteKeyValue, SolrUpdateCollector updateCollector) {
+        private void handleDelete(String documentId, KeyValue deleteKeyValue, SolrUpdateCollector updateCollector,
+                                  UniqueKeyFormatter uniqueKeyFormatter) {
             byte deleteType = deleteKeyValue.getType();
             if (deleteType == KeyValue.Type.DeleteColumn.getCode()) {
                 updateCollector.deleteById(documentId);
             } else if (deleteType == KeyValue.Type.DeleteFamily.getCode()) {
-                deleteFamily(deleteKeyValue, updateCollector);
+                deleteFamily(deleteKeyValue, updateCollector, uniqueKeyFormatter);
             } else if (deleteType == KeyValue.Type.Delete.getCode()) {
-                deleteRow(deleteKeyValue, updateCollector);
+                deleteRow(deleteKeyValue, updateCollector, uniqueKeyFormatter);
             } else {
                 log.error(String.format("Unknown delete type %d for document %s, not doing anything", deleteType, documentId));
             }
@@ -298,7 +307,8 @@ public abstract class Indexer {
         /**
          * Delete all values for a single column family from Solr.
          */
-        private void deleteFamily(KeyValue deleteKeyValue, SolrUpdateCollector updateCollector) {
+        private void deleteFamily(KeyValue deleteKeyValue, SolrUpdateCollector updateCollector,
+                                  UniqueKeyFormatter uniqueKeyFormatter) {
             String rowField = conf.getRowField();
             String cfField = conf.getColumnFamilyField();
             String rowValue = uniqueKeyFormatter.formatRow(deleteKeyValue.getRow());
@@ -315,7 +325,8 @@ public abstract class Indexer {
         /**
          * Delete all values for a single row from Solr.
          */
-        private void deleteRow(KeyValue deleteKeyValue, SolrUpdateCollector updateCollector) {
+        private void deleteRow(KeyValue deleteKeyValue, SolrUpdateCollector updateCollector,
+                               UniqueKeyFormatter uniqueKeyFormatter) {
             String rowField = conf.getRowField();
             String rowValue = uniqueKeyFormatter.formatRow(deleteKeyValue.getRow());
             if (rowField != null) {
@@ -330,17 +341,29 @@ public abstract class Indexer {
         /**
          * Calculate a map of Solr document ids to KeyValue, only taking the most recent event for each document id.
          */
-        private Map<String, KeyValue> calculateUniqueEvents(List<RowData> rowDataList) {
-            Map<String, KeyValue> idToKeyValue = Maps.newHashMap();
+        private Map<String, KeyValueFormatter> calculateUniqueEvents(List<RowData> rowDataList) {
+            Map<String, KeyValueFormatter> idToKeyValue = Maps.newHashMap();
             for (RowData rowData : rowDataList) {
+                String tableName = new String(rowData.getTable(), Charsets.UTF_8);
+                UniqueKeyFormatter uniqueKeyFormatter = uniqueKeyFormatterFactory.newUniqueKeyFormatter(tableName);
+
                 for (KeyValue kv : rowData.getKeyValues()) {
                     if (mapper.isRelevantKV(kv)) {
                         String id = uniqueKeyFormatter.formatKeyValue(kv);
-                        idToKeyValue.put(id, kv);
+                        idToKeyValue.put(id, new KeyValueFormatter(kv, uniqueKeyFormatter));
                     }
                 }
             }
             return idToKeyValue;
+        }
+
+        private static class KeyValueFormatter {
+            private KeyValue keyValue;
+            private UniqueKeyFormatter uniqueKeyFormatter;
+            private KeyValueFormatter(KeyValue keyValue, UniqueKeyFormatter uniqueKeyFormatter) {
+                this.keyValue = keyValue;
+                this.uniqueKeyFormatter = uniqueKeyFormatter;
+            }
         }
 
     }

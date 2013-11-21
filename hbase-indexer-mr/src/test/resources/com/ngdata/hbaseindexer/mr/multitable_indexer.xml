@@ -1,3 +1,5 @@
+<?xml version="1.0"?>
+<!--
 /*
  * Copyright 2013 NGDATA nv
  *
@@ -13,24 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.hbaseindexer.parse;
-
-import org.apache.solr.common.SolrInputDocument;
-
-/**
- * Writes documents to a Solr server.
- */
-public interface SolrUpdateWriter {
-    
-    /**
-     * Write a single SolrInputDocument.
-     * 
-     * @param solrDocument document to be written
-     */
-    void add(SolrInputDocument solrDocument);
-
-    void deleteById(String documentId);
-
-    void deleteByQuery(String query);
-
-}
+-->
+<indexer table="_multitable_.*">
+  <field name="firstname_s" value="info:firstname"/>
+  <field name="lastname_s" value="info:lastname"/>
+  <field name="age_i" value="info:age" type="int"/>
+</indexer>

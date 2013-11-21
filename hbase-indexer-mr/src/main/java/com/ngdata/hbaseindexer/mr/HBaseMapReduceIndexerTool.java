@@ -20,6 +20,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hbase.mapreduce.MultiTableInputFormat;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -83,12 +84,11 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         }
 
         TableMapReduceUtil.initTableMapperJob(
-                                    indexingSpec.getTableName(),
-                                    hbaseIndexingOpts.getScan(),
-                                    HBaseIndexerMapper.class,
-                                    Text.class,
-                                    SolrInputDocumentWritable.class,
-                                    job);
+                hbaseIndexingOpts.getScans(),
+                HBaseIndexerMapper.class,
+                Text.class,
+                SolrInputDocumentWritable.class,
+                job);
 
 
         if (hbaseIndexingOpts.isDirectWrite()) {

@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ngdata.hbaseindexer.parse;
-
-import org.apache.solr.common.SolrInputDocument;
+package com.ngdata.hbaseindexer.uniquekey;
 
 /**
- * Writes documents to a Solr server.
+ * Format row keys into human readable form where the output contains
+ * the table name of the row in question
  */
-public interface SolrUpdateWriter {
-    
+public interface UniqueTableKeyFormatter extends UniqueKeyFormatter{
     /**
-     * Write a single SolrInputDocument.
-     * 
-     * @param solrDocument document to be written
+     * Extracts the table name from the formatted string
+     *
+     * @param value Formatted value containing the table name
+     * @return Representation of the table name
      */
-    void add(SolrInputDocument solrDocument);
+    byte[] unformatTable (String value);
 
-    void deleteById(String documentId);
+    void setTable(String tableName);
 
-    void deleteByQuery(String query);
-
+    String getTable();
 }

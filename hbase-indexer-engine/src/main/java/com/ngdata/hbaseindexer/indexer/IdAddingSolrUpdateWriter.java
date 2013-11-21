@@ -76,4 +76,13 @@ public class IdAddingSolrUpdateWriter implements SolrUpdateWriter {
         updateCollector.add(docId, solrDocument);
     }
 
+    @Override
+    public void deleteById(String documentId) {
+        updateCollector.deleteById(documentId);
+    }
+
+    @Override
+    public void deleteByQuery(String query) {
+        updateCollector.deleteByQuery(query);
+    }
 }
