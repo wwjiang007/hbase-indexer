@@ -105,27 +105,6 @@ public class DefaultResultToSolrMapperTest {
     }
 
     @Test
-    public void testMap_WithExtractDefinitions() {
-        DocumentExtractDefinition extractDefinition = new DocumentExtractDefinition("testprefix_", "cfA:qualifierA",
-                ValueSource.VALUE, "text/plain");
-        DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Collections.<FieldDefinition> emptyList(),
-                Lists.newArrayList(extractDefinition), indexSchema);
-
-        KeyValue kvA = new KeyValue(ROW, COLUMN_FAMILY_A, QUALIFIER_A, Bytes.toBytes("test value"));
-        KeyValue kvB = new KeyValue(ROW, COLUMN_FAMILY_B, QUALIFIER_B, "dummy value".getBytes());
-        Result result = newResult(Lists.newArrayList(kvA, kvB));
-
-        resultMapper.map(result, solrUpdateWriter);
-        verify(solrUpdateWriter).add(solrInputDocCaptor.capture());
-        
-        SolrInputDocument solrDocument = solrInputDocCaptor.getValue();
-
-        assertTrue(solrDocument.getFieldNames().contains("testprefix_content"));
-        assertTrue(solrDocument.getField("testprefix_content").getValues().toString().contains("test value"));
-        assertFalse(solrDocument.getField("testprefix_content").getValues().toString().contains("dummy value"));
-    }
-
-    @Test
     public void testIsRelevantKV_WithoutWildcards() {
         FieldDefinition fieldDef = new FieldDefinition("fieldA", "cf:qualifier", ValueSource.VALUE, "int");
         DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Lists.newArrayList(fieldDef),

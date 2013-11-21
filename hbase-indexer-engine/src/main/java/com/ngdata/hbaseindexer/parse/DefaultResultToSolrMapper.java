@@ -31,7 +31,6 @@ import com.google.common.collect.Lists;
 import com.ngdata.hbaseindexer.conf.DocumentExtractDefinition;
 import com.ngdata.hbaseindexer.conf.FieldDefinition;
 import com.ngdata.hbaseindexer.parse.extract.ByteArrayExtractors;
-import com.ngdata.hbaseindexer.parse.tika.TikaSolrDocumentExtractor;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
@@ -87,11 +86,7 @@ public class DefaultResultToSolrMapper implements ResultToSolrMapper {
         for (DocumentExtractDefinition extractDefinition : documentExtractDefinitions) {
             ByteArrayExtractor byteArrayExtractor = ByteArrayExtractors.getExtractor(
                     extractDefinition.getValueExpression(), extractDefinition.getValueSource());
-            
-            TikaSolrDocumentExtractor tikaDocumentExtractor = new TikaSolrDocumentExtractor(
-                    indexSchema, byteArrayExtractor, extractDefinition.getPrefix(), extractDefinition.getMimeType());
-            ConfigureUtil.configure(tikaDocumentExtractor, extractDefinition.getParams());
-            resultDocumentExtractors.add(tikaDocumentExtractor);
+
             extractors.add(byteArrayExtractor);
         }
 

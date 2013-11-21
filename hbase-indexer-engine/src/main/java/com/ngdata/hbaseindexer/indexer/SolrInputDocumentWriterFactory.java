@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
@@ -29,23 +28,22 @@ import org.apache.solr.common.SolrInputDocument;
  * Implementations of this class may write directly to Solr, or to any other underlying
  * store than can handle SolrInputDocuments.
  */
-public interface SolrInputDocumentWriter {
+public interface SolrInputDocumentWriterFactory {
 
     /**
-     * Write a collection of documents to an underlying datastore.
+     * Creates a solrInputDocumentWriter
      *
-     * @param shard
-     * @param inputDocumentMap map of document ids to {@code SolrInputDocument}s
+     * @param type the SolrInputDocumentWriter to use
      */
-    void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
+    void add(Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
 
     /**
      * Delete a list of documents from an underlying datastore (optional operation).
      */
-    void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException;
+    void deleteById(List<String> idsToDelete) throws SolrServerException, IOException;
 
     /**
-     * Has the same behavior as {@link SolrServer#deleteByQuery(String)} (optional operation).
+     * Has the same behavior as {@link org.apache.solr.client.solrj.SolrServer#deleteByQuery(String)} (optional operation).
      * 
      * @param deleteQuery delete query to be executed
      */

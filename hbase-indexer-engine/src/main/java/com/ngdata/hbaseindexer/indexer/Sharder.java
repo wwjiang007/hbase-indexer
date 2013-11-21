@@ -1,5 +1,3 @@
-<?xml version="1.0"?>
-<!--
 /*
  * Copyright 2013 NGDATA nv
  *
@@ -15,9 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
--->
-<indexer table="indexdemo-message" 
-         mapping-type="column"
-         unique-key-formatter="com.ngdata.hbaseindexer.uniquekey.HexUniqueKeyFormatter">
-  <extract value="content:*" type="text/html"/>
-</indexer>
+package com.ngdata.hbaseindexer.indexer;
+
+import org.apache.solr.common.SolrInputDocument;
+
+/**
+ * The Sharder interface. The sharder determines to which shard a document should be sent
+ */
+public interface Sharder {
+
+    public String getShard(String id) throws SharderException;
+    
+}

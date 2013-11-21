@@ -15,8 +15,6 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
-import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -33,8 +31,10 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
 
+import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+
 /**
- * Writes updates (new documents and deletes) directly to a SolrServer.
+ * Writes updates (new documents and deletes) directly to a set of SolrServer (one for each shard).
  * <p>
  * There are two main pieces of functionality that this class provides, both related to error handling in Solr:
  * <h3>Selective swallowing of errors</h3>
@@ -50,10 +50,10 @@ import org.apache.solr.common.SolrInputDocument;
  * If a single document in a batch causes an exception to be thrown that is related to the document itself, then each
  * update will be retried individually.
  */
-public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
+public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWriter {
 
     private Log log = LogFactory.getLog(getClass());
-    private SolrServer solrServer;
+    private Map<String, SolrServer> solrServers;
     private Meter indexAddMeter;
     private Meter indexDeleteMeter;
     private Meter solrAddErrorMeter;
@@ -61,9 +61,9 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
     private Meter documentAddErrorMeter;
     private Meter documentDeleteErrorMeter;
 
-    public DirectSolrInputDocumentWriter(String indexName, SolrServer solrServer) {
-        this.solrServer = solrServer;
-        
+    public DirectSolrClassicInputDocumentWriter(String indexName, Map<String, SolrServer> solrServer) {
+        this.solrServers = solrServers;
+
         indexAddMeter = Metrics.newMeter(metricName(getClass(), "Index adds", indexName), "Documents added to Solr index",
                 TimeUnit.SECONDS);
         indexDeleteMeter = Metrics.newMeter(metricName(getClass(), "Index deletes", indexName),
@@ -101,11 +101,11 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
     public void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
         Collection<SolrInputDocument> inputDocuments = inputDocumentMap.values();
         try {
-            solrServer.add(inputDocuments);
+            solrServers.get(shard).add(inputDocuments);
             indexAddMeter.mark(inputDocuments.size());
         } catch (SolrException e) {
             if (isDocumentIssue(e)) {
-                retryAddsIndividually(inputDocuments);
+                retryAddsIndividually(shard, inputDocuments);
             } else {
                 solrAddErrorMeter.mark(inputDocuments.size());
                 throw e;
@@ -116,11 +116,11 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
         }
     }
 
-    private void retryAddsIndividually(Collection<SolrInputDocument> inputDocuments) throws SolrServerException,
+    private void retryAddsIndividually(String shard, Collection<SolrInputDocument> inputDocuments) throws SolrServerException,
             IOException {
         for (SolrInputDocument inputDocument : inputDocuments) {
             try {
-                solrServer.add(inputDocument);
+                solrServers.get(shard).add(inputDocument);
                 indexAddMeter.mark();
             } catch (SolrException e) {
                 logOrThrowSolrException(e);
@@ -139,11 +139,11 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
     @Override
     public void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
         try {
-            solrServer.deleteById(idsToDelete);
+            solrServers.get(shard).deleteById(idsToDelete);
             indexDeleteMeter.mark(idsToDelete.size());
         } catch (SolrException e) {
             if (isDocumentIssue(e)) {
-                retryDeletesIndividually(idsToDelete);
+                retryDeletesIndividually(shard, idsToDelete);
             } else {
                 solrDeleteErrorMeter.mark(idsToDelete.size());
                 throw e;
@@ -154,10 +154,10 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
         }
     }
 
-    private void retryDeletesIndividually(List<String> idsToDelete) throws SolrServerException, IOException {
+    private void retryDeletesIndividually(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
         for (String idToDelete : idsToDelete) {
             try {
-                solrServer.deleteById(idToDelete);
+                solrServers.get(shard).deleteById(idToDelete);
                 indexDeleteMeter.mark();
             } catch (SolrException e) {
                 logOrThrowSolrException(e);
@@ -166,16 +166,18 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
             }
         }
     }
-    
+
     /**
-     * Has the same behavior as {@link SolrServer#deleteByQuery(String)}.
+     * Has the same behavior as {@link org.apache.solr.client.solrj.SolrServer#deleteByQuery(String)}.
      * 
      * @param deleteQuery delete query to be executed
      */
     @Override
     public void deleteByQuery(String deleteQuery) throws SolrServerException, IOException {
         try {
-            solrServer.deleteByQuery(deleteQuery);
+            for (SolrServer server: solrServers.values()) {
+                server.deleteByQuery(deleteQuery);
+            }
         } catch (SolrException e) {
             if (isDocumentIssue(e)) {
                 documentDeleteErrorMeter.mark(1);
@@ -191,7 +193,9 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
     
     @Override
     public void close() {
-        solrServer.shutdown();
+        for (SolrServer server: solrServers.values()) {
+            server.shutdown();
+        }
     }
 
 }

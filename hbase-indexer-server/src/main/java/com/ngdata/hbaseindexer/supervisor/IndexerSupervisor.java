@@ -224,7 +224,7 @@ public class IndexerSupervisor {
                                                                         indexerDef.getName(),
                                                                         getSolrServer(indexerDef));
             Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, indexerConf.getTable(),
-                                                    mapper, htablePool, solrWriter);
+                                                    mapper, htablePool, null, solrWriter);
             IndexingEventListener eventListener = new IndexingEventListener(
                                                                 indexer, indexerConf.getTable());
 

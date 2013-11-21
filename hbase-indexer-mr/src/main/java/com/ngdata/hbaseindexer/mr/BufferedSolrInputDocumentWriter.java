@@ -16,9 +16,16 @@
 package com.ngdata.hbaseindexer.mr;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
+import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
@@ -39,8 +46,9 @@ import org.apache.solr.common.SolrInputDocument;
 public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter {
 
     private final SolrInputDocumentWriter delegateWriter;
+    private int adds;
     private final int bufferSize;
-    private final Map<String, SolrInputDocument> writeBuffer;
+    private final LoadingCache<Optional<String>, Map<String, SolrInputDocument>> writeBuffers;
     private final Counter docOutputCounter;
     private final Counter docBatchCounter;
 
@@ -56,22 +64,33 @@ public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter 
             Counter documentOutputCounter, Counter documentBatchOutputCounter) {
         this.delegateWriter = delegateWriter;
         this.bufferSize = bufferSize;
-        this.writeBuffer = Maps.newHashMapWithExpectedSize(bufferSize);
+        this.adds = 0;
+        this.writeBuffers = CacheBuilder.newBuilder().build(new CacheLoader<Optional<String>, Map<String, SolrInputDocument>>() {
+            @Override
+            public Map<String, SolrInputDocument> load(Optional<String> s) throws Exception {
+                return new HashMap(BufferedSolrInputDocumentWriter.this.bufferSize);
+            }
+        });
         this.docOutputCounter = documentOutputCounter;
         this.docBatchCounter = documentBatchOutputCounter;
     }
 
     @Override
-    public void add(Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
-        writeBuffer.putAll(inputDocumentMap);
-        if (writeBuffer.size() >= bufferSize) {
+    public void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+        try {
+            writeBuffers.get(Optional.fromNullable(shard)).putAll(inputDocumentMap);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("cacheloader error", e);
+        }
+        adds += inputDocumentMap.size();
+        if (adds >= bufferSize) {
             flush();
         }
     }
 
     @Override
-    public void deleteById(List<String> idsToDelete) throws SolrServerException, IOException {
-        delegateWriter.deleteById(idsToDelete);
+    public void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
+        delegateWriter.deleteById(shard, idsToDelete);
     }
 
     @Override
@@ -83,11 +102,17 @@ public class BufferedSolrInputDocumentWriter implements SolrInputDocumentWriter 
      * Flush all buffered documents to the underlying writer.
      */
     public void flush() throws SolrServerException, IOException {
-        if (!writeBuffer.isEmpty()) {
-            delegateWriter.add(ImmutableMap.copyOf(writeBuffer));
-            docOutputCounter.increment(writeBuffer.size());
+        if (adds > 0) {
+            Map<Optional<String>, Map<String, SolrInputDocument>> maps = writeBuffers.asMap();
+            for (Map.Entry<Optional<String>, Map<String, SolrInputDocument>> entry : maps.entrySet()) {
+                if (entry.getValue().size() > 0) {
+                    delegateWriter.add(entry.getKey().orNull(), ImmutableMap.copyOf(entry.getValue()));
+                }
+            }
+            docOutputCounter.increment(adds);
             docBatchCounter.increment(1L);
-            writeBuffer.clear();
+            adds = 0;
+            writeBuffers.invalidateAll();
         }
     }
 

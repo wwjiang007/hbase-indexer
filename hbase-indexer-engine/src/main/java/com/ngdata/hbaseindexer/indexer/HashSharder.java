@@ -1,0 +1,62 @@
+/*
+ * Copyright 2013 NGDATA nv
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.ngdata.hbaseindexer.indexer;
+
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.List;
+
+import com.google.common.base.Preconditions;
+
+/**
+ * The Sharder interface. The sharder determines to which shard a document should be sent
+ *
+ * FIXME: should not use hashCode(), since hashCode can vary across jvms (although for strings it's usually ok)
+ */
+public class HashSharder implements Sharder {
+
+    private List<String> shards;
+    private MessageDigest mdAlgorithm;
+
+    public HashSharder(List<String> shards) throws NoSuchAlgorithmException {
+        Preconditions.checkArgument(shards.size() > 0, "There should be at least one shard");
+        this.shards = shards;
+        this.mdAlgorithm = MessageDigest.getInstance("MD5");
+
+    }
+
+    private long hash(String key) throws SharderException {
+        try {
+            // Cloning message digest rather than looking it up each time
+            MessageDigest md = (MessageDigest)mdAlgorithm.clone();
+            byte[] digest = md.digest(key.getBytes("UTF-8"));
+            return ((digest[0] & 0xFF) << 8) + ((digest[1] & 0xFF));
+        } catch (UnsupportedEncodingException e) {
+            throw new SharderException("Error calculating hash.", e);
+        } catch (CloneNotSupportedException e) {
+            // Sun's MD5 supports cloning, so we don't expect this to happen
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String getShard(String id) throws SharderException {
+        long a = hash(id);
+        long b = shards.size();
+        return shards.get((int)((a % b + b) % b)); // make sure we get positive values
+    }
+    
+}

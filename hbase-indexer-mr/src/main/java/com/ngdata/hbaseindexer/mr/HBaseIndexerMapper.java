@@ -36,6 +36,7 @@ import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
+import com.ngdata.hbaseindexer.indexer.SharderException;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
@@ -159,7 +160,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                     indexName, indexerConf, indexConnectionParams);
         solrDocWriter = createSolrWriter(context, indexConnectionParams);
-        indexer = Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, solrDocWriter);
+        indexer = Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, null, solrDocWriter);
     }
 
     private SolrInputDocumentWriter createSolrWriter(Context context, Map<String,String> indexConnectionParams) throws IOException {
@@ -210,6 +211,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         } catch (SolrServerException e) {
             // These will only be thrown through if there is an exception on the server side.
             // Document-based errors will be swallowed and the counter will be incremented
+            throw new RuntimeException(e);
+        } catch (SharderException e) {
             throw new RuntimeException(e);
         }
 

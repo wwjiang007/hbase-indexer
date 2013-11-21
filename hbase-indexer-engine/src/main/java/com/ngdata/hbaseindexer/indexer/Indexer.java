@@ -15,10 +15,9 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
-import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
-import static com.ngdata.sep.impl.HBaseShims.newResult;
-
+import javax.annotation.Nullable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,13 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.Table;
 import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
@@ -48,6 +53,10 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
+import org.mockito.internal.matchers.NotNull;
+
+import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+import static com.ngdata.sep.impl.HBaseShims.newResult;
 
 /**
  * The indexing algorithm. It receives an event from the SEP, handles it based on the configuration, and eventually
@@ -60,6 +69,7 @@ public abstract class Indexer {
     private String indexerName;
     protected IndexerConf conf;
     protected final String tableName;
+    private Sharder sharder;
     private SolrInputDocumentWriter solrWriter;
     protected ResultToSolrMapper mapper;
     protected UniqueKeyFormatterFactory uniqueKeyFormatterFactory;
@@ -71,19 +81,19 @@ public abstract class Indexer {
      * Instantiate an indexer based on the given {@link IndexerConf}.
      */
     public static Indexer createIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool,
-            SolrInputDocumentWriter solrWriter) {
+            Sharder sharder, SolrInputDocumentWriter solrWriter) {
         switch (conf.getMappingType()) {
         case COLUMN:
-            return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, solrWriter);
+            return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, sharder, solrWriter);
         case ROW:
-            return new RowBasedIndexer(indexerName, conf, tableName, mapper, tablePool, solrWriter);
+            return new RowBasedIndexer(indexerName, conf, tableName, mapper, tablePool, sharder, solrWriter);
         default:
             throw new IllegalStateException("Can't determine the type of indexing to use for mapping type "
                     + conf.getMappingType());
         }
     }
 
-    Indexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
+    Indexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, Sharder sharder, SolrInputDocumentWriter solrWriter) {
         this.indexerName = indexerName;
         this.conf = conf;
         this.tableName = tableName;
@@ -94,6 +104,7 @@ public abstract class Indexer {
             throw new RuntimeException("Problem instantiating the UniqueKeyFormatter.", e);
         }
         ConfigureUtil.configure(uniqueKeyFormatterFactory, conf.getGlobalParams());
+        this.sharder = sharder;
         this.solrWriter = solrWriter;
         this.indexingTimer = Metrics.newTimer(metricName(getClass(),
                                 "Index update calculation timer", indexerName),
@@ -125,7 +136,7 @@ public abstract class Indexer {
      * 
      * @param rowDataList list of RowData instances to be considered for indexing
      */
-    public void indexRowData(List<RowData> rowDataList) throws IOException, SolrServerException {
+    public void indexRowData(List<RowData> rowDataList) throws IOException, SolrServerException, SharderException {
         SolrUpdateCollector updateCollector = new SolrUpdateCollector(rowDataList.size());
         TimerContext timerContext = indexingTimer.time();
         try {
@@ -138,11 +149,28 @@ public abstract class Indexer {
                     updateCollector.getDocumentsToAdd().size(), updateCollector.getIdsToDelete().size()));
         }
 
-        if (!updateCollector.getDocumentsToAdd().isEmpty()) {
-            solrWriter.add(updateCollector.getDocumentsToAdd());
-        }
-        if (!updateCollector.getIdsToDelete().isEmpty()) {
-            solrWriter.deleteById(updateCollector.getIdsToDelete());
+        if (sharder == null) {
+            // don't shard
+            if (!updateCollector.getDocumentsToAdd().isEmpty()) {
+                solrWriter.add(null, updateCollector.getDocumentsToAdd());
+            }
+            if (!updateCollector.getIdsToDelete().isEmpty()) {
+                solrWriter.deleteById(null, updateCollector.getIdsToDelete());
+            }
+        } else {
+            // with sharding
+            if (!updateCollector.getDocumentsToAdd().isEmpty()) {
+                Map<String, Map<String, SolrInputDocument>> addsByShard = shardByMapKey(updateCollector.getDocumentsToAdd());
+                for (Map.Entry<String, Map<String, SolrInputDocument>> entry: addsByShard.entrySet()) {
+                    solrWriter.add(entry.getKey(), entry.getValue());
+                }
+            }
+            if (!updateCollector.getIdsToDelete().isEmpty()) {
+                Map<String, Collection<String>> idsByShard = shardByValue(updateCollector.getIdsToDelete());
+                for (Map.Entry<String, Collection<String>> entry: idsByShard.entrySet()) {
+                    solrWriter.deleteById(entry.getKey(), Lists.newArrayList(entry.getValue()));
+                }
+            }
         }
         
         for (String deleteQuery : updateCollector.getDeleteQueries()) {
@@ -151,7 +179,30 @@ public abstract class Indexer {
         
     }
 
-    
+    private Map<String, Map<String, SolrInputDocument>> shardByMapKey(Map<String, SolrInputDocument> documentsToAdd) throws SharderException {
+        Table<String, String, SolrInputDocument> table = HashBasedTable.create();
+
+        for (Map.Entry<String, SolrInputDocument> entry: documentsToAdd.entrySet()) {
+            table.put(sharder.getShard(entry.getKey()), entry.getKey(), entry.getValue());
+        }
+
+        return table.rowMap();
+    }
+
+    private Map<String,Collection<String>> shardByValue(List<String> idsToDelete) {
+        Multimap<String, String> map = Multimaps.index(idsToDelete, new Function<String, String>() {
+            @Override
+            public String apply(@Nullable String id) {
+                try {
+                    return sharder.getShard(id);
+                } catch (SharderException e) {
+                    throw new RuntimeException("error calculating hash", e);
+                }
+            }
+        });
+        return map.asMap();
+    }
+
     public void stop() {
         IndexerMetricsUtil.shutdownMetrics(indexerName);
     }
@@ -168,8 +219,9 @@ public abstract class Indexer {
         private HTablePool tablePool;
         private Timer rowReadTimer;
 
-        public RowBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool, SolrInputDocumentWriter solrWriter) {
-            super(indexerName, conf, tableName, mapper, solrWriter);
+        public RowBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool,
+                   Sharder sharder, SolrInputDocumentWriter solrWriter) {
+            super(indexerName, conf, tableName, mapper, sharder, solrWriter);
             this.tablePool = tablePool;
             rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         }
@@ -256,8 +308,8 @@ public abstract class Indexer {
 
     static class ColumnBasedIndexer extends Indexer {
 
-        public ColumnBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, SolrInputDocumentWriter solrWriter) {
-            super(indexerName, conf, tableName, mapper, solrWriter);
+        public ColumnBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, Sharder sharder, SolrInputDocumentWriter solrWriter) {
+            super(indexerName, conf, tableName, mapper, sharder, solrWriter);
         }
 
         @Override
