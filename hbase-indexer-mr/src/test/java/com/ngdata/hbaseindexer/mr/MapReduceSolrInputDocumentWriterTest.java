@@ -50,7 +50,7 @@ public class MapReduceSolrInputDocumentWriterTest {
     @Test
     public void testAdd() throws SolrServerException, IOException, InterruptedException {
         SolrInputDocument solrInputDoc = mock(SolrInputDocument.class);
-        mrWriter.add(null, ImmutableMap.of("docId", solrInputDoc));
+        mrWriter.add(-1, ImmutableMap.of("docId", solrInputDoc));
         
         ArgumentCaptor<SolrInputDocumentWritable> docWritableCaptor =
                 ArgumentCaptor.forClass(SolrInputDocumentWritable.class);
@@ -62,7 +62,7 @@ public class MapReduceSolrInputDocumentWriterTest {
 
     @Test(expected=UnsupportedOperationException.class)
     public void testDeleteById() throws SolrServerException, IOException {
-        mrWriter.deleteById(null, ImmutableList.of("myId"));
+        mrWriter.deleteById(-1, ImmutableList.of("myId"));
     }
 
     @Test(expected=UnsupportedOperationException.class)

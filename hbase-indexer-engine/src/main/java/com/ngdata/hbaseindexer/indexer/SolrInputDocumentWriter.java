@@ -37,12 +37,12 @@ public interface SolrInputDocumentWriter {
      * @param shard
      * @param inputDocumentMap map of document ids to {@code SolrInputDocument}s
      */
-    void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
+    void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
 
     /**
      * Delete a list of documents from an underlying datastore (optional operation).
      */
-    void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException;
+    void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException;
 
     /**
      * Has the same behavior as {@link SolrServer#deleteByQuery(String)} (optional operation).

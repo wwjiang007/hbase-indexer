@@ -21,12 +21,10 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.MapMaker;
-import com.google.common.collect.Multimaps;
-import org.apache.solr.common.SolrInputDocument;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class HashSharderTest {
 
@@ -35,12 +33,12 @@ public class HashSharderTest {
      */
     @Test
     public void testBasics() throws IOException, NoSuchAlgorithmException, SharderException {
-        HashSharder sharder = new HashSharder(Lists.newArrayList("one", "two", "three"));
+        HashSharder sharder = new HashSharder(3);
 
-        assertEquals("two", sharder.getShard(String.valueOf("alpha")));
-        assertEquals("three", sharder.getShard(String.valueOf("beta")));
-        assertEquals("two", sharder.getShard(String.valueOf("gamma")));
-        assertEquals("three", sharder.getShard(String.valueOf("delta")));
+        assertEquals(1, sharder.getShard(String.valueOf("alpha")));
+        assertEquals(2, sharder.getShard(String.valueOf("beta")));
+        assertEquals(1, sharder.getShard(String.valueOf("gamma")));
+        assertEquals(2, sharder.getShard(String.valueOf("delta")));
     }
 
     /**
@@ -49,12 +47,12 @@ public class HashSharderTest {
      */
     @Test
     public void testIndexOutOfBounds() throws IOException, NoSuchAlgorithmException, SharderException {
-        ArrayList<String> shards = Lists.newArrayList("one", "two", "three");
-        HashSharder sharder = new HashSharder(shards);
+        HashSharder sharder = new HashSharder(3);
 
         Random rg = new Random();
         for (int i = 0; i < 100; i++) {
-            sharder.getShard("foo" + rg.nextInt());
+            int shard = sharder.getShard("foo" + rg.nextInt());
+            assertTrue("shard should be between 0 (inclusive) and 3 (exclusive)", shard >= 0 && shard < 3);
         }
     }
 

@@ -53,7 +53,7 @@ import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
 public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWriter {
 
     private Log log = LogFactory.getLog(getClass());
-    private Map<String, SolrServer> solrServers;
+    private List<SolrServer> solrServers;
     private Meter indexAddMeter;
     private Meter indexDeleteMeter;
     private Meter solrAddErrorMeter;
@@ -61,7 +61,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
     private Meter documentAddErrorMeter;
     private Meter documentDeleteErrorMeter;
 
-    public DirectSolrClassicInputDocumentWriter(String indexName, Map<String, SolrServer> solrServer) {
+    public DirectSolrClassicInputDocumentWriter(String indexName, List<SolrServer> solrServers) {
         this.solrServers = solrServers;
 
         indexAddMeter = Metrics.newMeter(metricName(getClass(), "Index adds", indexName), "Documents added to Solr index",
@@ -98,7 +98,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
      * documents contain issues, the error will be logged and swallowed, with all other updates being performed.
      */
     @Override
-    public void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+    public void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
         Collection<SolrInputDocument> inputDocuments = inputDocumentMap.values();
         try {
             solrServers.get(shard).add(inputDocuments);
@@ -116,7 +116,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
         }
     }
 
-    private void retryAddsIndividually(String shard, Collection<SolrInputDocument> inputDocuments) throws SolrServerException,
+    private void retryAddsIndividually(int shard, Collection<SolrInputDocument> inputDocuments) throws SolrServerException,
             IOException {
         for (SolrInputDocument inputDocument : inputDocuments) {
             try {
@@ -137,7 +137,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
      * deletes cause issues, the error will be logged and swallowed, with all other updates being performed.
      */
     @Override
-    public void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
+    public void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException {
         try {
             solrServers.get(shard).deleteById(idsToDelete);
             indexDeleteMeter.mark(idsToDelete.size());
@@ -154,7 +154,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
         }
     }
 
-    private void retryDeletesIndividually(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
+    private void retryDeletesIndividually(int shard, List<String> idsToDelete) throws SolrServerException, IOException {
         for (String idToDelete : idsToDelete) {
             try {
                 solrServers.get(shard).deleteById(idToDelete);
@@ -175,7 +175,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
     @Override
     public void deleteByQuery(String deleteQuery) throws SolrServerException, IOException {
         try {
-            for (SolrServer server: solrServers.values()) {
+            for (SolrServer server: solrServers) {
                 server.deleteByQuery(deleteQuery);
             }
         } catch (SolrException e) {
@@ -193,7 +193,7 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
     
     @Override
     public void close() {
-        for (SolrServer server: solrServers.values()) {
+        for (SolrServer server: solrServers) {
             server.shutdown();
         }
     }

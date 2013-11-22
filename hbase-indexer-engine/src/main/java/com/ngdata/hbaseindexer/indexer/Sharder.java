@@ -22,6 +22,6 @@ import org.apache.solr.common.SolrInputDocument;
  */
 public interface Sharder {
 
-    public String getShard(String id) throws SharderException;
+    int getShard(String id) throws SharderException;
     
 }

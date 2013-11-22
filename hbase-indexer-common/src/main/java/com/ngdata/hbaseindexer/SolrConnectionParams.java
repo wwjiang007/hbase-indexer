@@ -36,4 +36,11 @@ public class SolrConnectionParams {
      * Solr home directory. Only applicable if {@link #MODE} is "classic".
      */
     public static final String SOLR_HOME_DIR = "solr.home";
+
+    /**
+     * Solr shard prefix
+     */
+    public static final String SOLR_SHARD_PREFIX = "solr.shard.";
+
+    public static final String SHARDER_TYPE = "solr.sharder";
 }

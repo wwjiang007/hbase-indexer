@@ -53,7 +53,6 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
-import org.mockito.internal.matchers.NotNull;
 
 import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
 import static com.ngdata.sep.impl.HBaseShims.newResult;
@@ -152,22 +151,22 @@ public abstract class Indexer {
         if (sharder == null) {
             // don't shard
             if (!updateCollector.getDocumentsToAdd().isEmpty()) {
-                solrWriter.add(null, updateCollector.getDocumentsToAdd());
+                solrWriter.add(-1, updateCollector.getDocumentsToAdd());
             }
             if (!updateCollector.getIdsToDelete().isEmpty()) {
-                solrWriter.deleteById(null, updateCollector.getIdsToDelete());
+                solrWriter.deleteById(-1, updateCollector.getIdsToDelete());
             }
         } else {
             // with sharding
             if (!updateCollector.getDocumentsToAdd().isEmpty()) {
-                Map<String, Map<String, SolrInputDocument>> addsByShard = shardByMapKey(updateCollector.getDocumentsToAdd());
-                for (Map.Entry<String, Map<String, SolrInputDocument>> entry: addsByShard.entrySet()) {
+                Map<Integer, Map<String, SolrInputDocument>> addsByShard = shardByMapKey(updateCollector.getDocumentsToAdd());
+                for (Map.Entry<Integer, Map<String, SolrInputDocument>> entry: addsByShard.entrySet()) {
                     solrWriter.add(entry.getKey(), entry.getValue());
                 }
             }
             if (!updateCollector.getIdsToDelete().isEmpty()) {
-                Map<String, Collection<String>> idsByShard = shardByValue(updateCollector.getIdsToDelete());
-                for (Map.Entry<String, Collection<String>> entry: idsByShard.entrySet()) {
+                Map<Integer, Collection<String>> idsByShard = shardByValue(updateCollector.getIdsToDelete());
+                for (Map.Entry<Integer, Collection<String>> entry: idsByShard.entrySet()) {
                     solrWriter.deleteById(entry.getKey(), Lists.newArrayList(entry.getValue()));
                 }
             }
@@ -179,8 +178,15 @@ public abstract class Indexer {
         
     }
 
-    private Map<String, Map<String, SolrInputDocument>> shardByMapKey(Map<String, SolrInputDocument> documentsToAdd) throws SharderException {
-        Table<String, String, SolrInputDocument> table = HashBasedTable.create();
+    /**
+     * groups a map of (id->document) pairs by shard
+     * (consider moving this to a BaseSharder class)
+     * @param documentsToAdd
+     * @return
+     * @throws SharderException
+     */
+    private Map<Integer, Map<String, SolrInputDocument>> shardByMapKey(Map<String, SolrInputDocument> documentsToAdd) throws SharderException {
+        Table<Integer, String, SolrInputDocument> table = HashBasedTable.create();
 
         for (Map.Entry<String, SolrInputDocument> entry: documentsToAdd.entrySet()) {
             table.put(sharder.getShard(entry.getKey()), entry.getKey(), entry.getValue());
@@ -189,10 +195,16 @@ public abstract class Indexer {
         return table.rowMap();
     }
 
-    private Map<String,Collection<String>> shardByValue(List<String> idsToDelete) {
-        Multimap<String, String> map = Multimaps.index(idsToDelete, new Function<String, String>() {
+    /**
+     * groups a list of ids by shard
+     * (consider moving this to a BaseSharder class)
+     * @param idsToDelete
+     * @return
+     */
+    private Map<Integer,Collection<String>> shardByValue(List<String> idsToDelete) {
+        Multimap<Integer, String> map = Multimaps.index(idsToDelete, new Function<String, Integer>() {
             @Override
-            public String apply(@Nullable String id) {
+            public Integer apply(@Nullable String id) {
                 try {
                     return sharder.getShard(id);
                 } catch (SharderException e) {

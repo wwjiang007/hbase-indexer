@@ -39,7 +39,7 @@ public class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter
     }
 
     @Override
-    public void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+    public void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
         for (Entry<String, SolrInputDocument> documentEntry : inputDocumentMap.entrySet()) {
             try {
                 context.write(
@@ -54,7 +54,7 @@ public class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter
     }
 
     @Override
-    public void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
+    public void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException {
         throw new UnsupportedOperationException("Cannot delete records in a MapReduce context");
     }
 

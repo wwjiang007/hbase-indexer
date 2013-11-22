@@ -53,9 +53,9 @@ public class BufferedSolrInputDocumentWriterTest {
     @Test
     public void testAdd() throws SolrServerException, IOException {
         SolrInputDocument doc = mock(SolrInputDocument.class);
-        bufferedWriter.add(null, ImmutableMap.of("a", doc));
+        bufferedWriter.add(-1, ImmutableMap.of("a", doc));
 
-        verify(delegateWriter, never()).add((String)isNull(), anyMap());
+        verify(delegateWriter, never()).add(eq(-1), anyMap());
     }
 
     @Test
@@ -64,18 +64,18 @@ public class BufferedSolrInputDocumentWriterTest {
         SolrInputDocument docB = mock(SolrInputDocument.class);
         SolrInputDocument docC = mock(SolrInputDocument.class);
 
-        bufferedWriter.add(null, ImmutableMap.of("a", docA));
-        bufferedWriter.add(null, ImmutableMap.of("b", docB));
-        bufferedWriter.add(null, ImmutableMap.of("c", docC));
+        bufferedWriter.add(-1, ImmutableMap.of("a", docA));
+        bufferedWriter.add(-1, ImmutableMap.of("b", docB));
+        bufferedWriter.add(-1, ImmutableMap.of("c", docC));
 
-        verify(delegateWriter).add((String)isNull(), eq(ImmutableMap.of("a", docA, "b", docB, "c", docC)));
+        verify(delegateWriter).add(eq(-1), eq(ImmutableMap.of("a", docA, "b", docB, "c", docC)));
     }
 
     @Test
     public void testDeleteById() throws SolrServerException, IOException {
-        bufferedWriter.deleteById(null, ImmutableList.of("a"));
+        bufferedWriter.deleteById(-1, ImmutableList.of("a"));
 
-        verify(delegateWriter).deleteById((String)isNull(), eq(ImmutableList.of("a")));
+        verify(delegateWriter).deleteById(eq(-1), eq(ImmutableList.of("a")));
     }
 
     @Test
@@ -90,26 +90,26 @@ public class BufferedSolrInputDocumentWriterTest {
         SolrInputDocument docA = mock(SolrInputDocument.class);
         SolrInputDocument docB = mock(SolrInputDocument.class);
 
-        bufferedWriter.add(null, ImmutableMap.of("a", docA));
+        bufferedWriter.add(-1, ImmutableMap.of("a", docA));
         bufferedWriter.flush();
 
-        verify(delegateWriter).add((String)isNull(), eq(ImmutableMap.of("a", docA)));
+        verify(delegateWriter).add(eq(-1), eq(ImmutableMap.of("a", docA)));
 
-        bufferedWriter.add(null, ImmutableMap.of("b", docB));
+        bufferedWriter.add(-1, ImmutableMap.of("b", docB));
         bufferedWriter.flush();
 
-        verify(delegateWriter).add((String)isNull(), eq(ImmutableMap.of("b", docB)));
+        verify(delegateWriter).add(eq(-1), eq(ImmutableMap.of("b", docB)));
         verify(docCounter, times(2)).increment(1L);
     }
 
     @Test
     public void testClose() throws SolrServerException, IOException {
         SolrInputDocument doc = mock(SolrInputDocument.class);
-        bufferedWriter.add(null, ImmutableMap.of("a", doc));
+        bufferedWriter.add(-1, ImmutableMap.of("a", doc));
 
         bufferedWriter.close();
 
-        verify(delegateWriter).add((String)isNull(), eq(ImmutableMap.of("a", doc)));
+        verify(delegateWriter).add(eq(-1), eq(ImmutableMap.of("a", doc)));
         verify(delegateWriter).close();
         verify(docCounter).increment(1L);
     }

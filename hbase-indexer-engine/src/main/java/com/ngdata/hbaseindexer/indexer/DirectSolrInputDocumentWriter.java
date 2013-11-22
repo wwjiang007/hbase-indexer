@@ -98,7 +98,7 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
      * documents contain issues, the error will be logged and swallowed, with all other updates being performed.
      */
     @Override
-    public void add(String shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+    public void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
         Collection<SolrInputDocument> inputDocuments = inputDocumentMap.values();
         try {
             solrServer.add(inputDocuments);
@@ -137,7 +137,7 @@ public class DirectSolrInputDocumentWriter implements SolrInputDocumentWriter {
      * deletes cause issues, the error will be logged and swallowed, with all other updates being performed.
      */
     @Override
-    public void deleteById(String shard, List<String> idsToDelete) throws SolrServerException, IOException {
+    public void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException {
         try {
             solrServer.deleteById(idsToDelete);
             indexDeleteMeter.mark(idsToDelete.size());

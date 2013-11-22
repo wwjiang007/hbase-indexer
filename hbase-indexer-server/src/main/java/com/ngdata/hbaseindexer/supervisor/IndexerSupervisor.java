@@ -22,9 +22,12 @@ import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UP
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URL;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -35,15 +38,19 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
-import com.ngdata.hbaseindexer.indexer.DirectSolrInputDocumentWriter;
+import com.ngdata.hbaseindexer.indexer.HashSharder;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.IndexingEventListener;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
+import com.ngdata.hbaseindexer.indexer.Sharder;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriterFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerModel;
@@ -64,6 +71,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.zookeeper.KeeperException;
 // import org.apache.hadoop.hbase.EmptyWatcher;
 
@@ -178,26 +186,6 @@ public class IndexerSupervisor {
         return indexers.get(name).indexer;
     }
 
-
-    private SolrServer getSolrServer(IndexerDefinition indexerDef) throws MalformedURLException {
-        if (!"solr".equals(indexerDef.getConnectionType())) {
-            throw new RuntimeException("Only indexers with connectionType=solr are supported, but found type: '"
-                    + indexerDef.getConnectionType() + "'.");
-        }
-
-        String solrMode = indexerDef.getConnectionParams().get(SolrConnectionParams.MODE);
-        if (solrMode == null || solrMode.equals("cloud")) {
-            String solrZk = indexerDef.getConnectionParams().get(SolrConnectionParams.ZOOKEEPER);
-            CloudSolrServer solr = new CloudSolrServer(solrZk);
-            String collection = indexerDef.getConnectionParams().get(SolrConnectionParams.COLLECTION);
-            solr.setDefaultCollection(collection);
-            return solr;
-        } else {
-            throw new RuntimeException("Only indexers with connection parameter solr.mode=cloud are supported," +
-                    " found : '" + solrMode + "'.");
-        }
-    }
-    
     private void startIndexer(IndexerDefinition indexerDef) {
         IndexerHandle handle = null;
         SolrServer solr = null;
@@ -214,17 +202,32 @@ public class IndexerSupervisor {
             
             indexerProcessId = indexerProcessRegistry.registerIndexerProcess(indexerDef.getName(), hostName);
             indexerProcessIds.put(indexerDef.getName(), indexerProcessId);
-            
+
             // Create and register the indexer
             IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(indexerDef.getConfiguration()));
             ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                             indexerDef.getName(), indexerConf, indexerDef.getConnectionParams());
-            
-            SolrInputDocumentWriter solrWriter = new DirectSolrInputDocumentWriter(
-                                                                        indexerDef.getName(),
-                                                                        getSolrServer(indexerDef));
+
+            Sharder sharder = null;
+            SolrInputDocumentWriter solrWriter = null;
+
+            if (indexerDef.getConnectionType()== null || indexerDef.getConnectionType().equals("solr")) {
+                String solrMode = getSolrMode(indexerDef);
+                if (solrMode.equals("cloud")) {
+                    solrWriter = new SolrInputDocumentWriterFactory().createSolrCloudWriter(indexerDef.getName(), getCloudSolrServer(indexerDef));
+                } else if (solrMode.equals("classic")) {
+                    List<SolrServer> solrServers = getHttpSolrServers(indexerDef);
+                    solrWriter = new SolrInputDocumentWriterFactory().createSolrClassicWriter(indexerDef.getName(), solrServers);
+                    sharder = createSharder(indexerDef, solrServers.size());
+                } else {
+                    throw new RuntimeException("Only 'cloud' and 'classic' are valid values for solr.mode, but got " + solrMode);
+                }
+            } else {
+                throw new RuntimeException("Invalid connection type: " + indexerDef.getConnectionType() +". Only 'solr' is supported");
+            }
+
             Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, indexerConf.getTable(),
-                                                    mapper, htablePool, null, solrWriter);
+                                                    mapper, htablePool, sharder, solrWriter);
             IndexingEventListener eventListener = new IndexingEventListener(
                                                                 indexer, indexerConf.getTable());
 
@@ -272,7 +275,55 @@ public class IndexerSupervisor {
             }
         }
     }
-    
+
+    private String getSolrMode(IndexerDefinition indexerDef) {
+        return Optional.fromNullable(indexerDef.getConnectionParams().get(SolrConnectionParams.MODE)).or("cloud").toLowerCase();
+    }
+
+    private Sharder createSharder(IndexerDefinition indexerDef, int numShards) throws NoSuchAlgorithmException {
+        String sharderType = indexerDef.getConnectionParams().get(SolrConnectionParams.SHARDER_TYPE);
+        if (sharderType == null || sharderType == "default") {
+            return new HashSharder(numShards);
+        } else {
+            throw new RuntimeException("Unknown sharder type: " + sharderType);
+        }
+
+    }
+
+    private SolrServer getCloudSolrServer(IndexerDefinition indexerDef) throws MalformedURLException {
+        String solrZk = indexerDef.getConnectionParams().get(SolrConnectionParams.ZOOKEEPER);
+        CloudSolrServer solr = new CloudSolrServer(solrZk);
+        String collection = indexerDef.getConnectionParams().get(SolrConnectionParams.COLLECTION);
+        solr.setDefaultCollection(collection);
+        return solr;
+    }
+
+    private List<SolrServer> getHttpSolrServers(IndexerDefinition indexerDef) {
+        HttpClient client = new DefaultHttpClient();
+        Map<Integer, SolrServer> solrServers = Maps.newTreeMap();
+        for (Map.Entry<String, String> param: indexerDef.getConnectionParams().entrySet()) {
+            if (param.getKey().startsWith(SolrConnectionParams.SOLR_SHARD_PREFIX)) {
+                Integer index = null;
+                try {
+                    index = Integer.valueOf(param.getKey().substring(SolrConnectionParams.SOLR_SHARD_PREFIX.length()));
+                } catch (NumberFormatException nfe) {
+                    throw new RuntimeException(String.format("Solr shards keys should have the following format: %s{integer}", SolrConnectionParams.SOLR_SHARD_PREFIX));
+                }
+                try {
+                    new URL(param.getValue());
+                } catch (MalformedURLException e) {
+                    // fail-fast if the url is invalid
+                    throw new RuntimeException("Invalid url: " + param.getValue());
+                }
+                solrServers.put(index, new HttpSolrServer(param.getValue(), client));
+            }
+        }
+        if (solrServers.size() == 0) {
+            throw new RuntimeException(String.format("You need to specify at least one solr shard connection parameter (%s0={url}", SolrConnectionParams.SOLR_SHARD_PREFIX));
+        }
+        return Lists.newArrayList(solrServers.values());
+    }
+
 
     private void restartIndexer(IndexerDefinition indexerDef) {
         

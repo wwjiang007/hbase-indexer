@@ -108,7 +108,7 @@ public class IndexingEventListenerTest {
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_A), Bytes.toBytes("row1"), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
 
-        verify(solrDocumentWriter).deleteById(null, Collections.singletonList("row1"));
+        verify(solrDocumentWriter).deleteById(-1, Collections.singletonList("row1"));
         verifyNoMoreInteractions(solrDocumentWriter);
     }
 
@@ -154,7 +154,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> addedDocumentsCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add((String)isNull(), addedDocumentsCaptor.capture());
+        verify(solrDocumentWriter).add(eq(-1), addedDocumentsCaptor.capture());
         Map<String, SolrInputDocument> addedDocuments = addedDocumentsCaptor.getValue();
         assertEquals(1, addedDocuments.size());
         assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
@@ -179,7 +179,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add((String)isNull(), arg.capture());
+        verify(solrDocumentWriter).add(eq(-1), arg.capture());
         Map<String,SolrInputDocument> addedDocuments = arg.getValue();
         assertEquals(1, addedDocuments.size());
         assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
@@ -203,7 +203,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add((String)isNull(), arg.capture());
+        verify(solrDocumentWriter).add(eq(-1), arg.capture());
         Map<String,SolrInputDocument> addedDocuments = arg.getValue();
         assertEquals(1, addedDocuments.size());
         assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
@@ -249,7 +249,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add((String)isNull(), arg.capture());
+        verify(solrDocumentWriter).add(eq(-1), arg.capture());
         Map<String,SolrInputDocument> docs = arg.getValue();
         assertEquals(2, docs.size());
         Set<String> documentIds = Sets.newHashSet(Collections2.transform(docs.values(), new Function<SolrInputDocument,String>(){
@@ -287,10 +287,10 @@ public class IndexingEventListenerTest {
 
         event = new SepEvent(Bytes.toBytes(multiTableBName), "row1".getBytes(Charsets.UTF_8), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
-        verify(solrDocumentWriter, atLeastOnce()).add((String)isNull(), anyMap());
+        verify(solrDocumentWriter, atLeastOnce()).add(eq(-1), anyMap());
 
         event = new SepEvent(Bytes.toBytes(multiTableAName), "row1".getBytes(Charsets.UTF_8), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
-        verify(solrDocumentWriter, atLeastOnce()).add((String)isNull(), anyMap());
+        verify(solrDocumentWriter, atLeastOnce()).add(eq(-1), anyMap());
     }
 }

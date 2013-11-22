@@ -29,12 +29,12 @@ import com.google.common.base.Preconditions;
  */
 public class HashSharder implements Sharder {
 
-    private List<String> shards;
+    private int numShards;
     private MessageDigest mdAlgorithm;
 
-    public HashSharder(List<String> shards) throws NoSuchAlgorithmException {
-        Preconditions.checkArgument(shards.size() > 0, "There should be at least one shard");
-        this.shards = shards;
+    public HashSharder(int numShards) throws NoSuchAlgorithmException {
+        Preconditions.checkArgument(numShards > 0, "There should be at least one shard");
+        this.numShards = numShards;
         this.mdAlgorithm = MessageDigest.getInstance("MD5");
 
     }
@@ -53,10 +53,9 @@ public class HashSharder implements Sharder {
         }
     }
 
-    public String getShard(String id) throws SharderException {
+    public int getShard(String id) throws SharderException {
         long a = hash(id);
-        long b = shards.size();
-        return shards.get((int)((a % b + b) % b)); // make sure we get positive values
+        return (int)((a % numShards + numShards) % numShards); // make sure we get positive values
     }
     
 }
