@@ -15,10 +15,8 @@
  */
 package com.ngdata.hbaseindexer.supervisor;
 
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
-
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -33,9 +31,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -68,11 +63,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.zookeeper.KeeperException;
+
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
 // import org.apache.hadoop.hbase.EmptyWatcher;
 
 /**
@@ -100,7 +99,7 @@ public class IndexerSupervisor {
 
     private HttpClient httpClient;
 
-    private ThreadSafeClientConnManager connectionManager;
+    private PoolingClientConnectionManager connectionManager;
 
     private final IndexerRegistry indexerRegistry;
     
@@ -135,7 +134,10 @@ public class IndexerSupervisor {
 
     @PostConstruct
     public void init() {
-        connectionManager = new ThreadSafeClientConnManager();
+        connectionManager = new PoolingClientConnectionManager();
+        connectionManager.setDefaultMaxPerRoute(20);
+        connectionManager.setMaxTotal(100);
+
         httpClient = new DefaultHttpClient(connectionManager);
 
         eventWorker = new EventWorker();
@@ -206,7 +208,7 @@ public class IndexerSupervisor {
             // Create and register the indexer
             IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(indexerDef.getConfiguration()));
             ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
-                                            indexerDef.getName(), indexerConf, indexerDef.getConnectionParams());
+                                            indexerDef.getName(), indexerConf);
 
             Sharder sharder = null;
             SolrInputDocumentWriter solrWriter = null;
@@ -282,7 +284,7 @@ public class IndexerSupervisor {
 
     private Sharder createSharder(IndexerDefinition indexerDef, int numShards) throws NoSuchAlgorithmException {
         String sharderType = indexerDef.getConnectionParams().get(SolrConnectionParams.SHARDER_TYPE);
-        if (sharderType == null || sharderType == "default") {
+        if (sharderType == null || sharderType.equals("default")) {
             return new HashSharder(numShards);
         } else {
             throw new RuntimeException("Unknown sharder type: " + sharderType);
@@ -299,11 +301,10 @@ public class IndexerSupervisor {
     }
 
     private List<SolrServer> getHttpSolrServers(IndexerDefinition indexerDef) {
-        HttpClient client = new DefaultHttpClient();
         Map<Integer, SolrServer> solrServers = Maps.newTreeMap();
         for (Map.Entry<String, String> param: indexerDef.getConnectionParams().entrySet()) {
             if (param.getKey().startsWith(SolrConnectionParams.SOLR_SHARD_PREFIX)) {
-                Integer index = null;
+                Integer index;
                 try {
                     index = Integer.valueOf(param.getKey().substring(SolrConnectionParams.SOLR_SHARD_PREFIX.length()));
                 } catch (NumberFormatException nfe) {
@@ -315,7 +316,7 @@ public class IndexerSupervisor {
                     // fail-fast if the url is invalid
                     throw new RuntimeException("Invalid url: " + param.getValue());
                 }
-                solrServers.put(index, new HttpSolrServer(param.getValue(), client));
+                solrServers.put(index, new HttpSolrServer(param.getValue(), httpClient));
             }
         }
         if (solrServers.size() == 0) {

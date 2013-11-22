@@ -45,7 +45,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
 import org.apache.solr.core.SolrConfig;
-import org.apache.solr.schema.IndexSchema;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -62,14 +61,9 @@ public class DefaultResultToSolrMapperTest {
     private static final byte[] COLUMN_FAMILY_B = Bytes.toBytes("cfB");
     private static final byte[] QUALIFIER_A = Bytes.toBytes("qualifierA");
     private static final byte[] QUALIFIER_B = Bytes.toBytes("qualifierB");
-    private static IndexSchema indexSchema;
-    
+
     @BeforeClass
     public static void setupBeforeClass() throws ParserConfigurationException, IOException, SAXException {
-        InputSource configInputSource = new InputSource(DefaultResultToSolrMapperTest.class.getResourceAsStream("/solrconfig.xml"));
-        SolrConfig solrConfig = new SolrConfig("example", configInputSource);
-        InputSource schemaInputSource = new InputSource(DefaultResultToSolrMapperTest.class.getResourceAsStream("/schema.xml"));
-        indexSchema = new IndexSchema(solrConfig, "schema.xml", schemaInputSource);
     }
     
     @Before
@@ -84,7 +78,7 @@ public class DefaultResultToSolrMapperTest {
         FieldDefinition fieldDefB = new FieldDefinition("fieldB", "cfB:qualifierB", ValueSource.VALUE,
                 DummyValueMapper.class.getName());
         DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Lists.newArrayList(fieldDefA, fieldDefB),
-                Collections.<DocumentExtractDefinition> emptyList(), indexSchema);
+                Collections.<DocumentExtractDefinition> emptyList());
 
         KeyValue kvA = new KeyValue(ROW, COLUMN_FAMILY_A, QUALIFIER_A, Bytes.toBytes(42));
         KeyValue kvB = new KeyValue(ROW, COLUMN_FAMILY_B, QUALIFIER_B, "dummy value".getBytes());
@@ -108,7 +102,7 @@ public class DefaultResultToSolrMapperTest {
     public void testIsRelevantKV_WithoutWildcards() {
         FieldDefinition fieldDef = new FieldDefinition("fieldA", "cf:qualifier", ValueSource.VALUE, "int");
         DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Lists.newArrayList(fieldDef),
-                Collections.<DocumentExtractDefinition> emptyList(), indexSchema);
+                Collections.<DocumentExtractDefinition> emptyList());
 
         KeyValue relevantKV = new KeyValue(Bytes.toBytes("row"), Bytes.toBytes("cf"), Bytes.toBytes("qualifier"),
                 Bytes.toBytes("value"));
@@ -126,7 +120,7 @@ public class DefaultResultToSolrMapperTest {
     public void testIsRelevantKV_WithWildcards() {
         FieldDefinition fieldDef = new FieldDefinition("fieldA", "cf:quali*", ValueSource.VALUE, "int");
         DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Lists.newArrayList(fieldDef),
-                Collections.<DocumentExtractDefinition> emptyList(), indexSchema);
+                Collections.<DocumentExtractDefinition> emptyList());
 
         KeyValue relevantKV = new KeyValue(Bytes.toBytes("row"), Bytes.toBytes("cf"), Bytes.toBytes("qualifier"),
                 Bytes.toBytes("value"));
@@ -145,7 +139,7 @@ public class DefaultResultToSolrMapperTest {
         FieldDefinition fieldDef = new FieldDefinition("fieldname", "cf:qualifier", ValueSource.VALUE, "int");
         
         DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Lists.newArrayList(fieldDef),
-                        Collections.<DocumentExtractDefinition>emptyList(), indexSchema);
+                        Collections.<DocumentExtractDefinition>emptyList());
         Get get = resultMapper.getGet(ROW);
         
         assertArrayEquals(ROW, get.getRow());
@@ -162,7 +156,7 @@ public class DefaultResultToSolrMapperTest {
         FieldDefinition fieldDef = new FieldDefinition("fieldname", "cf:qual*", ValueSource.VALUE, "int");
         
         DefaultResultToSolrMapper resultMapper = new DefaultResultToSolrMapper("index-name", Lists.newArrayList(fieldDef),
-                        Collections.<DocumentExtractDefinition>emptyList(), indexSchema);
+                        Collections.<DocumentExtractDefinition>emptyList());
         Get get = resultMapper.getGet(ROW);
         
         assertArrayEquals(ROW, get.getRow());
@@ -177,7 +171,7 @@ public class DefaultResultToSolrMapperTest {
     public void testContainsRequiredData_True() {
         DefaultResultToSolrMapper resultToSolrMapper = new DefaultResultToSolrMapper("index-name",
                 Lists.newArrayList(new FieldDefinition("fieldname", "cfA:qualifierA", ValueSource.VALUE, "int")),
-                        Collections.<DocumentExtractDefinition>emptyList(), indexSchema);
+                        Collections.<DocumentExtractDefinition>emptyList());
         
         Result result = newResult(Lists.newArrayList(new KeyValue(ROW, COLUMN_FAMILY_A, QUALIFIER_A, Bytes.toBytes("value"))));
         
@@ -189,7 +183,7 @@ public class DefaultResultToSolrMapperTest {
         // With a wildcard we can never know if a Result contains all required data to perform indexing
         DefaultResultToSolrMapper resultToSolrMapper = new DefaultResultToSolrMapper("index-name",
                 Lists.newArrayList(new FieldDefinition("fieldname", "cfA:quali*", ValueSource.VALUE, "int")),
-                        Collections.<DocumentExtractDefinition>emptyList(), indexSchema);
+                        Collections.<DocumentExtractDefinition>emptyList());
         
         Result result = newResult(Lists.newArrayList(new KeyValue(ROW, COLUMN_FAMILY_A, QUALIFIER_A, Bytes.toBytes("value"))));
         

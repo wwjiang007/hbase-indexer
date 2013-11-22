@@ -224,8 +224,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             if (indexerConf.getMappingType() == MappingType.ROW) {
                 ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                         indexingSpecification.getIndexerName(),
-                        indexerConf,
-                        indexingSpecification.getIndexConnectionParams());
+                        indexerConf);
                 Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
                 scan.setFamilyMap(get.getFamilyMap());
             }

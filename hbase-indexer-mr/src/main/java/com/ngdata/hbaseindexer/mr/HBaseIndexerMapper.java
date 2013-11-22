@@ -158,7 +158,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
-                                                    indexName, indexerConf, indexConnectionParams);
+                                                    indexName, indexerConf);
         solrDocWriter = createSolrWriter(context, indexConnectionParams);
         indexer = Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, null, solrDocWriter);
     }

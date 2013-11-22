@@ -94,8 +94,7 @@ public class IndexerDryRun {
         
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                         indexingSpec.getIndexerName(),
-                                                        indexerConf,
-                                                        indexingSpec.getIndexConnectionParams());
+                                                        indexerConf);
         
         Indexer indexer = Indexer.createIndexer(
                                 indexingSpec.getIndexerName(),
