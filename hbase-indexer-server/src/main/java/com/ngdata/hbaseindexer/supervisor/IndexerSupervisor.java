@@ -392,6 +392,7 @@ public class IndexerSupervisor {
                     }
 
                     IndexerModelEvent event = eventQueue.take();
+                    log.debug(event.toString());
                     if (event.getType() == INDEXER_ADDED || event.getType() == INDEXER_UPDATED) {
                         try {
                             IndexerDefinition indexerDef = indexerModel.getIndexer(event.getIndexerName());

@@ -15,6 +15,8 @@
  */
 package com.ngdata.hbaseindexer.uniquekey;
 
+import org.apache.hadoop.hbase.KeyValue;
+
 /**
  * Format row keys into human readable form where the output contains
  * the table name of the row in question
@@ -28,7 +30,34 @@ public interface UniqueTableKeyFormatter extends UniqueKeyFormatter{
      */
     byte[] unformatTable (String value);
 
-    void setTable(String tableName);
+    /**
+     * Format a row key into a human-readable form.
+     *
+     * @param row row key to be formatted
+     * @param tableName
+     */
+    String formatRow(byte[] row, byte[] tableName);
 
-    String getTable();
+    /**
+     * Format a column family value into a human-readable form.
+     * <p>
+     * Called as part of column-based mapping, {@link com.ngdata.hbaseindexer.conf.IndexerConf.MappingType#COLUMN}.
+     *
+     * @param family family bytes to be formatted
+     * @param tableName
+     */
+    String formatFamily(byte[] family, byte[] tableName);
+
+    /**
+     * Format a {@code KeyValue} into a human-readable form. Only the row, column family, and qualifier
+     * of the {@code KeyValue} will be encoded.
+     * <p>
+     * Called in case of column-based mapping, {@link com.ngdata.hbaseindexer.conf.IndexerConf.MappingType#COLUMN}.
+     *
+     * @param keyValue value to be formatted
+     * @param tableName
+     */
+    String formatKeyValue(KeyValue keyValue, byte[] tableName);
+
+
 }
