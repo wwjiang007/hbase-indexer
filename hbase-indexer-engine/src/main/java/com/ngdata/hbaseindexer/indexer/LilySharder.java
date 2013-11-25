@@ -24,7 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
- * Shards ids using the default sharding logic as it existed before Lily 3.0.
+ * Shards ids using the default sharding logic as it existed before Lily 3.0. (i.e. return value is a function of the master id contained in the incoming id value
  */
 public class LilySharder implements Sharder {
 
