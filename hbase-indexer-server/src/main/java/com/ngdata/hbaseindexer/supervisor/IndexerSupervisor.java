@@ -54,6 +54,7 @@ import com.ngdata.hbaseindexer.model.api.IndexerModelListener;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.api.IndexerProcessRegistry;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil;
 import com.ngdata.sep.impl.SepConsumer;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
@@ -99,8 +100,6 @@ public class IndexerSupervisor {
 
     private HttpClient httpClient;
 
-    private PoolingClientConnectionManager connectionManager;
-
     private final IndexerRegistry indexerRegistry;
     
     private final IndexerProcessRegistry indexerProcessRegistry;
@@ -134,12 +133,6 @@ public class IndexerSupervisor {
 
     @PostConstruct
     public void init() {
-        connectionManager = new PoolingClientConnectionManager();
-        connectionManager.setDefaultMaxPerRoute(20);
-        connectionManager.setMaxTotal(100);
-
-        httpClient = new DefaultHttpClient(connectionManager);
-
         eventWorker = new EventWorker();
         eventWorkerThread = new Thread(eventWorker, "IndexerWorkerEventWorker");
         eventWorkerThread.start();
@@ -173,7 +166,6 @@ public class IndexerSupervisor {
             }
         }
 
-        connectionManager.shutdown();
     }
 
     public int getEventCount() {
@@ -211,14 +203,20 @@ public class IndexerSupervisor {
                                             indexerDef.getName(), indexerConf);
 
             Sharder sharder = null;
-            SolrInputDocumentWriter solrWriter = null;
+            SolrInputDocumentWriter solrWriter;
+            PoolingClientConnectionManager connectionManager = null;
 
             if (indexerDef.getConnectionType()== null || indexerDef.getConnectionType().equals("solr")) {
                 String solrMode = getSolrMode(indexerDef);
                 if (solrMode.equals("cloud")) {
                     solrWriter = new SolrInputDocumentWriterFactory().createSolrCloudWriter(indexerDef.getName(), getCloudSolrServer(indexerDef));
                 } else if (solrMode.equals("classic")) {
-                    List<SolrServer> solrServers = getHttpSolrServers(indexerDef);
+                    connectionManager = new PoolingClientConnectionManager();
+                    connectionManager.setDefaultMaxPerRoute(getSolrMaxConnectionsPerRoute(indexerDef));
+                    connectionManager.setMaxTotal(getSolrMaxConnectionsTotal(indexerDef));
+
+                    httpClient = new DefaultHttpClient(connectionManager);
+                    List<SolrServer> solrServers = getHttpSolrServers(indexerDef, httpClient);
                     solrWriter = new SolrInputDocumentWriterFactory().createSolrClassicWriter(indexerDef.getName(), solrServers);
                     sharder = createSharder(indexerDef, solrServers.size());
                 } else {
@@ -238,7 +236,7 @@ public class IndexerSupervisor {
                     indexerDef.getSubscriptionTimestamp(), eventListener, threads, hostName,
                     zk, hbaseConf, null);
             
-            handle = new IndexerHandle(indexerDef, indexer, sepConsumer, solr);
+            handle = new IndexerHandle(indexerDef, indexer, sepConsumer, solr, connectionManager);
             handle.start();
 
             indexers.put(indexerDef.getName(), handle);
@@ -278,6 +276,21 @@ public class IndexerSupervisor {
         }
     }
 
+    private int getSolrMaxConnectionsPerRoute(IndexerDefinition indexerDef) {
+        return intConnectionParam(indexerDef, SolrConnectionParams.MAX_CONNECTIONS_PER_HOST, 128);
+    }
+
+    private int getSolrMaxConnectionsTotal(IndexerDefinition indexerDef) {
+        return intConnectionParam(indexerDef, SolrConnectionParams.MAX_CONNECTIONS, 32);
+    }
+
+    private int intConnectionParam(IndexerDefinition indexerDef, String param, int defaultValue) {
+        if (!indexerDef.getConnectionParams().containsKey(param)) {
+            return defaultValue;
+        }
+        return Integer.parseInt(indexerDef.getConnectionParams().get(param));
+    }
+
     private String getSolrMode(IndexerDefinition indexerDef) {
         return Optional.fromNullable(indexerDef.getConnectionParams().get(SolrConnectionParams.MODE)).or("cloud").toLowerCase();
     }
@@ -300,29 +313,15 @@ public class IndexerSupervisor {
         return solr;
     }
 
-    private List<SolrServer> getHttpSolrServers(IndexerDefinition indexerDef) {
-        Map<Integer, SolrServer> solrServers = Maps.newTreeMap();
-        for (Map.Entry<String, String> param: indexerDef.getConnectionParams().entrySet()) {
-            if (param.getKey().startsWith(SolrConnectionParams.SOLR_SHARD_PREFIX)) {
-                Integer index;
-                try {
-                    index = Integer.valueOf(param.getKey().substring(SolrConnectionParams.SOLR_SHARD_PREFIX.length()));
-                } catch (NumberFormatException nfe) {
-                    throw new RuntimeException(String.format("Solr shards keys should have the following format: %s{integer}", SolrConnectionParams.SOLR_SHARD_PREFIX));
-                }
-                try {
-                    new URL(param.getValue());
-                } catch (MalformedURLException e) {
-                    // fail-fast if the url is invalid
-                    throw new RuntimeException("Invalid url: " + param.getValue());
-                }
-                solrServers.put(index, new HttpSolrServer(param.getValue(), httpClient));
-            }
+    private List<SolrServer> getHttpSolrServers(IndexerDefinition indexerDef, HttpClient httpClient) {
+        List<SolrServer> result = Lists.newArrayList();
+        for (String shard: SolrConnectionParamUtil.getShards(indexerDef.getConnectionParams())) {
+            result.add(new HttpSolrServer(shard, httpClient));
         }
-        if (solrServers.size() == 0) {
+        if (result.size() == 0) {
             throw new RuntimeException(String.format("You need to specify at least one solr shard connection parameter (%s0={url}", SolrConnectionParams.SOLR_SHARD_PREFIX));
         }
-        return Lists.newArrayList(solrServers.values());
+        return result;
     }
 
 
@@ -403,13 +402,15 @@ public class IndexerSupervisor {
         private final Indexer indexer;
         private final SepConsumer sepConsumer;
         private final SolrServer solrServer;
+        private final PoolingClientConnectionManager connectionManager;
 
         public IndexerHandle(IndexerDefinition indexerDef, Indexer indexer, SepConsumer sepEventSlave,
-                SolrServer solrServer) {
+                SolrServer solrServer, PoolingClientConnectionManager connectionManager) {
             this.indexerDef = indexerDef;
             this.indexer = indexer;
             this.sepConsumer = sepEventSlave;
             this.solrServer = solrServer;
+            this.connectionManager = connectionManager;
         }
         
         public void start() throws InterruptedException, KeeperException, IOException {
@@ -420,6 +421,7 @@ public class IndexerSupervisor {
             Closer.close(sepConsumer);
             Closer.close(solrServer);
             Closer.close(indexer);
+            Closer.close(connectionManager);
         }
     }
 

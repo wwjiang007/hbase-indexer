@@ -23,9 +23,7 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 
 /**
- * The Sharder interface. The sharder determines to which shard a document should be sent
- *
- * FIXME: should not use hashCode(), since hashCode can vary across jvms (although for strings it's usually ok)
+ * Basic sharder based on output from md5
  */
 public class HashSharder implements Sharder {
 

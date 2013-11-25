@@ -25,6 +25,7 @@ import com.ngdata.hbaseindexer.conf.IndexerConfException;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -231,19 +232,22 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
     private Map<String, String> getConnectionParams(OptionSet options, Map<String, String> oldParams) {
         Map<String, String> connectionParams = Maps.newHashMap();
-        if (oldParams != null)
+        if (oldParams != null) {
             connectionParams = Maps.newHashMap(oldParams);
+        }
 
         String oldSolrMode = connectionParams.get(SolrConnectionParams.MODE);
         if (oldSolrMode == null) {
             oldSolrMode = "cloud";
         }
+        List<String> explicit = Lists.newArrayList();
 
         for (Pair<String, String> param : connectionParamOption.values(options)) {
             // An empty value indicates a request to remove the key
             if (param.getSecond().length() == 0) {
                 connectionParams.remove(param.getFirst());
             } else {
+                explicit.add(param.getFirst());
                 if (!isValidConnectionParam(param.getFirst())) {
                     System.err.println("WARNING: the following is not a recognized Solr connection parameter: "
                             + param.getFirst());
@@ -252,9 +256,32 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
         }
 
-        //TODO
-        // if we detect a switch from cloud to classic,
-        // automatically clear sharder type and shard params
+        String newSolrMode = connectionParams.get(SolrConnectionParams.MODE);
+        if (newSolrMode == null) {
+            newSolrMode = "cloud";
+        }
+        if (oldSolrMode.equals("cloud") && newSolrMode.equals("classic")) {
+            // Switch from cloud to classic -- remove any cloud specific parameters
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.COLLECTION);
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.ZOOKEEPER);
+        } else if (oldSolrMode.equals("classic") && newSolrMode.equals("cloud")) {
+            // Switch from classic to cloud -- remove any cloud specific parameters
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.SHARDER_TYPE);
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.MAX_CONNECTIONS);
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.MAX_CONNECTIONS_PER_HOST);
+
+            // remove any solr.shard.* parameter that wasn't set explicitly
+            List<String> shardParams = Lists.newArrayList();
+            Pattern pattern = Pattern.compile(Pattern.quote(SolrConnectionParams.SOLR_SHARD_PREFIX) + "\\d+");
+            for (String param: connectionParams.keySet()) {
+                if (pattern.matcher(param).matches()) {
+                    shardParams.add(param);
+                }
+            }
+            for (String shardParam: shardParams) {
+                removeUnlessExplicit(explicit, connectionParams, shardParam);
+            }
+        }
 
         //TODO
         // if we detect a switch from classic to cloud,
@@ -272,7 +299,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
 
             if (!connectionParams.containsKey(SolrConnectionParams.COLLECTION)) {
-                throw new CliException("ERROR: no -cp solr.collection=collectionName specified (this is required when solr.mode=cloud");
+                throw new CliException("ERROR: no -cp solr.collection=collectionName specified (this is required when solr.mode=cloud)");
             }
 
             // TODO: throw error if sharder type is specified or if shards are listed
@@ -291,6 +318,9 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
 
             // Check that there is at least one shard, and that the shards are valid
+            if (SolrConnectionParamUtil.getShards(connectionParams).size() == 0) {
+                throw new CliException("ERROR: You need at least one shard when using solr classic");
+            }
 
         } else {
             throw new CliException("ERROR: solr.mode should be 'cloud' or 'classic'. Invalid value: " + connectionParams.get(SolrConnectionParams.MODE));
@@ -299,13 +329,26 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         return connectionParams;
     }
 
+    /**
+     * Removes a connection parameter unless it was set explicitly
+     * @param explicit List of parameters that were set explicitly
+     * @param connectionParams Current connectionParams
+     * @param param The parameter to remove
+     */
+    private void removeUnlessExplicit(List<String> explicit, Map<String, String> connectionParams, String param) {
+        if (!explicit.contains(param)) {
+            connectionParams.remove(param);
+        }
+    }
+
     private boolean isValidConnectionParam(String param) {
         List<String> fixed = Lists.newArrayList(
                 SolrConnectionParams.COLLECTION,
                 SolrConnectionParams.MODE,
                 SolrConnectionParams.SHARDER_TYPE,
-                SolrConnectionParams.SOLR_HOME_DIR,
-                SolrConnectionParams.ZOOKEEPER
+                SolrConnectionParams.ZOOKEEPER,
+                SolrConnectionParams.MAX_CONNECTIONS,
+                SolrConnectionParams.MAX_CONNECTIONS_PER_HOST
         );
         if (fixed.contains(param)) {
             return true;
