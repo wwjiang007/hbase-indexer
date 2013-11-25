@@ -53,7 +53,7 @@ public class DirectSolrInputDocumentWriterTest {
         SolrInputDocument inputDocB = mock(SolrInputDocument.class);
         Map<String, SolrInputDocument> toAdd = ImmutableSortedMap.of("idA", inputDocA, "idB", inputDocB);
 
-        solrWriter.add(toAdd);
+        solrWriter.add(-1, toAdd);
         
         verify(solrServer).add(toAdd.values());
     }
@@ -62,7 +62,7 @@ public class DirectSolrInputDocumentWriterTest {
     public void testDeleteById_NormalCase() throws SolrServerException, IOException {
         List<String> toDelete = Lists.newArrayList("idA", "idB");
 
-        solrWriter.deleteById(toDelete);
+        solrWriter.deleteById(-1, toDelete);
 
         verify(solrServer).deleteById(toDelete);
     }
@@ -75,7 +75,7 @@ public class DirectSolrInputDocumentWriterTest {
 
         when(solrServer.add(inputDocMap.values())).thenThrow(new IOException());
 
-        solrWriter.add(inputDocMap);
+        solrWriter.add(-1, inputDocMap);
     }
 
     @Test(expected = IOException.class)
@@ -84,7 +84,7 @@ public class DirectSolrInputDocumentWriterTest {
 
         when(solrServer.deleteById(idsToDelete)).thenThrow(new IOException());
 
-        solrWriter.deleteById(idsToDelete);
+        solrWriter.deleteById(-1, idsToDelete);
     }
 
     @Test(expected = SolrException.class)
@@ -95,7 +95,7 @@ public class DirectSolrInputDocumentWriterTest {
         when(solrServer.add(inputDocMap.values()))
             .thenThrow(new SolrException(ErrorCode.SERVER_ERROR, new IOException()));
 
-        solrWriter.add(inputDocMap);
+        solrWriter.add(-1, inputDocMap);
     }
 
     @Test(expected = SolrException.class)
@@ -104,7 +104,7 @@ public class DirectSolrInputDocumentWriterTest {
 
         when(solrServer.deleteById(idsToDelete)).thenThrow(new SolrException(ErrorCode.SERVER_ERROR, new IOException()));
 
-        solrWriter.deleteById(idsToDelete);
+        solrWriter.deleteById(-1, idsToDelete);
     }
 
     @Test
@@ -115,7 +115,7 @@ public class DirectSolrInputDocumentWriterTest {
         when(solrServer.add(ImmutableList.of(inputDoc))).thenThrow(
                 new SolrException(ErrorCode.BAD_REQUEST, "should be swallowed and logged"));
 
-        solrWriter.add(inputDocumentMap);
+        solrWriter.add(-1, inputDocumentMap);
 
         // Nothing should happen -- no document successfully added, and exception is swallowed
     }
@@ -127,7 +127,7 @@ public class DirectSolrInputDocumentWriterTest {
         when(solrServer.deleteById(idsToDelete)).thenThrow(
                 new SolrException(ErrorCode.BAD_REQUEST, "should be swallowed and logged"));
 
-        solrWriter.deleteById(idsToDelete);
+        solrWriter.deleteById(-1, idsToDelete);
 
         // Nothing should happen -- no document successfully added, and exception is swallowed
     }
@@ -143,7 +143,7 @@ public class DirectSolrInputDocumentWriterTest {
             .thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad document"));
         when(solrServer.add(badInputDoc)).thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad document"));
         
-        solrWriter.add(inputDocumentMap);
+        solrWriter.add(-1, inputDocumentMap);
         
         verify(solrServer).add(goodInputDoc);
     }
@@ -157,7 +157,7 @@ public class DirectSolrInputDocumentWriterTest {
         when(solrServer.deleteById(idsToDelete)).thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad id"));
         when(solrServer.deleteById(badId)).thenThrow(new SolrException(ErrorCode.BAD_REQUEST, "bad id"));
         
-        solrWriter.deleteById(idsToDelete);
+        solrWriter.deleteById(-1, idsToDelete);
         
         verify(solrServer).deleteById(goodId);
     }

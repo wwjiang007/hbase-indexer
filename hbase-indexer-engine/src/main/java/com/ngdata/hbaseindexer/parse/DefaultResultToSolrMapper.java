@@ -15,23 +15,17 @@
  */
 package com.ngdata.hbaseindexer.parse;
 
-import static com.ngdata.sep.impl.HBaseShims.newGet;
-
-import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.concurrent.TimeUnit;
 
-import com.ngdata.hbaseindexer.ConfigureUtil;
-
 import com.google.common.collect.Lists;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.DocumentExtractDefinition;
 import com.ngdata.hbaseindexer.conf.FieldDefinition;
 import com.ngdata.hbaseindexer.parse.extract.ByteArrayExtractors;
-import com.ngdata.hbaseindexer.parse.tika.TikaSolrDocumentExtractor;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
@@ -39,7 +33,9 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.schema.IndexSchema;
+
+import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+import static com.ngdata.sep.impl.HBaseShims.newGet;
 
 /**
  * Parses HBase {@code Result} objects into a structure of fields and values.
@@ -68,10 +64,9 @@ public class DefaultResultToSolrMapper implements ResultToSolrMapper {
      * 
      * @param fieldDefinitions define fields to be indexed
      * @param documentExtractDefinitions additional document extraction definitions
-     * @param indexSchema Solr index schema for the target index
      */
     public DefaultResultToSolrMapper(String indexerName, List<FieldDefinition> fieldDefinitions,
-            List<DocumentExtractDefinition> documentExtractDefinitions, IndexSchema indexSchema) {
+            List<DocumentExtractDefinition> documentExtractDefinitions) {
         extractors = Lists.newArrayList();
         resultDocumentExtractors = Lists.newArrayList();
         for (FieldDefinition fieldDefinition : fieldDefinitions) {
@@ -87,11 +82,7 @@ public class DefaultResultToSolrMapper implements ResultToSolrMapper {
         for (DocumentExtractDefinition extractDefinition : documentExtractDefinitions) {
             ByteArrayExtractor byteArrayExtractor = ByteArrayExtractors.getExtractor(
                     extractDefinition.getValueExpression(), extractDefinition.getValueSource());
-            
-            TikaSolrDocumentExtractor tikaDocumentExtractor = new TikaSolrDocumentExtractor(
-                    indexSchema, byteArrayExtractor, extractDefinition.getPrefix(), extractDefinition.getMimeType());
-            ConfigureUtil.configure(tikaDocumentExtractor, extractDefinition.getParams());
-            resultDocumentExtractors.add(tikaDocumentExtractor);
+
             extractors.add(byteArrayExtractor);
         }
 

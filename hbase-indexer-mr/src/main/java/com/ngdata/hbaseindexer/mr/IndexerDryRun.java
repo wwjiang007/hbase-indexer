@@ -127,14 +127,14 @@ class IndexerDryRun {
         
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                         indexingSpec.getIndexerName(),
-                                                        indexerConf,
-                                                        indexingSpec.getIndexConnectionParams());
+                                                        indexerConf);
         
         Indexer indexer = Indexer.createIndexer(
                                 indexingSpec.getIndexerName(),
                                 indexerConf,
                                 indexingSpec.getTableName(),
                                 resultToSolrMapper,
+                                null,
                                 null,
                                 documentWriter);
         
@@ -169,14 +169,14 @@ class IndexerDryRun {
         }
 
         @Override
-        public void add(Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
+        public void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException {
             for (SolrInputDocument doc : inputDocumentMap.values()) {
                 printWriter.println("dryRun: " + doc);
             }
         }
 
         @Override
-        public void deleteById(List<String> idsToDelete) throws SolrServerException, IOException {
+        public void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException {
             throw new UnsupportedOperationException("Deletes are not supported in batch mode");
         }
 

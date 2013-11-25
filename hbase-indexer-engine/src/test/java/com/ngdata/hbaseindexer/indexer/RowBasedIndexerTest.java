@@ -60,7 +60,7 @@ public class RowBasedIndexerTest {
         
         updateCollector = new SolrUpdateCollector(10);
         
-        indexer = new RowBasedIndexer("row-based", indexerConf, TABLE_NAME, mapper, tablePool, solrWriter);
+        indexer = new RowBasedIndexer("row-based", indexerConf, TABLE_NAME, mapper, tablePool, null, solrWriter);
     }
     
     private RowData createEventRowData(String row, KeyValue... keyValues) {

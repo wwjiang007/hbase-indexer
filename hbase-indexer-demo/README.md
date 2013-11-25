@@ -27,8 +27,7 @@ The batchsize option will use multi-puts on HBase.
 
 ##Column-based indexing demo
 
-Add an indexer using the configuration from either message_indexer.xml
-or tika_message_indexer.xml
+Add an indexer using the configuration from message_indexer.xml
 
 Start the data upload process (this will also create the schema in hbase)
 with:

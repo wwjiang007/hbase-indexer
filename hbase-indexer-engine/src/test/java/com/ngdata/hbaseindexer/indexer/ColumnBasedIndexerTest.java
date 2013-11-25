@@ -53,7 +53,7 @@ public class ColumnBasedIndexerTest {
         mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
         solrWriter = mock(DirectSolrInputDocumentWriter.class);
         updateCollector = new SolrUpdateCollector(10);
-        indexer = new ColumnBasedIndexer("column-based", indexerConf, TABLE_NAME, mapper, solrWriter);
+        indexer = new ColumnBasedIndexer("column-based", indexerConf, TABLE_NAME, mapper, null, solrWriter);
     }
 
     private RowData createEventRowData(String row, KeyValue... keyValues) {

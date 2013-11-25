@@ -17,6 +17,7 @@ package com.ngdata.hbaseindexer.mr;
 
 import static org.junit.Assert.assertSame;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -49,7 +50,7 @@ public class MapReduceSolrInputDocumentWriterTest {
     @Test
     public void testAdd() throws SolrServerException, IOException, InterruptedException {
         SolrInputDocument solrInputDoc = mock(SolrInputDocument.class);
-        mrWriter.add(ImmutableMap.of("docId", solrInputDoc));
+        mrWriter.add(-1, ImmutableMap.of("docId", solrInputDoc));
         
         ArgumentCaptor<SolrInputDocumentWritable> docWritableCaptor =
                 ArgumentCaptor.forClass(SolrInputDocumentWritable.class);
@@ -61,7 +62,7 @@ public class MapReduceSolrInputDocumentWriterTest {
 
     @Test(expected=UnsupportedOperationException.class)
     public void testDeleteById() throws SolrServerException, IOException {
-        mrWriter.deleteById(ImmutableList.of("myId"));
+        mrWriter.deleteById(-1, ImmutableList.of("myId"));
     }
 
     @Test(expected=UnsupportedOperationException.class)

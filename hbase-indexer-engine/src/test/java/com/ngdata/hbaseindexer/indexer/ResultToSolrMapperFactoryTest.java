@@ -71,37 +71,6 @@ public class ResultToSolrMapperFactoryTest {
         ZK_CLUSTER.shutdown();
     }
 
-    @Test
-    public void testLoadIndexSchema_SolrCloud() throws Exception {
-        Map<String,String> solrCloudParams = ImmutableMap.of(
-                                SolrConnectionParams.ZOOKEEPER, "localhost:" + ZK_CLIENT_PORT + "/solr",
-                                SolrConnectionParams.COLLECTION, "collection1");
-
-        IndexSchema indexSchema = ResultToSolrMapperFactory.loadIndexSchema(solrCloudParams);
-        assertNotNull(indexSchema);
-    }
-
-    @Test
-    public void testLoadIndexSchema_SolrClassic() throws Exception {
-        Map<String,String> solrClassicParams = ImmutableMap.of(
-                                SolrConnectionParams.MODE, "classic",
-                                SolrConnectionParams.SOLR_HOME_DIR,
-                                    new File(Resources.getResource(
-                                        getClass(),
-                                        "schema.xml").toURI()).getParent());
-        IndexSchema indexSchema = ResultToSolrMapperFactory.loadIndexSchema(solrClassicParams);
-
-        assertNotNull(indexSchema);
-    }
-
-    @Test(expected=IllegalStateException.class)
-    public void testLoadIndexSchema_SolrCloudCollectionNotSupplied() throws Exception {
-        Map<String,String> solrCloudParams = ImmutableMap.of(
-                SolrConnectionParams.ZOOKEEPER, "localhost:" + ZK_CLIENT_PORT + "/solr");
-
-        ResultToSolrMapperFactory.loadIndexSchema(solrCloudParams);
-    }
-
     private static int getFreePort() {
         ServerSocket socket = null;
         try {

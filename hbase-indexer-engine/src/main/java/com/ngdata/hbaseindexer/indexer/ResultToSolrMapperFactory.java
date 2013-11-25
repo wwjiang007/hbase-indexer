@@ -53,18 +53,15 @@ public class ResultToSolrMapperFactory {
      *
      * @param indexName name of the index for which the mapper is to be created
      * @param indexerConf configuration containing the index definition
-     * @param indexConnectionParameters freeform key-value pairs describing the connection information to the outgoing
-     *        index
      * @return configured ResultToSolrMapper
      */
-    public static ResultToSolrMapper createResultToSolrMapper(String indexName, IndexerConf indexerConf,
-            Map<String, String> indexConnectionParameters) {
+    public static ResultToSolrMapper createResultToSolrMapper(String indexName, IndexerConf indexerConf) {
 
         ResultToSolrMapper mapper = null;
         try {
             if (indexerConf.getMapperClass() == null) {
                 mapper = new DefaultResultToSolrMapper(indexName, indexerConf.getFieldDefinitions(),
-                        indexerConf.getDocumentExtractDefinitions(), loadIndexSchema(indexConnectionParameters));
+                        indexerConf.getDocumentExtractDefinitions());
             } else {
                 mapper = indexerConf.getMapperClass().newInstance();
                 ConfigureUtil.configure(mapper, indexerConf.getGlobalParams());
@@ -74,67 +71,6 @@ public class ResultToSolrMapperFactory {
             throw new RuntimeException(e);
         }
         return mapper;
-
-    }
-
-    static IndexSchema loadIndexSchema(Map<String, String> indexConnectionParameters) throws IOException,
-            ParserConfigurationException, SAXException, InterruptedException {
-        if ("classic".equals(indexConnectionParameters.get(SolrConnectionParams.MODE))) {
-            return loadSolrClassicSchema(indexConnectionParameters);
-        } else {
-            ZooKeeper zk = new ZooKeeper(indexConnectionParameters.get(SolrConnectionParams.ZOOKEEPER), 30000,
-                    HBaseShims.getEmptyWatcherInstance());
-
-            IndexSchema indexSchema = null;
-            try {
-                if (!indexConnectionParameters.containsKey(SolrConnectionParams.COLLECTION)) {
-                    throw new IllegalStateException(SolrConnectionParams.COLLECTION + " not defined");
-                }
-    
-                SolrConfigLoader solrConfigLoader = new SolrConfigLoader(
-                        indexConnectionParameters.get(SolrConnectionParams.COLLECTION), zk);
-                try {
-                    SolrConfig solrConfig = solrConfigLoader.loadSolrConfig();
-                    SolrResourceLoader loader = solrConfig.getResourceLoader();
-                    InputSource is = new InputSource(loader.openSchema("schema.xml"));
-                    is.setSystemId(SystemIdResolver.createSystemIdFromResourceName("schema.xml"));
-        
-                    indexSchema = new IndexSchema(solrConfig, "schema.xml", is);
-                } finally {
-                    Closer.close(solrConfigLoader);
-                }
-            } finally {
-                Closer.close(zk);
-            }
-            return indexSchema;
-        }
-    }
-
-    private static IndexSchema loadSolrClassicSchema(Map<String, String> indexConnectionParameters) throws IOException {
-        String saveSolrHomeDir = System.getProperty(SOLR_HOME_PROPERTY_NAME);
-        String solrHomeDir = indexConnectionParameters.get(SolrConnectionParams.SOLR_HOME_DIR);
-        if (solrHomeDir == null) {
-            throw new IllegalStateException("No SolrHome supplied");
-        }
-        try {
-            System.setProperty(SOLR_HOME_PROPERTY_NAME, solrHomeDir);
-            SolrConfig solrConfig = new SolrConfig();
-            SolrResourceLoader loader = solrConfig.getResourceLoader();
-
-            InputSource is = new InputSource(loader.openSchema("schema.xml"));
-                is.setSystemId(SystemIdResolver.createSystemIdFromResourceName("schema.xml"));
-
-            return new IndexSchema(solrConfig, "schema.xml", is);
-        } catch (ParserConfigurationException e) {
-            throw new RuntimeException(e);
-        } catch (SAXException e) {
-            throw new RuntimeException(e);
-        } finally {
-            System.clearProperty(SOLR_HOME_PROPERTY_NAME);
-            if (saveSolrHomeDir != null) {
-                System.setProperty(SOLR_HOME_PROPERTY_NAME, saveSolrHomeDir);
-            }
-        }
 
     }
 

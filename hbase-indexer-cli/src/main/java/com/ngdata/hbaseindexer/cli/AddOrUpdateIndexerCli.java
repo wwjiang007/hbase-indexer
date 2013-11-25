@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.cli;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
@@ -24,6 +25,7 @@ import com.ngdata.hbaseindexer.conf.IndexerConfException;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -41,7 +43,9 @@ import com.ngdata.hbaseindexer.util.IndexerNameValidator;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
 import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
@@ -228,14 +232,22 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
     private Map<String, String> getConnectionParams(OptionSet options, Map<String, String> oldParams) {
         Map<String, String> connectionParams = Maps.newHashMap();
-        if (oldParams != null)
+        if (oldParams != null) {
             connectionParams = Maps.newHashMap(oldParams);
+        }
+
+        String oldSolrMode = connectionParams.get(SolrConnectionParams.MODE);
+        if (oldSolrMode == null) {
+            oldSolrMode = "cloud";
+        }
+        List<String> explicit = Lists.newArrayList();
 
         for (Pair<String, String> param : connectionParamOption.values(options)) {
             // An empty value indicates a request to remove the key
             if (param.getSecond().length() == 0) {
                 connectionParams.remove(param.getFirst());
             } else {
+                explicit.add(param.getFirst());
                 if (!isValidConnectionParam(param.getFirst())) {
                     System.err.println("WARNING: the following is not a recognized Solr connection parameter: "
                             + param.getFirst());
@@ -244,32 +256,104 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
         }
 
+        String newSolrMode = connectionParams.get(SolrConnectionParams.MODE);
+        if (newSolrMode == null) {
+            newSolrMode = "cloud";
+        }
+        if (oldSolrMode.equals("cloud") && newSolrMode.equals("classic")) {
+            // Switch from cloud to classic -- remove any cloud specific parameters
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.COLLECTION);
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.ZOOKEEPER);
+        } else if (oldSolrMode.equals("classic") && newSolrMode.equals("cloud")) {
+            // Switch from classic to cloud -- remove any cloud specific parameters
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.SHARDER_TYPE);
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.MAX_CONNECTIONS);
+            removeUnlessExplicit(explicit, connectionParams, SolrConnectionParams.MAX_CONNECTIONS_PER_HOST);
+
+            // remove any solr.shard.* parameter that wasn't set explicitly
+            List<String> shardParams = Lists.newArrayList();
+            Pattern pattern = Pattern.compile(Pattern.quote(SolrConnectionParams.SOLR_SHARD_PREFIX) + "\\d+");
+            for (String param: connectionParams.keySet()) {
+                if (pattern.matcher(param).matches()) {
+                    shardParams.add(param);
+                }
+            }
+            for (String shardParam: shardParams) {
+                removeUnlessExplicit(explicit, connectionParams, shardParam);
+            }
+        }
+
+        //TODO
+        // if we detect a switch from classic to cloud,
+        // automatically clear solr zk param and solr collection param
+
         // Validate that the minimum required connection params are present
+        if (!connectionParams.containsKey(SolrConnectionParams.MODE)
+                || connectionParams.get(SolrConnectionParams.MODE).equals("cloud")) {
+            // handle cloud params
 
-        if (!connectionParams.containsKey(SolrConnectionParams.ZOOKEEPER)) {
-            String solrZk = getZkConnectionString() + "/solr";
-            System.err.println("WARNING: no -cp solr.zk specified, will use " + solrZk);
-            connectionParams.put("solr.zk", solrZk);
-        }
+            if (!connectionParams.containsKey(SolrConnectionParams.ZOOKEEPER)) {
+                String solrZk = getZkConnectionString() + "/solr";
+                System.err.println("WARNING: no -cp solr.zk specified, will use " + solrZk);
+                connectionParams.put("solr.zk", solrZk);
+            }
 
-        if (!connectionParams.containsKey(SolrConnectionParams.COLLECTION)) {
-            throw new CliException("ERROR: no -cp solr.collection=collectionName specified");
-        }
+            if (!connectionParams.containsKey(SolrConnectionParams.COLLECTION)) {
+                throw new CliException("ERROR: no -cp solr.collection=collectionName specified (this is required when solr.mode=cloud)");
+            }
 
-        if (connectionParams.containsKey(SolrConnectionParams.MODE)
-                && !connectionParams.get(SolrConnectionParams.MODE).equals("cloud")) {
-            System.err.println("ERROR: only 'cloud' supported for -cp solr.mode");
+            // TODO: throw error if sharder type is specified or if shards are listed
+
+        } else if (connectionParams.get(SolrConnectionParams.MODE).equals("classic")) {
+            // handle classic params
+
+            // Check sharder type
+            List<String> sharderTypes = Lists.newArrayList("default", "lily");
+
+            if (connectionParams.containsKey(SolrConnectionParams.SHARDER_TYPE)) {
+                if (!sharderTypes.contains(connectionParams.get(SolrConnectionParams.SHARDER_TYPE))) {
+                    throw new CliException("ERROR: Invalid solr.sharder value: " + connectionParams.get(SolrConnectionParams.SHARDER_TYPE) +
+                            " Valid values are: " + Joiner.on(",").join(sharderTypes));
+                }
+            }
+
+            // Check that there is at least one shard, and that the shards are valid
+            if (SolrConnectionParamUtil.getShards(connectionParams).size() == 0) {
+                throw new CliException("ERROR: You need at least one shard when using solr classic");
+            }
+
+        } else {
+            throw new CliException("ERROR: solr.mode should be 'cloud' or 'classic'. Invalid value: " + connectionParams.get(SolrConnectionParams.MODE));
         }
 
         return connectionParams;
     }
 
+    /**
+     * Removes a connection parameter unless it was set explicitly
+     * @param explicit List of parameters that were set explicitly
+     * @param connectionParams Current connectionParams
+     * @param param The parameter to remove
+     */
+    private void removeUnlessExplicit(List<String> explicit, Map<String, String> connectionParams, String param) {
+        if (!explicit.contains(param)) {
+            connectionParams.remove(param);
+        }
+    }
+
     private boolean isValidConnectionParam(String param) {
-        if (SolrConnectionParams.MODE.equals(param)) {
+        List<String> fixed = Lists.newArrayList(
+                SolrConnectionParams.COLLECTION,
+                SolrConnectionParams.MODE,
+                SolrConnectionParams.SHARDER_TYPE,
+                SolrConnectionParams.ZOOKEEPER,
+                SolrConnectionParams.MAX_CONNECTIONS,
+                SolrConnectionParams.MAX_CONNECTIONS_PER_HOST
+        );
+        if (fixed.contains(param)) {
             return true;
-        } else if (SolrConnectionParams.ZOOKEEPER.equals(param)) {
-            return true;
-        } else if (SolrConnectionParams.COLLECTION.equals(param)) {
+        }
+        if (param.matches(Pattern.quote(SolrConnectionParams.SOLR_SHARD_PREFIX) + "\\d+")) {
             return true;
         }
 

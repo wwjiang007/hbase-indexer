@@ -50,8 +50,6 @@ import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Matchers;
-import org.mockito.verification.VerificationMode;
 
 public class IndexingEventListenerTest {
 
@@ -81,7 +79,7 @@ public class IndexingEventListenerTest {
     public void testNonmatchedTable() {
         IndexerConf conf = new IndexerConfBuilder().table(TABLE_A).build();
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, null, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, null, tablePool, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_B), null, null, null);
@@ -102,7 +100,7 @@ public class IndexingEventListenerTest {
 
         ResultToSolrMapper mapper = mock(ResultToSolrMapper.class);
         when(mapper.isRelevantKV(any(KeyValue.class))).thenReturn(true);
-        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -110,7 +108,7 @@ public class IndexingEventListenerTest {
         SepEvent event = new SepEvent(Bytes.toBytes(TABLE_A), Bytes.toBytes("row1"), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
 
-        verify(solrDocumentWriter).deleteById(Collections.singletonList("row1"));
+        verify(solrDocumentWriter).deleteById(-1, Collections.singletonList("row1"));
         verifyNoMoreInteractions(solrDocumentWriter);
     }
 
@@ -147,7 +145,7 @@ public class IndexingEventListenerTest {
 
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -156,7 +154,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> addedDocumentsCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add(addedDocumentsCaptor.capture());
+        verify(solrDocumentWriter).add(eq(-1), addedDocumentsCaptor.capture());
         Map<String, SolrInputDocument> addedDocuments = addedDocumentsCaptor.getValue();
         assertEquals(1, addedDocuments.size());
         assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
@@ -172,7 +170,7 @@ public class IndexingEventListenerTest {
 
         when(tableA.get(any(Get.class))).thenReturn(newResult(Lists.newArrayList(new KeyValue())));
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -181,7 +179,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add(arg.capture());
+        verify(solrDocumentWriter).add(eq(-1), arg.capture());
         Map<String,SolrInputDocument> addedDocuments = arg.getValue();
         assertEquals(1, addedDocuments.size());
         assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
@@ -196,7 +194,7 @@ public class IndexingEventListenerTest {
 
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, "record", mapper, tablePool, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("cf"),
@@ -205,7 +203,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add(arg.capture());
+        verify(solrDocumentWriter).add(eq(-1), arg.capture());
         Map<String,SolrInputDocument> addedDocuments = arg.getValue();
         assertEquals(1, addedDocuments.size());
         assertEquals("row1", addedDocuments.get("row1").getFieldValue("id"));
@@ -239,7 +237,7 @@ public class IndexingEventListenerTest {
             }
         };
 
-        Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, mapper, null, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", conf, TABLE_A, mapper, null, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, TABLE_A);
 
         List<KeyValue> kvs = Lists.newArrayList(
@@ -251,7 +249,7 @@ public class IndexingEventListenerTest {
         indexingEventListener.processEvents(Collections.singletonList(event));
 
         ArgumentCaptor<Map> arg = ArgumentCaptor.forClass(Map.class);
-        verify(solrDocumentWriter).add(arg.capture());
+        verify(solrDocumentWriter).add(eq(-1), arg.capture());
         Map<String,SolrInputDocument> docs = arg.getValue();
         assertEquals(2, docs.size());
         Set<String> documentIds = Sets.newHashSet(Collections2.transform(docs.values(), new Function<SolrInputDocument,String>(){
@@ -276,7 +274,7 @@ public class IndexingEventListenerTest {
 
         final IndexerConf indexerConf = new IndexerConfBuilder().table(tablePrefix + ".*").build();
         ResultToSolrMapper mapper = createHbaseToSolrMapper(true);
-        Indexer indexer = Indexer.createIndexer("index name", indexerConf, tablePrefix+ ".*", mapper, tablePool, solrDocumentWriter);
+        Indexer indexer = Indexer.createIndexer("index name", indexerConf, tablePrefix+ ".*", mapper, tablePool, null, solrDocumentWriter);
         IndexingEventListener indexingEventListener = new IndexingEventListener(indexer, tablePrefix+ ".*");
         List<KeyValue> kvs = Lists.newArrayList(
                 new KeyValue(Bytes.toBytes("row1"), Bytes.toBytes("messages"), Bytes.toBytes("msg1"),
@@ -289,10 +287,10 @@ public class IndexingEventListenerTest {
 
         event = new SepEvent(Bytes.toBytes(multiTableBName), "row1".getBytes(Charsets.UTF_8), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
-        verify(solrDocumentWriter, atLeastOnce()).add(anyMap());
+        verify(solrDocumentWriter, atLeastOnce()).add(eq(-1), anyMap());
 
         event = new SepEvent(Bytes.toBytes(multiTableAName), "row1".getBytes(Charsets.UTF_8), kvs, null);
         indexingEventListener.processEvents(Collections.singletonList(event));
-        verify(solrDocumentWriter, atLeastOnce()).add(anyMap());
+        verify(solrDocumentWriter, atLeastOnce()).add(eq(-1), anyMap());
     }
 }

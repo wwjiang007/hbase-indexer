@@ -16,44 +16,37 @@
 package com.ngdata.hbaseindexer.indexer;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.Maps;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.common.SolrInputDocument;
 
 /**
- * Defines a generic writer of Solr data.
+ * Factory for two SolrInputDocumentWriter classes Solr cloud and Solr classic
  * <p>
  * Implementations of this class may write directly to Solr, or to any other underlying
  * store than can handle SolrInputDocuments.
  */
-public interface SolrInputDocumentWriter {
+public class SolrInputDocumentWriterFactory {
 
     /**
-     * Write a collection of documents to an underlying datastore.
-     *
-     * @param shard
-     * @param inputDocumentMap map of document ids to {@code SolrInputDocument}s
+     * Creates a SolrInputDocumentWriter targeting Solr cloud.
      */
-    void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
+    public DirectSolrInputDocumentWriter createSolrCloudWriter(String indexName, SolrServer solrServer) throws MalformedURLException {
+        return new DirectSolrInputDocumentWriter(indexName, solrServer);
+    }
 
     /**
-     * Delete a list of documents from an underlying datastore (optional operation).
+     * Creates a SolrInputDocumentWriter targeting Solr classic.
      */
-    void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException;
-
-    /**
-     * Has the same behavior as {@link SolrServer#deleteByQuery(String)} (optional operation).
-     * 
-     * @param deleteQuery delete query to be executed
-     */
-    void deleteByQuery(String deleteQuery) throws SolrServerException, IOException;
-    
-    /**
-     * Close any open resources being used by this writer.
-     */
-    void close() throws SolrServerException, IOException;
+    public DirectSolrClassicInputDocumentWriter createSolrClassicWriter(String indexName, List<SolrServer> solrServers) throws MalformedURLException {
+        return new DirectSolrClassicInputDocumentWriter(indexName, solrServers);
+    }
 
 }

@@ -33,7 +33,23 @@ public class SolrConnectionParams {
     public static final String COLLECTION = "solr.collection";
 
     /**
-     * Solr home directory. Only applicable if {@link #MODE} is "classic".
+     * Solr shard prefix
      */
-    public static final String SOLR_HOME_DIR = "solr.home";
+    public static final String SOLR_SHARD_PREFIX = "solr.shard.";
+
+    /**
+     * The sharder type (default, lily, ...)
+     */
+    public static final String SHARDER_TYPE = "solr.sharder";
+
+    /**
+     * The maximum number of connections per host per indexer {@see org.apache.http.client.impl.conn.PoolingClientConnectionManager})
+     */
+    public static final String MAX_CONNECTIONS_PER_HOST = "solr.conn.maxPerHost";
+
+    /**
+     * The maximum number of connections per indexer (@see {@see org.apache.http.client.impl.conn.PoolingClientConnectionManager})
+     */
+    public static final String MAX_CONNECTIONS = "solr.conn.max";
+
 }
