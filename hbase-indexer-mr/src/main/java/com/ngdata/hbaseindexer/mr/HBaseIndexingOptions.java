@@ -84,6 +84,8 @@ class HBaseIndexingOptions extends OptionsBridge {
     static final String DEFAULT_INDEXER_NAME = "_default_";
 
     private Configuration conf;
+    @VisibleForTesting
+    protected HBaseAdmin hBaseAdmin;
     private List<Scan> scans;
     private IndexingSpecification hbaseIndexingSpecification;
     // Flag that we have created our own output directory
@@ -184,7 +186,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scans = Lists.newArrayList();
-        IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(indexingSpecification.getIndexConfigXml().getBytes()));
+        IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(hbaseIndexingSpecification.getIndexConfigXml().getBytes()));
         HTableDescriptor[] tables = new HTableDescriptor[0];
         try {
             HBaseAdmin admin = getHbaseAdmin();

@@ -123,7 +123,7 @@ public class HBaseIndexingOptionsTest {
     }
 
     @Before
-    public void setUp() throws ZkConnectException, InterruptedException, KeeperException, IOException {
+    public void setUp() throws /*ZkConnectException,*/ InterruptedException, /*KeeperException,*/ IOException {
         conf = new Configuration();
         opts = new HBaseIndexingOptions(conf);
 

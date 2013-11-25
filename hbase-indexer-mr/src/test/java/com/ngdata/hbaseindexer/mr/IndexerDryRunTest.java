@@ -15,19 +15,9 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import com.google.common.base.Charsets;
-import com.google.common.collect.Iterables;
-
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Resources;
 import com.ngdata.hbaseindexer.util.net.NetUtils;
 import com.ngdata.hbaseindexer.util.solr.SolrTestingUtility;
@@ -47,7 +37,14 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.Mockito;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import static org.junit.Assert.assertEquals;
 
 public class IndexerDryRunTest {
 
@@ -113,10 +110,8 @@ public class IndexerDryRunTest {
        
         opts.updateConflictResolver = RetainMostRecentUpdateConflictResolver.class.getName();
         opts.isVerbose = true;
-        opts.hBaseAdmin = Mockito.mock(HBaseAdmin.class);
-        Mockito.when(opts.hBaseAdmin.listTables(new String(TEST_TABLE_NAME, Charsets.UTF_8))).thenReturn(new HTableDescriptor[]{
-                tableDescriptor
-        });
+
+        opts.hBaseAdmin = HBASE_ADMIN;
     }
     
     @After

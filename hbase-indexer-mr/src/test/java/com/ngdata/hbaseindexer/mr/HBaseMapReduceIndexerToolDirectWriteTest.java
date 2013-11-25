@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.google.common.base.Charsets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -128,12 +129,8 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
     
     @Before
     public void setUp() throws Exception {
-        HTableDescriptor tableDescriptor = new HTableDescriptor(TEST_TABLE_NAME);
-        tableDescriptor.addFamily(new HColumnDescriptor(TEST_COLFAM_NAME));
-        HBASE_ADMIN.createTable(tableDescriptor);
-        
+        createHTable(TEST_TABLE_NAME);
         recordTable = new HTable(HBASE_TEST_UTILITY.getConfiguration(), TEST_TABLE_NAME);
-        
         indexerToolConf = HBASE_TEST_UTILITY.getConfiguration();
     }
     
@@ -168,23 +165,37 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
         }
         throw new RuntimeException("Failed to add indexer: " + indexerDef);
     }
-    
+
     /**
      * Write String values to HBase. Direct string-to-bytes encoding is used for
      * writing all values to HBase. All values are stored in the TEST_COLFAM_NAME
      * column family.
-     * 
-     * 
+     *
+     *
      * @param row row key under which are to be stored
      * @param qualifiersAndValues map of column qualifiers to cell values
      */
     private void writeHBaseRecord(String row, Map<String,String> qualifiersAndValues) throws IOException {
+        writeHBaseRecord(row, qualifiersAndValues, recordTable);
+    }
+
+    /**
+     * Write String values to HBase. Direct string-to-bytes encoding is used for
+     * writing all values to HBase. All values are stored in the TEST_COLFAM_NAME
+     * column family.
+     *
+     *
+     * @param row row key under which are to be stored
+     * @param qualifiersAndValues map of column qualifiers to cell values
+     * @param table htable to write to
+     */
+     private static void writeHBaseRecord(String row, Map<String,String> qualifiersAndValues, HTable table) throws IOException {
         Put put = new Put(Bytes.toBytes(row));
         for (Entry<String, String> entry : qualifiersAndValues.entrySet()) {
             put.add(TEST_COLFAM_NAME, Bytes.toBytes(entry.getKey()), Bytes.toBytes(entry.getValue()));
         }
-        recordTable.put(put);
-    }
+        table.put(put);
+     }
     
     /**
      * Execute a Solr query on COLLECTION1.
@@ -424,6 +435,47 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
         assertTrue(executeSolrQuery("firstname_s:Early").isEmpty());
         assertEquals(1, executeSolrQuery("firstname_s:Ontime").size());
         assertTrue(executeSolrQuery("firstname_s:Late").isEmpty());
+    }
+
+    @Test
+    public void testIndexer_Multitable() throws Exception {
+        String tablePrefix = "_multitable_";
+        HTableDescriptor descriptorA = createHTable((tablePrefix + "a_").getBytes(Charsets.UTF_8));
+        HTableDescriptor descriptorB = createHTable((tablePrefix + "b_").getBytes(Charsets.UTF_8));
+        HTable recordTable2 = new HTable(HBASE_TEST_UTILITY.getConfiguration(), tablePrefix + "a_");
+        HTable recordTable3 =  new HTable(HBASE_TEST_UTILITY.getConfiguration(), tablePrefix + "b_");
+
+        String hbaseTableName = tablePrefix + ".*";
+        try {
+            writeHBaseRecord("row1", ImmutableMap.of(
+                    "firstname", "John",
+                    "lastname", "Doe"), recordTable2);
+            writeHBaseRecord("row2", ImmutableMap.of(
+                    "firstname", "John",
+                    "lastname", "Doe"), recordTable3);
+
+            MR_TEST_UTIL.runTool(
+                    "--hbase-indexer-file", new File(Resources.getResource(getClass(), "multitable_indexer.xml").toURI()).toString(),
+                    "--reducers", "0",
+                    "--collection", "collection1",
+                    "--zk-host", SOLR_ZK);
+
+            assertEquals(2, executeSolrQuery("firstname_s:John lastname_s:Doe").size());
+        } finally {
+            HBASE_ADMIN.disableTables(hbaseTableName);
+            HBASE_ADMIN.deleteTables(hbaseTableName);
+
+            recordTable2.close();
+            recordTable3.close();
+        }
+    }
+
+    private static HTableDescriptor createHTable (byte[] tableName) throws Exception{
+        HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
+        tableDescriptor.addFamily(new HColumnDescriptor(TEST_COLFAM_NAME));
+        HBASE_ADMIN.createTable(tableDescriptor);
+
+        return tableDescriptor;
     }
     
 }
