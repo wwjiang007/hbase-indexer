@@ -34,9 +34,9 @@ import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
 import com.ngdata.sep.util.io.Closer;
-import com.ngdata.sep.util.zookeeper.ZkConnectException;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -45,7 +45,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
-import org.apache.zookeeper.KeeperException;
+import org.apache.hadoop.util.ToolRunner;
 import org.joda.time.format.DateTimeFormat;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -74,7 +74,7 @@ public class HBaseIndexingOptionsTest {
         ZK_CLUSTER.setDefaultClientPort(ZK_CLIENT_PORT);
         ZK_CLUSTER.startup(ZK_DIR);
         
-        ZK = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 5000);
+        ZK = ZkUtil.connect("localhost:" + ZK_CLIENT_PORT, 15000);
         INDEXER_MODEL = new IndexerModelImpl(ZK, "/ngdata/hbaseindexer");
     }
 
@@ -113,7 +113,7 @@ public class HBaseIndexingOptionsTest {
         INDEXER_MODEL.addIndexer(indexerDef);
         
         // Wait max 5 seconds
-        while (System.currentTimeMillis() - startTime < 5000) {
+        while (System.currentTimeMillis() - startTime < 15000) {
             if (INDEXER_MODEL.hasIndexer(indexerDef.getName())) {
                 return;
             }
@@ -195,8 +195,8 @@ public class HBaseIndexingOptionsTest {
         opts.outputDir = null;
         opts.reducers = 0;
         opts.zkHost = null;
-        opts.indexerName = "indexer";
-        opts.indexerZkHost = "indexerhost";
+        opts.hbaseIndexerName = "indexer";
+        opts.hbaseIndexerZkHost = "indexerhost";
 
         // Should have no effect
         opts.evaluateOutputDir();
@@ -286,8 +286,8 @@ public class HBaseIndexingOptionsTest {
         
         addAndWaitForIndexer(indexerDef);
         
-        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
-        opts.indexerName = "customsolr";
+        opts.hbaseIndexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.hbaseIndexerName = "customsolr";
         opts.zkHost = "customhost/solr";
         opts.collection = null;
         
@@ -312,8 +312,8 @@ public class HBaseIndexingOptionsTest {
         
         addAndWaitForIndexer(indexerDef);
         
-        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
-        opts.indexerName = "customcollection";
+        opts.hbaseIndexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.hbaseIndexerName = "customcollection";
         opts.zkHost = null;
         opts.collection = "customcollection";
         
@@ -329,13 +329,13 @@ public class HBaseIndexingOptionsTest {
     public void testEvaluateScan_StartRowDefined() throws Exception {
 
         // Set up the dependencies for the indexing specification
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
 
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
-        opts.startRow = "starthere";
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseStartRow = "starthere";
         opts.evaluateScan();
         assertArrayEquals(Bytes.toBytes("starthere"), opts.getScans().get(0).getStartRow());
     }
@@ -344,13 +344,13 @@ public class HBaseIndexingOptionsTest {
     public void testEvaluateScan_EndRowDefined() throws Exception {
 
         // Set up the dependencies for the indexing specification
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
 
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
-        opts.endRow = "endhere";
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseEndRow = "endhere";
         opts.evaluateScan();
         assertArrayEquals(Bytes.toBytes("endhere"), opts.getScans().get(0).getStopRow());
     }
@@ -359,13 +359,13 @@ public class HBaseIndexingOptionsTest {
     public void testEvaluateScan_StartTimeDefined() throws Exception {
 
         // Set up the dependencies for the indexing specification
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
 
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
-        opts.startTimeString = "220777";
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseStartTimeString = "220777";
         opts.evaluateScan();
         assertEquals(220777L, opts.getScans().get(0).getTimeRange().getMin());
     }
@@ -374,13 +374,13 @@ public class HBaseIndexingOptionsTest {
     public void testEvaluateScan_EndTimeDefined() throws Exception {
 
         // Set up the dependencies for the indexing specification
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
 
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
-        opts.endTimeString = "220777";
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseEndTimeString = "220777";
         opts.evaluateScan();
         assertEquals(220777L, opts.getScans().get(0).getTimeRange().getMax());
     }
@@ -391,7 +391,7 @@ public class HBaseIndexingOptionsTest {
         // ResultToSolrMapper#getGet(byte[]) method
 
         // Set up the dependencies for the indexing specification
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "mock_indexer.xml").toURI());
         opts.zkHost = "myzkhost";
         opts.collection = "mycollection";
         opts.evaluateIndexingSpecification();
@@ -472,8 +472,8 @@ public class HBaseIndexingOptionsTest {
         
         addAndWaitForIndexer(indexerDef);
 
-        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
-        opts.indexerName = "userindexer";
+        opts.hbaseIndexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.hbaseIndexerName = "userindexer";
 
         opts.evaluateIndexingSpecification();
         INDEXER_MODEL.deleteIndexerInternal("userindexer");
@@ -493,9 +493,9 @@ public class HBaseIndexingOptionsTest {
 
     @Test
     public void testEvaluateIndexingSpecification_AllFromCmdline() throws Exception {
-        opts.indexerZkHost = null;
+        opts.hbaseIndexerZkHost = null;
         opts.hbaseTableName = "mytable";
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = "myZkHost/solr";
         opts.collection = "mycollection";
 
@@ -514,9 +514,9 @@ public class HBaseIndexingOptionsTest {
 
     @Test
     public void testEvaluateIndexingSpecification_SolrClassic() throws Exception {
-        opts.indexerZkHost = null;
+        opts.hbaseIndexerZkHost = null;
         opts.hbaseTableName = "mytable";
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = null;
         opts.collection = null;
         opts.solrHomeDir = new File(".");
@@ -535,8 +535,8 @@ public class HBaseIndexingOptionsTest {
 
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_IndexerZkSuppliedButNoIndexerNameSupplied() throws Exception {
-        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
-        opts.indexerName = null;
+        opts.hbaseIndexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.hbaseIndexerName = null;
 
         opts.evaluateIndexingSpecification();
     }
@@ -544,16 +544,16 @@ public class HBaseIndexingOptionsTest {
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NonExistantIndexerSupplied() throws Exception {
 
-        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
-        opts.indexerName = "NONEXISTANT";
+        opts.hbaseIndexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.hbaseIndexerName = "NONEXISTANT";
 
         opts.evaluateIndexingSpecification();
     }
 
     @Test
     public void testEvaluateIndexingSpecification_TableNameFromXmlFile() throws Exception {
-        opts.indexerZkHost = null;
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerZkHost = null;
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = "myZkHost/solr";
         opts.collection = "mycollection";
 
@@ -571,8 +571,8 @@ public class HBaseIndexingOptionsTest {
 
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NoIndexXmlSpecified() throws Exception {
-        opts.indexerZkHost = null;
-        opts.hbaseIndexerConfig = null;
+        opts.hbaseIndexerZkHost = null;
+        opts.hbaseIndexerConfigFile = null;
         opts.hbaseTableName = "mytable";
         opts.zkHost = "myZkHost/solr";
         opts.collection = "mycollection";
@@ -582,10 +582,10 @@ public class HBaseIndexingOptionsTest {
 
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NoZkHostSpecified() throws Exception {
-        opts.indexerZkHost = null;
+        opts.hbaseIndexerZkHost = null;
         opts.zkHost = null;
         opts.hbaseTableName = "mytable";
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.collection = "mycollection";
 
         opts.evaluateIndexingSpecification();
@@ -593,10 +593,10 @@ public class HBaseIndexingOptionsTest {
 
     @Test(expected=IllegalStateException.class)
     public void testEvaluateIndexingSpecification_NoCollectionSpecified() throws Exception {
-        opts.indexerZkHost = null;
+        opts.hbaseIndexerZkHost = null;
         opts.collection = null;
         opts.hbaseTableName = "mytable";
-        opts.hbaseIndexerConfig = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
+        opts.hbaseIndexerConfigFile = new File(Resources.getResource(getClass(), "user_indexer.xml").toURI());
         opts.zkHost = "myZkHost/solr";
 
         opts.evaluateIndexingSpecification();
@@ -615,8 +615,8 @@ public class HBaseIndexingOptionsTest {
                 .build();
         addAndWaitForIndexer(indexerDef);
 
-        opts.indexerZkHost = "localhost:" + ZK_CLIENT_PORT;
-        opts.indexerName = "userindexer";
+        opts.hbaseIndexerZkHost = "localhost:" + ZK_CLIENT_PORT;
+        opts.hbaseIndexerName = "userindexer";
         opts.hbaseTableName = "mytable";
         opts.zkHost = "myOtherZkHost/solr";
 
@@ -667,6 +667,18 @@ public class HBaseIndexingOptionsTest {
     @Test
     public void testEvaluateTimestamp_NullTimestamp() {
         assertNull(HBaseIndexingOptions.evaluateTimestamp(null, null));
+    }
+
+    @Test
+    public void testHelp() throws Exception {
+      String[] args = new String[] {"--help"};
+      assertEquals(0, ToolRunner.run(new Configuration(), new HBaseMapReduceIndexerTool(), args));
+    }
+
+    @Test
+    public void testHelpWithNonSolrCloud() throws Exception {
+      String[] args = new String[] {"--help", "--show-non-solr-cloud"};
+      assertEquals(0, ToolRunner.run(new Configuration(), new HBaseMapReduceIndexerTool(), args));
     }
 
 }

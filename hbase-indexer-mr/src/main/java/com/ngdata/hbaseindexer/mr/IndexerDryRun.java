@@ -22,6 +22,18 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
+import org.apache.solr.hadoop.MorphlineClasspathUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -33,6 +45,7 @@ import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.sep.util.io.Closer;
 import org.apache.hadoop.conf.Configuration;
@@ -51,7 +64,7 @@ import org.slf4j.LoggerFactory;
  * The purpose of this class is to allow for quickly debugging indexing
  * before actually writing it to
  */
-public class IndexerDryRun {
+class IndexerDryRun {
     
     private static final Logger LOG = LoggerFactory.getLogger(IndexerDryRun.class);
 
@@ -77,6 +90,8 @@ public class IndexerDryRun {
      * @return 0 if successful, non-zero otherwise
      */
     int run() {
+      
+        long programStartTime = System.currentTimeMillis();
         IndexingSpecification indexingSpec = indexingOpts.getIndexingSpecification();
         
         IndexerConf indexerConf;
@@ -91,6 +106,24 @@ public class IndexerDryRun {
             LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
         }
+        
+        if (indexingOpts.morphlineFile != null) {
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, indexingOpts.morphlineFile.getPath());
+        }
+        if (indexingOpts.morphlineId != null) {
+            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, indexingOpts.morphlineId);
+        }
+        
+        for (Map.Entry<String, String> entry : hbaseConf) {
+            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
+                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+            }
+            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
+                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        MorphlineClasspathUtil.setupJavaCompilerClasspath();
         
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                                                         indexingSpec.getIndexerName(),
@@ -121,7 +154,7 @@ public class IndexerDryRun {
             Closer.close(htable);
         }
         
-        
+        ForkedMapReduceIndexerTool.goodbye(null, programStartTime);        
         return 0;
         
     }

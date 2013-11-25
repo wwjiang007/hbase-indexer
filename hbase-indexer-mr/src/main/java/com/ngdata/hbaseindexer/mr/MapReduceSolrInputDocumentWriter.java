@@ -20,17 +20,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
 
+import com.ngdata.hbaseindexer.indexer.SolrInputDocumentWriter;
+
 /**
  * Writer for {@code SolrInputDocument}s in a MapReduce context.
  */
-public class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter {
+class MapReduceSolrInputDocumentWriter implements SolrInputDocumentWriter {
     
     private Context context;
     

@@ -17,13 +17,12 @@ package com.ngdata.hbaseindexer.mr;
 
 import java.util.Map;
 
-import org.apache.commons.lang.builder.ToStringStyle;
-
-import org.apache.commons.lang.builder.ToStringBuilder;
-
-import com.google.common.base.Preconditions;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
+import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang.builder.ToStringStyle;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Encapsulates the definition of the HBase indexing to be done.
@@ -32,7 +31,7 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
  * the parameter contained in this class may come from a combination of ZooKeeper
  * and/or command-line arguments.
  */
-public class IndexingSpecification {
+class IndexingSpecification {
     
     private final String tableName;
     

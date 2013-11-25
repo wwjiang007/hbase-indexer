@@ -29,19 +29,15 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.zookeeper.KeeperException;
-
-import com.cloudera.cdk.morphline.base.Fields;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.impl.action.HelpArgumentAction;
@@ -53,6 +49,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.FeatureControl;
 import net.sourceforge.argparse4j.inf.Namespace;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -78,8 +75,14 @@ import org.apache.solr.hadoop.MapReduceIndexerTool.Options;
 import org.apache.solr.hadoop.dedup.RetainMostRecentUpdateConflictResolver;
 import org.apache.solr.hadoop.morphline.MorphlineMapRunner;
 import org.apache.solr.hadoop.morphline.MorphlineMapper;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.cloudera.cdk.morphline.base.Fields;
+import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
+import com.google.common.io.ByteStreams;
 
 
 /**
@@ -604,6 +607,8 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
         opts.log4jConfigFile = this.log4jConfigFile;
         opts.mappers = this.mappers;
         opts.maxSegments = this.maxSegments;
+        opts.morphlineFile = this.morphlineFile;
+        opts.morphlineId = this.morphlineId;
         opts.outputDir = this.outputDir;
         opts.reducers = this.reducers;
         opts.shards = this.shards;
@@ -764,7 +769,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
 
 
   public static int runIndexingPipeline(Job job, Configuration conf, Options options, long programStartTime, FileSystem fs, Path fullInputList, long numFiles,
-        int realMappers, int reducers) throws IOException, KeeperException, InterruptedException, URISyntaxException,
+        int realMappers, int reducers) throws IOException, KeeperException, InterruptedException,
         ClassNotFoundException, FileNotFoundException {
     long startTime;
     float secs;
@@ -784,7 +789,8 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
       throw new IllegalArgumentException("updateConflictResolver must not be null");
     }
     job.getConfiguration().set(SolrReducer.UPDATE_CONFLICT_RESOLVER, options.updateConflictResolver);
-    
+    job.getConfiguration().setInt(SolrOutputFormat.SOLR_RECORD_WRITER_MAX_SEGMENTS, options.maxSegments);
+
     if (options.zkHost != null) {
       assert options.collection != null;
       /*
@@ -799,12 +805,12 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
        * the same SolrCloud cluster, using identical unique document keys.
        */
       if (job.getConfiguration().get(JobContext.PARTITIONER_CLASS_ATTR) == null) { // enable customization
-        job.setPartitionerClass(SolrCloudPartitioner.class);
+        job.setPartitionerClass(ForkedSolrCloudPartitioner.class);
       }
-      job.getConfiguration().set(SolrCloudPartitioner.ZKHOST, options.zkHost);
-      job.getConfiguration().set(SolrCloudPartitioner.COLLECTION, options.collection);
+      job.getConfiguration().set(ForkedSolrCloudPartitioner.ZKHOST, options.zkHost);
+      job.getConfiguration().set(ForkedSolrCloudPartitioner.COLLECTION, options.collection);
     }
-    job.getConfiguration().setInt(SolrCloudPartitioner.SHARDS, options.shards);
+    job.getConfiguration().setInt(ForkedSolrCloudPartitioner.SHARDS, options.shards);
 
     job.setOutputFormatClass(SolrOutputFormat.class);
     if (options.solrHomeDir != null) {
@@ -858,9 +864,9 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     while (reducers > options.shards) { // run a mtree merge iteration
       job = Job.getInstance(conf);
       job.setJarByClass(ForkedMapReduceIndexerTool.class);
-      job.setJobName(ForkedMapReduceIndexerTool.class.getName() + "/" + Utils.getShortClassName(TreeMergeMapper.class));
-      job.setMapperClass(TreeMergeMapper.class);
-      job.setOutputFormatClass(TreeMergeOutputFormat.class);
+      job.setJobName(ForkedMapReduceIndexerTool.class.getName() + "/" + Utils.getShortClassName(ForkedTreeMergeMapper.class));
+      job.setMapperClass(ForkedTreeMergeMapper.class);
+      job.setOutputFormatClass(ForkedTreeMergeOutputFormat.class);
       job.setNumReduceTasks(0);
       job.setOutputKeyClass(Text.class);
       job.setOutputValueClass(NullWritable.class);
@@ -882,6 +888,9 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
       startTime = System.currentTimeMillis();
       if (!waitForCompletion(job, options.isVerbose)) {
         return -1; // job failed
+      }
+      if (!renameTreeMergeShardDirs(outputTreeMergeStep, job, fs)) {
+        return -1;
       }
       secs = (System.currentTimeMillis() - startTime) / 1000.0f;
       LOG.info("MTree merge iteration {}/{}: Done. Merging {} shards into {} shards using fanout {} took {} secs",
@@ -1107,7 +1116,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
   }
 
   // do the same as if the user had typed 'hadoop ... --files <file>'
-  private static void addDistributedCacheFile(File file, Configuration conf) throws IOException {
+  public static void addDistributedCacheFile(File file, Configuration conf) throws IOException {
     String HADOOP_TMP_FILES = "tmpfiles"; // see Hadoop's GenericOptionsParser
     String tmpFiles = conf.get(HADOOP_TMP_FILES, "");
     if (tmpFiles.length() > 0) { // already present?
@@ -1121,82 +1130,6 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     assert additionalTmpFiles.length() > 0;
     tmpFiles += additionalTmpFiles;
     conf.set(HADOOP_TMP_FILES, tmpFiles);
-  }
-  
-  private static MorphlineMapRunner setupMorphline(Job job, Options options) throws IOException, URISyntaxException {
-    if (options.morphlineId != null) {
-      job.getConfiguration().set(MorphlineMapRunner.MORPHLINE_ID_PARAM, options.morphlineId);
-    }
-    addDistributedCacheFile(options.morphlineFile, job.getConfiguration());
-    if (!options.isDryRun) {
-      return null;
-    }
-    
-    /*
-     * Ensure scripting support for Java via morphline "java" command works even in dryRun mode,
-     * i.e. when executed in the client side driver JVM. To do so, collect all classpath URLs from
-     * the class loaders chain that org.apache.hadoop.util.RunJar (hadoop jar xyz-job.jar) and
-     * org.apache.hadoop.util.GenericOptionsParser (--libjars) have installed, then tell
-     * FastJavaScriptEngine.parse() where to find classes that JavaBuilder scripts might depend on.
-     * This ensures that scripts that reference external java classes compile without exceptions
-     * like this:
-     * 
-     * ... caused by compilation failed: mfm:///MyJavaClass1.java:2: package
-     * com.cloudera.cdk.morphline.api does not exist
-     */
-    LOG.trace("dryRun: java.class.path: {}", System.getProperty("java.class.path"));
-    String fullClassPath = "";
-    ClassLoader loader = Thread.currentThread().getContextClassLoader(); // see org.apache.hadoop.util.RunJar
-    while (loader != null) { // walk class loaders, collect all classpath URLs
-      if (loader instanceof URLClassLoader) {
-        URL[] classPathPartURLs = ((URLClassLoader) loader).getURLs(); // see org.apache.hadoop.util.RunJar
-        LOG.trace("dryRun: classPathPartURLs: {}", Arrays.asList(classPathPartURLs));
-        StringBuilder classPathParts = new StringBuilder();
-        for (URL url : classPathPartURLs) {
-          File file = new File(url.toURI());
-          if (classPathPartURLs.length > 0) {
-            classPathParts.append(File.pathSeparator);
-          }
-          classPathParts.append(file.getPath());
-        }
-        LOG.trace("dryRun: classPathParts: {}", classPathParts);
-        String separator = File.pathSeparator;
-        if (fullClassPath.length() == 0 || classPathParts.length() == 0) {
-          separator = "";
-        }
-        fullClassPath = classPathParts + separator + fullClassPath;
-      }
-      loader = loader.getParent();
-    }
-    
-    // tell FastJavaScriptEngine.parse() where to find the classes that the script might depend on
-    if (fullClassPath.length() > 0) {
-      assert System.getProperty("java.class.path") != null;
-      fullClassPath = System.getProperty("java.class.path") + File.pathSeparator + fullClassPath;
-      LOG.trace("dryRun: fullClassPath: {}", fullClassPath);
-      System.setProperty("java.class.path", fullClassPath); // see FastJavaScriptEngine.parse()
-    }
-    
-    job.getConfiguration().set(MorphlineMapRunner.MORPHLINE_FILE_PARAM, options.morphlineFile.getPath());
-    return new MorphlineMapRunner(
-        job.getConfiguration(), new DryRunDocumentLoader(), options.solrHomeDir.getPath());
-  }
-  
-  /*
-   * Executes the morphline in the current process (without submitting a job to MR) for quicker
-   * turnaround during trial & debug sessions
-   */
-  private static void dryRun(Job job, MorphlineMapRunner runner, FileSystem fs, Path fullInputList) throws IOException {
-    BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(fullInputList), "UTF-8"));
-    try {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        runner.map(line, job.getConfiguration(), null);
-      }
-      runner.cleanup();
-    } finally {
-      reader.close();
-    }
   }
   
   private static int createTreeMergeInputDirList(Job job, Path outputReduceDir, FileSystem fs, Path fullInputList)
@@ -1238,8 +1171,96 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
         throw new IllegalStateException("Not a directory: " + dir.getPath());
       }
     }
-    Arrays.sort(dirs); // FIXME: handle more than 99999 shards (need numeric sort rather than lexicographical sort)
+
+    // use alphanumeric sort (rather than lexicographical sort) to properly handle more than 99999 shards
+    Arrays.sort(dirs, new Comparator<FileStatus>() {
+      @Override
+      public int compare(FileStatus f1, FileStatus f2) {
+        return new ForkedAlphaNumericComparator().compare(f1.getPath().getName(), f2.getPath().getName());
+      }
+    });
+
     return dirs;
+  }
+  
+  /*
+   * You can run MapReduceIndexerTool in Solrcloud mode, and once the MR job completes, you can use
+   * the standard solrj Solrcloud API to send doc updates and deletes to SolrCloud, and those updates
+   * and deletes will go to the right Solr shards, and it will work just fine.
+   * 
+   * The MapReduce framework doesn't guarantee that input split N goes to the map task with the
+   * taskId = N. The job tracker and Yarn schedule and assign tasks, considering data locality
+   * aspects, but without regard of the input split# withing the overall list of input splits. In
+   * other words, split# != taskId can be true.
+   * 
+   * To deal with this issue, our mapper tasks write a little auxiliary meta data file (per task)
+   * that tells the job driver which taskId processed which split#. Once the mapper-only job is
+   * completed, the job driver renames the output dirs such that the dir name contains the true solr
+   * shard id, based on these auxiliary files.
+   * 
+   * This way each doc gets assigned to the right Solr shard even with #reducers > #solrshards
+   * 
+   * Example for a merge with two shards:
+   * 
+   * part-m-00000 and part-m-00001 goes to outputShardNum = 0 and will end up in merged part-m-00000
+   * part-m-00002 and part-m-00003 goes to outputShardNum = 1 and will end up in merged part-m-00001
+   * part-m-00004 and part-m-00005 goes to outputShardNum = 2 and will end up in merged part-m-00002
+   * ... and so on
+   * 
+   * Also see run() method above where it uses NLineInputFormat.setNumLinesPerSplit(job,
+   * options.fanout)
+   * 
+   * Also see TreeMergeOutputFormat.TreeMergeRecordWriter.writeShardNumberFile()
+   */
+  private static boolean renameTreeMergeShardDirs(Path outputTreeMergeStep, Job job, FileSystem fs) throws IOException {
+    final String dirPrefix = SolrOutputFormat.getOutputName(job);
+    FileStatus[] dirs = fs.listStatus(outputTreeMergeStep, new PathFilter() {      
+      @Override
+      public boolean accept(Path path) {
+        return path.getName().startsWith(dirPrefix);
+      }
+    });
+    
+    for (FileStatus dir : dirs) {
+      if (!dir.isDirectory()) {
+        throw new IllegalStateException("Not a directory: " + dir.getPath());
+      }
+    }
+
+    for (FileStatus dir : dirs) {
+      Path path = dir.getPath();
+      Path renamedPath = new Path(path.getParent(), "_" + path.getName());
+      if (!rename(path, renamedPath, fs)) {
+        return false;
+      }
+    }
+    
+    for (FileStatus dir : dirs) {
+      Path path = dir.getPath();
+      Path renamedPath = new Path(path.getParent(), "_" + path.getName());
+      
+      Path solrShardNumberFile = new Path(renamedPath, ForkedTreeMergeMapper.SOLR_SHARD_NUMBER);
+      InputStream in = fs.open(solrShardNumberFile);
+      byte[] bytes = ByteStreams.toByteArray(in);
+      in.close();
+      Preconditions.checkArgument(bytes.length > 0);
+      int solrShard = Integer.parseInt(new String(bytes, Charsets.UTF_8));
+      if (!delete(solrShardNumberFile, false, fs)) {
+        return false;
+      }
+      
+      // see FileOutputFormat.NUMBER_FORMAT
+      NumberFormat numberFormat = NumberFormat.getInstance();
+      numberFormat.setMinimumIntegerDigits(5);
+      numberFormat.setGroupingUsed(false);
+      Path finalPath = new Path(renamedPath.getParent(), dirPrefix + "-m-" + numberFormat.format(solrShard));
+      
+      LOG.info("MTree merge renaming solr shard: " + solrShard + " from dir: " + dir.getPath() + " to dir: " + finalPath);
+      if (!rename(renamedPath, finalPath, fs)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static void verifyGoLiveArgs(Options opts, ArgumentParser parser) throws ArgumentParserException {
@@ -1309,7 +1330,7 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
     return success;
   }
 
-  private static void goodbye(Job job, long startTime) {
+  public static void goodbye(Job job, long startTime) {
     float secs = (System.currentTimeMillis() - startTime) / 1000.0f;
     if (job != null) {
       LOG.info("Succeeded with job: " + getJobInfo(job));

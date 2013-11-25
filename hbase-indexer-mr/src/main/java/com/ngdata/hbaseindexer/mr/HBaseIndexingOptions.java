@@ -27,6 +27,19 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.mapred.JobClient;
+import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
+import org.apache.solr.hadoop.ForkedZooKeeperInspector;
+import org.apache.solr.hadoop.MapReduceIndexerTool;
+import org.apache.solr.hadoop.MorphlineClasspathUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
@@ -41,6 +54,7 @@ import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.util.zookeeper.StateWatchingZooKeeper;
 import com.ngdata.sep.impl.HBaseShims;
@@ -69,24 +83,21 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     static final String DEFAULT_INDEXER_NAME = "_default_";
 
-    @VisibleForTesting
-    protected HBaseAdmin hBaseAdmin;
-
     private Configuration conf;
     private List<Scan> scans;
-    private IndexingSpecification indexingSpecification;
+    private IndexingSpecification hbaseIndexingSpecification;
     // Flag that we have created our own output directory
     private boolean generatedOutputDir = false;
 
-    public String indexerZkHost;
-    public String indexerName = DEFAULT_INDEXER_NAME;
-    public File hbaseIndexerConfig;
+    public String hbaseIndexerZkHost;
+    public String hbaseIndexerName = DEFAULT_INDEXER_NAME;
+    public File hbaseIndexerConfigFile;
     public String hbaseTableName;
-    public String startRow;
-    public String endRow;
-    public String startTimeString;
-    public String endTimeString;
-    public String timestampFormat;
+    public String hbaseStartRow;
+    public String hbaseEndRow;
+    public String hbaseStartTimeString;
+    public String hbaseEndTimeString;
+    public String hbaseTimestampFormat;
     public boolean overwriteOutputDir;
 
     public HBaseIndexingOptions(Configuration conf) {
@@ -111,10 +122,10 @@ class HBaseIndexingOptions extends OptionsBridge {
     }
 
     public IndexingSpecification getIndexingSpecification() {
-        if (indexingSpecification == null) {
+        if (hbaseIndexingSpecification == null) {
             throw new IllegalStateException("Indexing specification has not yet been evaluated");
         }
-        return indexingSpecification;
+        return hbaseIndexingSpecification;
     }
 
     /**
@@ -141,9 +152,9 @@ class HBaseIndexingOptions extends OptionsBridge {
         if (isDirectWrite() || isDryRun) {
             if (outputDir != null) {
                 throw new IllegalStateException(
-                    "Output directory should not be specified if direct-write or dry-run are enabled");
+                    "--output-dir must not be specified if --reducers is 0 or --dry-run is enabled");
             }
-            if (zkHost == null && (indexerName == null || indexerZkHost == null)) {
+            if (zkHost == null && (hbaseIndexerName == null || hbaseIndexerZkHost == null)) {
                 throw new IllegalStateException(
                     "--zk-host must be specified if --reducers is 0 or --dry-run is enabled");
             }
@@ -158,7 +169,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         } else {
             if (outputDir == null) {
-                throw new IllegalStateException("Must supply an output directory");
+                throw new IllegalStateException("Must supply --output-dir unless --go-live is enabled");
             }
         }
     }
@@ -182,22 +193,22 @@ class HBaseIndexingOptions extends OptionsBridge {
             new RuntimeException("Error occurred fetching hbase tables", e);
         }
         for (HTableDescriptor descriptor : tables) {
-            Scan scan = new Scan();
-            scan.setCacheBlocks(false);
-            scan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
+            Scan hbaseScan = new Scan();
+            hbaseScan.setCacheBlocks(false);
+            hbaseScan.setCaching(conf.getInt("hbase.client.scanner.caching", 200));
 
-            if (startRow != null) {
-                scan.setStartRow(Bytes.toBytesBinary(startRow));
-                LOG.debug("Starting row scan at " + startRow);
+            if (hbaseStartRow != null) {
+                hbaseScan.setStartRow(Bytes.toBytesBinary(hbaseStartRow));
+                LOG.debug("Starting row scan at " + hbaseStartRow);
             }
 
-            if (endRow != null) {
-                scan.setStopRow(Bytes.toBytesBinary(endRow));
-                LOG.debug("Stopping row scan at " + endRow);
+            if (hbaseEndRow != null) {
+                hbaseScan.setStopRow(Bytes.toBytesBinary(hbaseEndRow));
+                LOG.debug("Stopping row scan at " + hbaseEndRow);
             }
 
-            Long startTime = evaluateTimestamp(startTimeString, timestampFormat);
-            Long endTime = evaluateTimestamp(endTimeString, timestampFormat);
+            Long startTime = evaluateTimestamp(hbaseStartTimeString, hbaseTimestampFormat);
+            Long endTime = evaluateTimestamp(hbaseEndTimeString, hbaseTimestampFormat);
 
             if (startTime != null || endTime != null) {
                 long scanStartTime = 0L;
@@ -211,32 +222,28 @@ class HBaseIndexingOptions extends OptionsBridge {
                     LOG.debug("Setting scan end of time range to " + endTime);
                 }
                 try {
-                    scan.setTimeRange(scanStartTime, scanEndTime);
+                    hbaseScan.setTimeRange(scanStartTime, scanEndTime);
                 } catch (IOException e) {
                     // In reality an IOE will never be thrown here
                     throw new RuntimeException(e);
                 }
             }
-
             // Only scan the column families and/or cells that the indexer requires
-            // if we're running in row-indexing mode
-
+            // if we're running in row-indexing mode        
             if (indexerConf.getMappingType() == MappingType.ROW) {
+                MorphlineClasspathUtil.setupJavaCompilerClasspath();
+
                 ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
-                        indexingSpecification.getIndexerName(),
+                        hbaseIndexingSpecification.getIndexerName(),
                         indexerConf,
-                        indexingSpecification.getIndexConnectionParams());
+                        hbaseIndexingSpecification.getIndexConnectionParams());
                 Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
-                scan.setFamilyMap(get.getFamilyMap());
+                hbaseScan.setFamilyMap(get.getFamilyMap());
             }
+            hbaseScan.setAttribute(Scan.SCAN_ATTRIBUTES_TABLE_NAME, descriptor.getName());
 
-            scan.setAttribute(Scan.SCAN_ATTRIBUTES_TABLE_NAME, descriptor.getName());
-
-            scans.add(scan);
-
+            scans.add(hbaseScan);
         }
-
-
     }
 
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
@@ -284,7 +291,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
     private void evaluateShards()  {
-        if (zkHost != null && shards == null) {
+        if (zkHost != null) {
             assert collection != null;
             ForkedZooKeeperInspector zki = new ForkedZooKeeperInspector();
             try {
@@ -366,17 +373,17 @@ class HBaseIndexingOptions extends OptionsBridge {
         String indexerConfigXml = null;
         Map<String,String> indexConnectionParams = Maps.newHashMap();
 
-        if (indexerZkHost != null) {
+        if (hbaseIndexerZkHost != null) {
 
-            if (indexerName == null) {
+            if (hbaseIndexerName == null) {
                 throw new IllegalStateException("--hbase-indexer-name must be supplied if --hbase-indexer-zk is specified");
             }
 
             StateWatchingZooKeeper zk = null;
             try {
-                zk = new StateWatchingZooKeeper(indexerZkHost, 30000);
+                zk = new StateWatchingZooKeeper(hbaseIndexerZkHost, 30000);
                 IndexerModelImpl indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
-                IndexerDefinition indexerDefinition = indexerModel.getIndexer(indexerName);
+                IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexerName);
                 byte[] indexConfigBytes = indexerDefinition.getConfiguration();
                 tableName = getTableNameFromConf(new ByteArrayInputStream(indexConfigBytes));
                 indexerConfigXml = Bytes.toString(indexConfigBytes);
@@ -391,7 +398,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 }
                 indexerModel.stop();
             } catch (IndexerNotFoundException infe) {
-                throw new IllegalStateException("Indexer " + indexerName + " doesn't exist");
+                throw new IllegalStateException("Indexer " + hbaseIndexerName + " doesn't exist");
             } catch (Exception e) {
                 // We won't bother trying to do any recovery here if things don't work out,
                 // so we just throw the wrapped exception up the stack
@@ -400,9 +407,9 @@ class HBaseIndexingOptions extends OptionsBridge {
                 Closer.close(zk);
             }
         } else {
-            if (hbaseIndexerConfig == null) {
+            if (hbaseIndexerConfigFile == null) {
                 throw new IllegalStateException(
-                        "--hbase-indexer must be specified if --hbase-indexer-zk is not specified");
+                        "--hbase-indexer-file must be specified if --hbase-indexer-zk is not specified");
             }
             if (solrHomeDir == null) {
                 if (zkHost == null) {
@@ -417,12 +424,12 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
 
 
-        if (this.hbaseIndexerConfig != null) {
+        if (this.hbaseIndexerConfigFile != null) {
             try {
-                indexerConfigXml = Files.toString(hbaseIndexerConfig, Charsets.UTF_8);
-                tableName = getTableNameFromConf(new FileInputStream(hbaseIndexerConfig));
+                indexerConfigXml = Files.toString(hbaseIndexerConfigFile, Charsets.UTF_8);
+                tableName = getTableNameFromConf(new FileInputStream(hbaseIndexerConfigFile));
             } catch (IOException e) {
-                throw new RuntimeException("Error loading " + hbaseIndexerConfig, e);
+                throw new RuntimeException("Error loading " + hbaseIndexerConfigFile, e);
             }
         }
 
@@ -444,26 +451,46 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        if (indexerName == null) {
-            indexerName = DEFAULT_INDEXER_NAME;
+        if (hbaseIndexerName == null) {
+            hbaseIndexerName = DEFAULT_INDEXER_NAME;
         }
 
-
-        this.indexingSpecification = new IndexingSpecification(
+        this.hbaseIndexingSpecification = new IndexingSpecification(
                                             tableName,
-                                            indexerName,
+                                            hbaseIndexerName,
                                             indexerConfigXml,
                                             indexConnectionParams);
     }
 
     private IndexerConf loadIndexerConf(InputStream indexerConfigInputStream) {
+        IndexerConf indexerConf;
         try {
-            return new XmlIndexerConfReader().read(indexerConfigInputStream);
+            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);       
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             Closer.close(indexerConfigInputStream);
         }
+        
+        if (morphlineFile != null) {
+            indexerConf.getGlobalParams().put(
+                MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile.getPath());
+        }
+        if (morphlineId != null) {
+            indexerConf.getGlobalParams().put(
+                MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+        }
+        
+        for (Map.Entry<String, String> entry : conf) {
+            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
+                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+            }
+            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
+                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return indexerConf;
     }
 
     private String getTableNameFromConf(InputStream indexerConfigInputStream) {
