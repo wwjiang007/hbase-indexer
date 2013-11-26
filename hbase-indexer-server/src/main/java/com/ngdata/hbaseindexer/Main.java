@@ -15,10 +15,8 @@
  */
 package com.ngdata.hbaseindexer;
 
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.master.IndexerMaster;
 import com.ngdata.hbaseindexer.model.api.IndexerProcessRegistry;
 import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
@@ -39,17 +37,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.util.Strings;
 import org.apache.hadoop.net.DNS;
-
 import org.mortbay.jetty.Connector;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
-import org.springframework.web.context.support.GenericWebApplicationContext;
-import org.springframework.web.context.support.ServletContextResourceLoader;
-import org.springframework.web.servlet.DispatcherServlet;
-
-import javax.servlet.ServletConfig;
 
 public class Main {
     private Log log = LogFactory.getLog(getClass());
