@@ -21,8 +21,6 @@ import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UP
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -38,7 +36,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -68,13 +65,9 @@ import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.JobInProgress;
-import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.RunningJob;
-import org.apache.hadoop.mapred.Task;
 import org.apache.zookeeper.KeeperException;
 
 /**
