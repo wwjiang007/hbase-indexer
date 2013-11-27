@@ -15,6 +15,14 @@
  */
 package com.ngdata.hbaseindexer.model.impl;
 
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
+import static org.apache.zookeeper.Watcher.Event.EventType.NodeChildrenChanged;
+import static org.apache.zookeeper.Watcher.Event.EventType.NodeDataChanged;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,19 +38,22 @@ import javax.annotation.PreDestroy;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-
 import com.ngdata.hbaseindexer.model.api.IndexerConcurrentModificationException;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
 import com.ngdata.hbaseindexer.model.api.IndexerExistsException;
+import com.ngdata.hbaseindexer.model.api.IndexerModelEvent;
 import com.ngdata.hbaseindexer.model.api.IndexerModelException;
+import com.ngdata.hbaseindexer.model.api.IndexerModelListener;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.api.IndexerUpdateException;
 import com.ngdata.hbaseindexer.model.api.IndexerValidityException;
+import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
+import com.ngdata.hbaseindexer.util.zookeeper.ZkLock;
+import com.ngdata.hbaseindexer.util.zookeeper.ZkLockException;
 import com.ngdata.sep.util.zookeeper.ZkUtil;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import com.ngdata.sep.util.zookeeper.ZooKeeperOperation;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.zookeeper.CreateMode;
@@ -51,19 +62,6 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
-import com.ngdata.hbaseindexer.model.api.ActiveBatchBuildInfo;
-import com.ngdata.hbaseindexer.model.api.BatchBuildInfo;
-import com.ngdata.hbaseindexer.model.api.IndexerModelEvent;
-import com.ngdata.hbaseindexer.model.api.IndexerModelListener;
-import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
-import com.ngdata.hbaseindexer.util.zookeeper.ZkLock;
-import com.ngdata.hbaseindexer.util.zookeeper.ZkLockException;
-
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.*;
-import static org.apache.zookeeper.Watcher.Event.EventType.NodeChildrenChanged;
-import static org.apache.zookeeper.Watcher.Event.EventType.NodeDataChanged;
 
 // About how the indexer conf is stored in ZooKeeper
 // -------------------------------------------------
@@ -96,7 +94,6 @@ import static org.apache.zookeeper.Watcher.Event.EventType.NodeDataChanged;
  * <p>Usage: typically in an application you will create just one instance of IndexerModel and share it.
  * This is a relatively heavy object which runs threads. IMPORTANT: when done using it, call the stop()
  * method to properly shut down everything.</p>
- *
  */
 public class IndexerModelImpl implements WriteableIndexerModel {
     private final ZooKeeperItf zk;
@@ -116,7 +113,8 @@ public class IndexerModelImpl implements WriteableIndexerModel {
      */
     private final Object indexers_lock = new Object();
 
-    private final Set<IndexerModelListener> listeners = Collections.newSetFromMap(new IdentityHashMap<IndexerModelListener, Boolean>());
+    private final Set<IndexerModelListener> listeners =
+            Collections.newSetFromMap(new IdentityHashMap<IndexerModelListener, Boolean>());
 
     private final Watcher watcher = new IndexModelChangeWatcher();
 
@@ -158,7 +156,8 @@ public class IndexerModelImpl implements WriteableIndexerModel {
     }
 
     @Override
-    public void addIndexer(IndexerDefinition indexer) throws IndexerExistsException, IndexerModelException, IndexerValidityException {
+    public void addIndexer(IndexerDefinition indexer)
+            throws IndexerExistsException, IndexerModelException, IndexerValidityException {
         assertValid(indexer);
 
         if (indexer.getIncrementalIndexingState() != IndexerDefinition.IncrementalIndexingState.DO_NOT_SUBSCRIBE) {
@@ -179,7 +178,7 @@ public class IndexerModelImpl implements WriteableIndexerModel {
         } catch (Exception e) {
             throw new IndexerModelException("Error creating indexer.", e);
         }
-  
+
     }
 
     private void assertValid(IndexerDefinition indexer) throws IndexerValidityException {
@@ -197,13 +196,6 @@ public class IndexerModelImpl implements WriteableIndexerModel {
 
         if (indexer.getIncrementalIndexingState() == null)
             throw new IndexerValidityException("Update state should not be null.");
-
-        if (indexer.getActiveBatchBuildInfo() != null) {
-            ActiveBatchBuildInfo info = indexer.getActiveBatchBuildInfo();
-            if (info.getJobId() == null)
-                throw new IndexerValidityException("Job id of active batch build cannot be null.");
-        }
-
 
         // TODO FIXME disabled this code (after copying from Lily)
 //       boolean hasShards = index.getSolrShards() != null && !index.getSolrShards().isEmpty();
@@ -224,14 +216,6 @@ public class IndexerModelImpl implements WriteableIndexerModel {
 //           throw new IndexValidityException("Incomplete solr configuration in index defintion. You need at least " +
 //                   "a shard or a zookeeper connection string.");
 //       }
-
-        if (indexer.getLastBatchBuildInfo() != null) {
-            BatchBuildInfo info = indexer.getLastBatchBuildInfo();
-            if (info.getJobId() == null)
-                throw new IndexerValidityException("Job id of last batch build cannot be null.");
-            if (info.getJobState() == null)
-                throw new IndexerValidityException("Job state of last batch build cannot be null.");
-        }
 
 //        for (String shard : index.getSolrShards().values()) {
 //            try {
@@ -532,7 +516,7 @@ public class IndexerModelImpl implements WriteableIndexerModel {
             throws InterruptedException, KeeperException, IndexerNotFoundException {
         final String childPath = indexerCollectionPath + "/" + indexerName;
         final Stat stat = new Stat();
-        
+
         byte[] data;
         try {
             if (forCache) {
@@ -786,7 +770,7 @@ public class IndexerModelImpl implements WriteableIndexerModel {
      * An indexer name can be any string of printable unicode characters that has a length greater than 0. Printable
      * characters in this context are considered to be anything that is not an ISO control character as defined by
      * {@link Character#isISOControl(int)}.
-     * 
+     *
      * @param indexerName The name to validate
      */
     public static void validateIndexerName(String indexerName) {

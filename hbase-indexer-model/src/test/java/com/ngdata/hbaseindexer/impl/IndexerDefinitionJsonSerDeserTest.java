@@ -15,13 +15,14 @@
  */
 package com.ngdata.hbaseindexer.impl;
 
+import static junit.framework.Assert.assertNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.ImmutableMap;
-import com.ngdata.hbaseindexer.model.api.ActiveBatchBuildInfoBuilder;
-import com.ngdata.hbaseindexer.model.api.BatchBuildInfoBuilder;
+import com.ngdata.hbaseindexer.model.api.BatchBuildInfo;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
@@ -57,24 +58,12 @@ public class IndexerDefinitionJsonSerDeserTest {
                 .connectionParams(ImmutableMap.of("p1", "v1", "p2", "v2"))
                 .subscriptionId("my-subscription")
                 .subscriptionTimestamp(5L)
-                .defaultBatchIndexConfiguration("batch-conf-default".getBytes())
-                .batchIndexConfiguration("batch-conf-next".getBytes())
-                .activeBatchBuildInfo(new ActiveBatchBuildInfoBuilder()
-                        .jobId("job-id-1")
-                        .submitTime(10L)
-                        .trackingUrl("url-1")
-                        .batchIndexConfiguration("batch-conf-1".getBytes())
-                        .build())
-                .lastBatchBuildInfo(new BatchBuildInfoBuilder()
-                        .jobId("job-id-2")
-                        .submitTime(11L)
-                        .trackingUrl("url-2")
-                        .batchIndexConfiguration("batch-conf-2".getBytes())
-                        .success(true)
-                        .jobState("some-state")
-                        .counter("counter-1", 1)
-                        .counter("counter-2", 2)
-                        .build())
+                .defaultBatchIndexCliArguments(new String[]{"arg1", "arg2"})
+                .batchIndexCliArguments(new String[]{"arg3"})
+                .activeBatchBuildInfo(
+                        new BatchBuildInfo(10L, null, ImmutableMap.of("job-id-1", "url-1"), new String[]{"arg1", "arg2"}))
+                .lastBatchBuildInfo(
+                        new BatchBuildInfo(11L, false, ImmutableMap.of("job-id-2", "url-2"), new String[]{"arg3"}))
                 .occVersion(5).build();
 
         IndexerDefinitionJsonSerDeser serdeser = new IndexerDefinitionJsonSerDeser();
@@ -92,24 +81,20 @@ public class IndexerDefinitionJsonSerDeserTest {
         assertEquals("v2", indexer.getConnectionParams().get("p2"));
         assertEquals("my-subscription", indexer2.getSubscriptionId());
         assertEquals(5L, indexer2.getSubscriptionTimestamp());
-        assertArrayEquals("batch-conf-default".getBytes(), indexer2.getDefaultBatchIndexConfiguration());
-        assertArrayEquals("batch-conf-next".getBytes(), indexer2.getBatchIndexConfiguration());
+        assertArrayEquals(new String[]{"arg1", "arg2"}, indexer2.getDefaultBatchIndexCliArguments());
+        assertArrayEquals(new String[]{"arg3"}, indexer2.getBatchIndexCliArguments());
 
         assertNotNull(indexer2.getActiveBatchBuildInfo());
-        assertEquals("job-id-1", indexer2.getActiveBatchBuildInfo().getJobId());
         assertEquals(10L, indexer2.getActiveBatchBuildInfo().getSubmitTime());
-        assertEquals("url-1", indexer2.getActiveBatchBuildInfo().getTrackingUrl());
-        assertArrayEquals("batch-conf-1".getBytes(), indexer2.getActiveBatchBuildInfo().getBatchIndexConfiguration());
+        assertEquals(ImmutableMap.of("job-id-1", "url-1"), indexer2.getActiveBatchBuildInfo().getMapReduceJobTrackingUrls());
+        assertNull(indexer2.getActiveBatchBuildInfo().isFinishedSuccessful());
+        assertArrayEquals(new String[]{"arg1", "arg2"}, indexer2.getActiveBatchBuildInfo().getBatchIndexCliArguments());
 
         assertNotNull(indexer2.getLastBatchBuildInfo());
-        assertEquals("job-id-2", indexer2.getLastBatchBuildInfo().getJobId());
         assertEquals(11L, indexer2.getLastBatchBuildInfo().getSubmitTime());
-        assertEquals("url-2", indexer2.getLastBatchBuildInfo().getTrackingUrl());
-        assertArrayEquals("batch-conf-2".getBytes(), indexer2.getLastBatchBuildInfo().getBatchIndexConfiguration());
-        assertEquals(true, indexer2.getLastBatchBuildInfo().getSuccess());
-        assertEquals("some-state", indexer2.getLastBatchBuildInfo().getJobState());
-        assertEquals(Long.valueOf(1L), indexer2.getLastBatchBuildInfo().getCounters().get("counter-1"));
-        assertEquals(Long.valueOf(2L), indexer2.getLastBatchBuildInfo().getCounters().get("counter-2"));
+        assertEquals(ImmutableMap.of("job-id-2", "url-2"), indexer2.getLastBatchBuildInfo().getMapReduceJobTrackingUrls());
+        assertFalse(indexer2.getLastBatchBuildInfo().isFinishedSuccessful());
+        assertArrayEquals(new String[]{"arg3"}, indexer2.getLastBatchBuildInfo().getBatchIndexCliArguments());
 
         assertEquals(5, indexer2.getOccVersion());
 

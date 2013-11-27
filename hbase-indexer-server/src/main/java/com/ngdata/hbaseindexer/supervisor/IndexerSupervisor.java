@@ -15,12 +15,13 @@
  */
 package com.ngdata.hbaseindexer.supervisor;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -31,6 +32,9 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -70,11 +74,6 @@ import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.zookeeper.KeeperException;
 
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
-import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
-// import org.apache.hadoop.hbase.EmptyWatcher;
-
 /**
  * Responsible for starting, stopping and restarting {@link Indexer}s for the indexers defined in the
  * {@link IndexerModel}.
@@ -89,7 +88,7 @@ public class IndexerSupervisor {
     private final IndexerModelListener listener = new MyListener();
 
     private final Map<String, IndexerHandle> indexers = new HashMap<String, IndexerHandle>();
-    
+
     private final Object indexersLock = new Object();
 
     private final BlockingQueue<IndexerModelEvent> eventQueue = new LinkedBlockingQueue<IndexerModelEvent>();
@@ -101,15 +100,15 @@ public class IndexerSupervisor {
     private HttpClient httpClient;
 
     private final IndexerRegistry indexerRegistry;
-    
+
     private final IndexerProcessRegistry indexerProcessRegistry;
-    
-    private final Map<String,String> indexerProcessIds;
+
+    private final Map<String, String> indexerProcessIds;
 
     private final HTablePool htablePool;
 
     private final Configuration hbaseConf;
-    
+
     private final Log log = LogFactory.getLog(getClass());
 
     /**
@@ -118,8 +117,8 @@ public class IndexerSupervisor {
     private final AtomicInteger eventCount = new AtomicInteger();
 
     public IndexerSupervisor(IndexerModel indexerModel, ZooKeeperItf zk, String hostName,
-            IndexerRegistry indexerRegistry, IndexerProcessRegistry indexerProcessRegistry,
-            HTablePool htablePool, Configuration hbaseConf)
+                             IndexerRegistry indexerRegistry, IndexerProcessRegistry indexerProcessRegistry,
+                             HTablePool htablePool, Configuration hbaseConf)
             throws IOException, InterruptedException {
         this.indexerModel = indexerModel;
         this.zk = zk;
@@ -183,33 +182,34 @@ public class IndexerSupervisor {
     private void startIndexer(IndexerDefinition indexerDef) {
         IndexerHandle handle = null;
         SolrServer solr = null;
-        
-     
+
+
         String indexerProcessId = null;
         try {
-            
+
             // If this is an update and the indexer failed to start, it's still in the registry as a
             // failed process
             if (indexerProcessIds.containsKey(indexerDef.getName())) {
                 indexerProcessRegistry.unregisterIndexerProcess(indexerProcessIds.remove(indexerDef.getName()));
             }
-            
+
             indexerProcessId = indexerProcessRegistry.registerIndexerProcess(indexerDef.getName(), hostName);
             indexerProcessIds.put(indexerDef.getName(), indexerProcessId);
 
             // Create and register the indexer
             IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(indexerDef.getConfiguration()));
             ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
-                                            indexerDef.getName(), indexerConf);
+                    indexerDef.getName(), indexerConf);
 
             Sharder sharder = null;
             SolrInputDocumentWriter solrWriter;
             PoolingClientConnectionManager connectionManager = null;
 
-            if (indexerDef.getConnectionType()== null || indexerDef.getConnectionType().equals("solr")) {
+            if (indexerDef.getConnectionType() == null || indexerDef.getConnectionType().equals("solr")) {
                 String solrMode = getSolrMode(indexerDef);
                 if (solrMode.equals("cloud")) {
-                    solrWriter = new SolrInputDocumentWriterFactory().createSolrCloudWriter(indexerDef.getName(), getCloudSolrServer(indexerDef));
+                    solrWriter = new SolrInputDocumentWriterFactory()
+                            .createSolrCloudWriter(indexerDef.getName(), getCloudSolrServer(indexerDef));
                 } else if (solrMode.equals("classic")) {
                     connectionManager = new PoolingClientConnectionManager();
                     connectionManager.setDefaultMaxPerRoute(getSolrMaxConnectionsPerRoute(indexerDef));
@@ -223,19 +223,20 @@ public class IndexerSupervisor {
                     throw new RuntimeException("Only 'cloud' and 'classic' are valid values for solr.mode, but got " + solrMode);
                 }
             } else {
-                throw new RuntimeException("Invalid connection type: " + indexerDef.getConnectionType() +". Only 'solr' is supported");
+                throw new RuntimeException(
+                        "Invalid connection type: " + indexerDef.getConnectionType() + ". Only 'solr' is supported");
             }
 
             Indexer indexer = Indexer.createIndexer(indexerDef.getName(), indexerConf, indexerConf.getTable(),
-                                                    mapper, htablePool, sharder, solrWriter);
+                    mapper, htablePool, sharder, solrWriter);
             IndexingEventListener eventListener = new IndexingEventListener(
-                                                                indexer, indexerConf.getTable());
+                    indexer, indexerConf.getTable());
 
             int threads = hbaseConf.getInt("hbaseindexer.indexer.threads", 10);
             SepConsumer sepConsumer = new SepConsumer(indexerDef.getSubscriptionId(),
                     indexerDef.getSubscriptionTimestamp(), eventListener, threads, hostName,
                     zk, hbaseConf, null);
-            
+
             handle = new IndexerHandle(indexerDef, indexer, sepConsumer, solr, connectionManager);
             handle.start();
 
@@ -249,7 +250,7 @@ public class IndexerSupervisor {
             }
 
             log.error("Problem starting indexer " + indexerDef.getName(), t);
-            
+
             try {
                 if (indexerProcessId != null) {
                     indexerProcessRegistry.setErrorStatus(indexerProcessId, t);
@@ -315,18 +316,20 @@ public class IndexerSupervisor {
 
     private List<SolrServer> getHttpSolrServers(IndexerDefinition indexerDef, HttpClient httpClient) {
         List<SolrServer> result = Lists.newArrayList();
-        for (String shard: SolrConnectionParamUtil.getShards(indexerDef.getConnectionParams())) {
+        for (String shard : SolrConnectionParamUtil.getShards(indexerDef.getConnectionParams())) {
             result.add(new HttpSolrServer(shard, httpClient));
         }
         if (result.size() == 0) {
-            throw new RuntimeException(String.format("You need to specify at least one solr shard connection parameter (%s0={url}", SolrConnectionParams.SOLR_SHARD_PREFIX));
+            throw new RuntimeException(
+                    String.format("You need to specify at least one solr shard connection parameter (%s0={url}",
+                            SolrConnectionParams.SOLR_SHARD_PREFIX));
         }
         return result;
     }
 
 
     private void restartIndexer(IndexerDefinition indexerDef) {
-        
+
         IndexerHandle handle = indexers.get(indexerDef.getName());
 
         if (handle.indexerDef.getOccVersion() >= indexerDef.getOccVersion()) {
@@ -356,12 +359,12 @@ public class IndexerSupervisor {
             try {
                 indexerProcessRegistry.unregisterIndexerProcess(processId);
             } catch (Exception e) {
-                log.error("Error unregistering indexer process (from zookeeper): " + indexerProcessIds,  e);
+                log.error("Error unregistering indexer process (from zookeeper): " + indexerProcessIds, e);
             }
         }
 
         IndexerHandle handle = indexers.get(indexerName);
-        
+
         if (handle == null) {
             return true;
         }
@@ -405,14 +408,14 @@ public class IndexerSupervisor {
         private final PoolingClientConnectionManager connectionManager;
 
         public IndexerHandle(IndexerDefinition indexerDef, Indexer indexer, SepConsumer sepEventSlave,
-                SolrServer solrServer, PoolingClientConnectionManager connectionManager) {
+                             SolrServer solrServer, PoolingClientConnectionManager connectionManager) {
             this.indexerDef = indexerDef;
             this.indexer = indexer;
             this.sepConsumer = sepEventSlave;
             this.solrServer = solrServer;
             this.connectionManager = connectionManager;
         }
-        
+
         public void start() throws InterruptedException, KeeperException, IOException {
             sepConsumer.start();
         }

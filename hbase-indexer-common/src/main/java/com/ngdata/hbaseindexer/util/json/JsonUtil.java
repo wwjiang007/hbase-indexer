@@ -15,14 +15,14 @@
  */
 package com.ngdata.hbaseindexer.util.json;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.ObjectNode;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.ObjectNode;
 
 public class JsonUtil {
     public static JsonNode getNode(JsonNode node, String prop) throws JsonFormatException {
@@ -39,7 +39,7 @@ public class JsonUtil {
         if (!node.get(prop).isArray()) {
             throw new JsonFormatException("Not an array property: " + prop);
         }
-        return (ArrayNode)node.get(prop);
+        return (ArrayNode) node.get(prop);
     }
 
     public static ArrayNode getArray(JsonNode node, String prop, ArrayNode defaultValue) throws JsonFormatException {
@@ -49,7 +49,7 @@ public class JsonUtil {
         if (!node.get(prop).isArray()) {
             throw new JsonFormatException("Not an array property: " + prop);
         }
-        return (ArrayNode)node.get(prop);
+        return (ArrayNode) node.get(prop);
     }
 
     public static ObjectNode getObject(JsonNode node, String prop) throws JsonFormatException {
@@ -59,7 +59,7 @@ public class JsonUtil {
         if (!node.get(prop).isObject()) {
             throw new JsonFormatException("Not an object property: " + prop);
         }
-        return (ObjectNode)node.get(prop);
+        return (ObjectNode) node.get(prop);
     }
 
     public static ObjectNode getObject(JsonNode node, String prop, ObjectNode defaultValue) throws JsonFormatException {
@@ -69,7 +69,7 @@ public class JsonUtil {
         if (!node.get(prop).isObject()) {
             throw new JsonFormatException("Not an object property: " + prop);
         }
-        return (ObjectNode)node.get(prop);
+        return (ObjectNode) node.get(prop);
     }
 
     public static String getString(JsonNode node, String prop) throws JsonFormatException {
@@ -92,22 +92,28 @@ public class JsonUtil {
         return node.get(prop).getTextValue();
     }
 
-    public static boolean getBoolean(JsonNode node, String prop, boolean defaultValue) throws JsonFormatException {
+    public static Boolean getBoolean(JsonNode node, String prop, boolean defaultValue) throws JsonFormatException {
         if (node.get(prop) == null) {
             return defaultValue;
         }
+        if (node.get(prop).isNull()) {
+            return null;
+        }
         if (!node.get(prop).isBoolean()) {
-            throw new JsonFormatException("Not a string property: " + prop);
+            throw new JsonFormatException("Not a boolean property: " + prop);
         }
         return node.get(prop).getBooleanValue();
     }
 
-    public static boolean getBoolean(JsonNode node, String prop) throws JsonFormatException {
+    public static Boolean getBoolean(JsonNode node, String prop) throws JsonFormatException {
         if (node.get(prop) == null) {
             throw new JsonFormatException("Missing required property: " + prop);
         }
+        if (node.get(prop).isNull()) {
+            return null;
+        }
         if (!node.get(prop).isBoolean()) {
-            throw new JsonFormatException("Not a string property: " + prop);
+            throw new JsonFormatException("Not a boolean property: " + prop);
         }
         return node.get(prop).getBooleanValue();
     }

@@ -21,9 +21,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.ngdata.hbaseindexer.model.api.ActiveBatchBuildInfo;
 import com.ngdata.hbaseindexer.model.api.BatchBuildInfo;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionNameComparator;
@@ -39,7 +39,7 @@ import org.joda.time.DateTime;
 /**
  * CLI tool that lists the {@link IndexerDefinition}s defined in the {@link IndexerModel}.
  */
-public class ListIndexersCli  extends BaseIndexCli {
+public class ListIndexersCli extends BaseIndexCli {
     public static void main(String[] args) throws Exception {
         new ListIndexersCli().run(args);
     }
@@ -64,7 +64,7 @@ public class ListIndexersCli  extends BaseIndexCli {
     @Override
     public void run(OptionSet options) throws Exception {
         super.run(options);
-        
+
         List<IndexerDefinition> indexers = new ArrayList<IndexerDefinition>(model.getIndexers());
         Collections.sort(indexers, IndexerDefinitionNameComparator.INSTANCE);
 
@@ -91,55 +91,27 @@ public class ListIndexersCli  extends BaseIndexCli {
             }
             ps.println("  + Indexer config:");
             printConf(indexer.getConfiguration(), 6, ps, options.has("dump"));
-            ps.println("  + Batch index config:");
-            printConf(indexer.getBatchIndexConfiguration(), 6, ps, options.has("dump"));
-            ps.println("  + Default batch index config:");
-            printConf(indexer.getDefaultBatchIndexConfiguration(), 6, ps, options.has("dump"));
+            ps.println("  + Additional batch index CLI arguments:");
+            printArguments(indexer.getBatchIndexCliArguments(), 6, ps, options.has("dump"));
+            ps.println("  + Default additional batch index CLI arguments:");
+            printArguments(indexer.getDefaultBatchIndexCliArguments(), 6, ps, options.has("dump"));
 
-            ActiveBatchBuildInfo activeBatchBuild = indexer.getActiveBatchBuildInfo();
+            BatchBuildInfo activeBatchBuild = indexer.getActiveBatchBuildInfo();
             if (activeBatchBuild != null) {
                 ps.println("  + Active batch build:");
-                ps.println("    + Hadoop Job ID: " + activeBatchBuild.getJobId());
-                ps.println("    + Submitted at: " + new DateTime(activeBatchBuild.getSubmitTime()).toString());
-                ps.println("    + Tracking URL: " + activeBatchBuild.getTrackingUrl());
-                ps.println("    + Batch build config:");
-                printConf(activeBatchBuild.getBatchIndexConfiguration(), 8, ps, options.has("dump"));
+                printBatchBuildInfo(options, ps, activeBatchBuild);
             }
 
             BatchBuildInfo lastBatchBuild = indexer.getLastBatchBuildInfo();
             if (lastBatchBuild != null) {
                 ps.println("  + Last batch build:");
-                ps.println("    + Hadoop Job ID: " + lastBatchBuild.getJobId());
-                ps.println("    + Submitted at: " + new DateTime(lastBatchBuild.getSubmitTime()).toString());
-                ps.println("    + Success: " + successMessage(lastBatchBuild));
-                ps.println("    + Job state: " + lastBatchBuild.getJobState());
-                ps.println("    + Tracking URL: " + lastBatchBuild.getTrackingUrl());
-                Map<String, Long> counters = lastBatchBuild.getCounters();
-                ps.println("    + Map input records: " + counters.get(COUNTER_MAP_INPUT_RECORDS));
-                ps.println("    + Launched map tasks: " + counters.get(COUNTER_TOTAL_LAUNCHED_MAPS));
-                ps.println("    + Failed map tasks: " + counters.get(COUNTER_NUM_FAILED_MAPS));
-                ps.println("    + Index failures: " + counters.get(COUNTER_NUM_FAILED_RECORDS));
-                ps.println("    + Batch build config:");
-                printConf(lastBatchBuild.getBatchIndexConfiguration(), 8, ps, options.has("dump"));
+                printBatchBuildInfo(options, ps, lastBatchBuild);
             }
             printProcessStatus(indexer.getName(), ps);
             ps.println();
         }
     }
 
-    private String successMessage(BatchBuildInfo buildInfo) {
-        StringBuilder result = new StringBuilder();
-        result.append(buildInfo.getSuccess());
-
-        Long failedRecords = buildInfo.getCounters().get(COUNTER_NUM_FAILED_RECORDS); // TODO this was for Lily, implement new equivalent
-        if (failedRecords != null && failedRecords > 0) {
-            result.append(", ").append(buildInfo.getSuccess() ? "but " : "").append(failedRecords)
-                    .append(" index failures");
-        }
-
-        return result.toString();
-    }
-    
     private void printProcessStatus(String indexerName, PrintStream printStream) throws InterruptedException, KeeperException {
         int numRunning = 0;
         List<String> failedNodes = Lists.newArrayList();
@@ -152,14 +124,28 @@ public class ListIndexersCli  extends BaseIndexCli {
                 failedNodes.add(indexerProcess.getHostName());
             }
         }
-        
+
         printStream.println("  + Processes");
         printStream.printf("    + %d running processes\n", numRunning);
         printStream.printf("    + %d failed processes\n", failedNodes.size());
         for (String failedNode : failedNodes) {
             printStream.printf("      + %s\n", failedNode);
         }
-        
+
+    }
+
+    private void printBatchBuildInfo(OptionSet options, PrintStream ps, BatchBuildInfo batchBuildInfo) throws Exception {
+        ps.println("    + Submitted at: " + new DateTime(batchBuildInfo.getSubmitTime()).toString());
+        Boolean finishedSuccessful = batchBuildInfo.isFinishedSuccessful();
+        ps.println("    + State: " + (finishedSuccessful == null ? "pending..." : (finishedSuccessful ? "SUCCESS" : "FAILED")));
+        ps.println("    + Submitted at: " + new DateTime(batchBuildInfo.getSubmitTime()).toString());
+        ps.println("    + Hadoop jobs: " + (batchBuildInfo.getMapReduceJobTrackingUrls().isEmpty() ? "(none)" : ""));
+        for (Map.Entry<String, String> jobEntry : batchBuildInfo.getMapReduceJobTrackingUrls().entrySet()) {
+            ps.println("    + Hadoop Job ID: " + jobEntry.getKey());
+            ps.println("    + Tracking URL: " + jobEntry.getValue());
+        }
+        ps.println("    + Batch build CLI arguments:");
+        printArguments(batchBuildInfo.getBatchIndexCliArguments(), 8, ps, options.has("dump"));
     }
 
     /**
@@ -177,6 +163,22 @@ public class ListIndexersCli  extends BaseIndexCli {
                 }
             } else {
                 ps.println(prefix + conf.length + " bytes, use -dump to see content");
+            }
+        }
+    }
+
+    /**
+     * Prints out an array of arguments.
+     */
+    private void printArguments(String[] args, int indent, PrintStream ps, boolean dump) throws Exception {
+        String prefix = Strings.repeat(" ", indent);
+        if (args == null) {
+            ps.println(prefix + "(none)");
+        } else {
+            if (dump) {
+                ps.println(prefix + Joiner.on(" ").join(args));
+            } else {
+                ps.println(prefix + args.length + " arguments, use -dump to see content");
             }
         }
     }

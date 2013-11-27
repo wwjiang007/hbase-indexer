@@ -15,109 +15,102 @@
  */
 package com.ngdata.hbaseindexer.model.api;
 
-import com.google.common.base.Objects;
-
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+
+import com.google.common.collect.Maps;
 
 /**
  * Information about the last run batch index build, stored as part of an {@link IndexerDefinition}.
  *
- * <p>This object is immutable, construct it using {@link BatchBuildInfoBuilder}.</p>
+ * <p>This object is immutable. Modifying it yields a new instance.</p>
  */
 public class BatchBuildInfo {
-    private String jobId;
     private long submitTime;
-    private boolean success;
-    private String jobState;
-    private String trackingUrl;
-    private byte[] batchIndexConfiguration;
-    private Map<String, Long> counters = new HashMap<String, Long>();
+    private Boolean finishedSuccessful;
+    private Map<String, String> mapReduceJobTrackingUrls = Collections.emptyMap();
+    private String[] batchIndexCliArguments;
 
-    BatchBuildInfo(String jobId, long submitTime, boolean success, String jobState,
-            String trackingUrl, byte[] batchIndexConfiguration, Map<String, Long> counters) {
-        this.jobId = jobId;
+    public BatchBuildInfo(long submitTime, Boolean finishedSuccessful, Map<String, String> mapReduceJobTrackingUrls,
+                          String[] batchIndexCliArguments) {
         this.submitTime = submitTime;
-        this.success = success;
-        this.jobState = jobState;
-        this.trackingUrl = trackingUrl;
-        this.batchIndexConfiguration = batchIndexConfiguration;
-        this.counters = counters;
+        this.finishedSuccessful = finishedSuccessful;
+        this.mapReduceJobTrackingUrls =
+                mapReduceJobTrackingUrls != null ? mapReduceJobTrackingUrls : Collections.<String, String>emptyMap();
+        this.batchIndexCliArguments = batchIndexCliArguments;
     }
 
-    public String getJobId() {
-        return jobId;
+    /**
+     * Copy constructor.
+     */
+    public BatchBuildInfo(BatchBuildInfo batchBuildInfo) {
+        this(batchBuildInfo.submitTime, batchBuildInfo.finishedSuccessful, batchBuildInfo.mapReduceJobTrackingUrls,
+                batchBuildInfo.batchIndexCliArguments);
+    }
+
+    public BatchBuildInfo() {
+        // nothing here
     }
 
     public long getSubmitTime() {
         return submitTime;
     }
 
-    public boolean getSuccess() {
-        return success;
+    /**
+     * @return true if finished successfully, false if finished unsuccessfully, null if not finished
+     */
+    public Boolean isFinishedSuccessful() {
+        return finishedSuccessful;
     }
 
-    public String getJobState() {
-        return jobState;
+    public Map<String, String> getMapReduceJobTrackingUrls() {
+        return Collections.unmodifiableMap(mapReduceJobTrackingUrls);
     }
 
-    public String getTrackingUrl() {
-        return trackingUrl;
+    public BatchBuildInfo withJob(String jobId, String jobTrackingUrl) {
+        Map<String, String> newMap = Maps.newHashMap(mapReduceJobTrackingUrls);
+        newMap.put(jobId, jobTrackingUrl);
+
+        BatchBuildInfo batchBuildInfo = new BatchBuildInfo(this);
+        batchBuildInfo.mapReduceJobTrackingUrls = newMap;
+        return batchBuildInfo;
     }
 
-    public Map<String, Long> getCounters() {
-        return Collections.unmodifiableMap(counters);
+    public String[] getBatchIndexCliArguments() {
+        return batchIndexCliArguments;
     }
 
-    public byte[] getBatchIndexConfiguration() {
-        return batchIndexConfiguration;
+    public BatchBuildInfo finishedSuccessfully(boolean finishedSuccessful) {
+        BatchBuildInfo batchBuildInfo = new BatchBuildInfo(this);
+        batchBuildInfo.finishedSuccessful = finishedSuccessful;
+        return batchBuildInfo;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        BatchBuildInfo other = (BatchBuildInfo)obj;
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-        if (!Objects.equal(jobId, other.jobId))
-            return false;
+        BatchBuildInfo that = (BatchBuildInfo) o;
 
-        if (submitTime != other.submitTime)
+        if (submitTime != that.submitTime) return false;
+        if (!Arrays.equals(batchIndexCliArguments, that.batchIndexCliArguments)) return false;
+        if (finishedSuccessful != null ? !finishedSuccessful.equals(that.finishedSuccessful) : that.finishedSuccessful != null)
             return false;
-
-        if (success != other.success)
-            return false;
-
-        if (!Objects.equal(jobState, other.jobState))
-            return false;
-
-        if (!Objects.equal(trackingUrl, other.trackingUrl))
-            return false;
-
-        if (!Objects.equal(counters, other.counters))
-            return false;
-
-        if (!Arrays.equals(this.batchIndexConfiguration, batchIndexConfiguration))
-            return false;
+        if (mapReduceJobTrackingUrls != null ? !mapReduceJobTrackingUrls.equals(that.mapReduceJobTrackingUrls) :
+                that.mapReduceJobTrackingUrls != null) return false;
 
         return true;
     }
 
     @Override
     public int hashCode() {
-        int result = jobId != null ? jobId.hashCode() : 0;
-        result = 31 * result + (int) (submitTime ^ (submitTime >>> 32));
-        result = 31 * result + (success ? 1 : 0);
-        result = 31 * result + (jobState != null ? jobState.hashCode() : 0);
-        result = 31 * result + (trackingUrl != null ? trackingUrl.hashCode() : 0);
-        result = 31 * result + (counters != null ? counters.hashCode() : 0);
-        result = 31 * result + (batchIndexConfiguration != null ? Arrays.hashCode(batchIndexConfiguration) : 0);
+        int result = (int) (submitTime ^ (submitTime >>> 32));
+        result = 31 * result + (finishedSuccessful != null ? finishedSuccessful.hashCode() : 0);
+        result = 31 * result + (mapReduceJobTrackingUrls != null ? mapReduceJobTrackingUrls.hashCode() : 0);
+        result = 31 * result + (batchIndexCliArguments != null ? Arrays.hashCode(batchIndexCliArguments) : 0);
         return result;
     }
 }
+

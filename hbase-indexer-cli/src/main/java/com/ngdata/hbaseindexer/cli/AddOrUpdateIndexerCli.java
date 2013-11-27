@@ -15,7 +15,22 @@
  */
 package com.ngdata.hbaseindexer.cli;
 
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import javax.xml.parsers.ParserConfigurationException;
+
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteStreams;
@@ -25,6 +40,7 @@ import com.ngdata.hbaseindexer.conf.IndexerConfException;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.util.IndexerNameValidator;
 import com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionParser;
@@ -36,21 +52,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hbase.util.Pair;
 import org.xml.sax.SAXException;
 
-import javax.xml.parsers.ParserConfigurationException;
-
-import com.ngdata.hbaseindexer.util.IndexerNameValidator;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
-
 /**
  * Base class for the {@link AddIndexerCli} and {@link UpdateIndexerCli}.
  */
@@ -61,8 +62,8 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
     protected OptionSpec<IndexerDefinition.LifecycleState> lifecycleStateOption;
     protected OptionSpec<IndexerDefinition.IncrementalIndexingState> incrementalIdxStateOption;
     protected OptionSpec<IndexerDefinition.BatchIndexingState> batchIdxStateOption;
-    protected OptionSpec<String> defaultBatchIndexConfOption;
-    protected OptionSpec<String> batchIndexConfOption;
+    protected OptionSpec<String> defaultBatchIndexCliArgumentsOption;
+    protected OptionSpec<String> batchIndexCliArgumentsOption;
 
     @Override
     protected OptionParser setupOptionParser() {
@@ -78,52 +79,52 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
                 .withRequiredArg().ofType(String.class).describedAs("indexerconf.xml");
 
         connectionParamOption = parser
-                        .acceptsAll(Lists.newArrayList("cp", "connection-param"),
-                                "A connection parameter in the form key=value. This option can be specified multiple"
+                .acceptsAll(Lists.newArrayList("cp", "connection-param"),
+                        "A connection parameter in the form key=value. This option can be specified multiple"
                                 + " times. Example: -cp solr.zk=host1,host2 -cp solr.collection=products. In case"
                                 + " of update, use an empty value to remove a key: -cp solr.collection=")
-                        .withRequiredArg()
-                        .withValuesConvertedBy(new StringPairConverter())
-                        .describedAs("key=value");
+                .withRequiredArg()
+                .withValuesConvertedBy(new StringPairConverter())
+                .describedAs("key=value");
 
         lifecycleStateOption = parser
-                        .acceptsAll(Lists.newArrayList("lifecycle"), "Lifecycle state, one of " +
-                                LifecycleState.ACTIVE + ", " + LifecycleState.DELETE_REQUESTED)
-                        .withRequiredArg()
-                        .withValuesConvertedBy(new EnumConverter<LifecycleState>(LifecycleState.class))
-                        .defaultsTo(LifecycleState.DEFAULT)
-                        .describedAs("state");
+                .acceptsAll(Lists.newArrayList("lifecycle"), "Lifecycle state, one of " +
+                        LifecycleState.ACTIVE + ", " + LifecycleState.DELETE_REQUESTED)
+                .withRequiredArg()
+                .withValuesConvertedBy(new EnumConverter<LifecycleState>(LifecycleState.class))
+                .defaultsTo(LifecycleState.DEFAULT)
+                .describedAs("state");
 
         incrementalIdxStateOption = parser
-                        .acceptsAll(Lists.newArrayList("incremental"), "Incremental indexing state, one of "
-                                + IncrementalIndexingState.SUBSCRIBE_AND_CONSUME
-                                + ", " + IncrementalIndexingState.SUBSCRIBE_DO_NOT_CONSUME
-                                + ", " + IncrementalIndexingState.DO_NOT_SUBSCRIBE)
-                        .withRequiredArg()
-                        .withValuesConvertedBy(new EnumConverter<IncrementalIndexingState>(IncrementalIndexingState.class))
-                        .defaultsTo(IncrementalIndexingState.DEFAULT)
-                        .describedAs("state");
+                .acceptsAll(Lists.newArrayList("incremental"), "Incremental indexing state, one of "
+                        + IncrementalIndexingState.SUBSCRIBE_AND_CONSUME
+                        + ", " + IncrementalIndexingState.SUBSCRIBE_DO_NOT_CONSUME
+                        + ", " + IncrementalIndexingState.DO_NOT_SUBSCRIBE)
+                .withRequiredArg()
+                .withValuesConvertedBy(new EnumConverter<IncrementalIndexingState>(IncrementalIndexingState.class))
+                .defaultsTo(IncrementalIndexingState.DEFAULT)
+                .describedAs("state");
 
         batchIdxStateOption = parser
-                        .acceptsAll(Lists.newArrayList("batch"), "Batch indexing state, can only be set to  " +
-                                BatchIndexingState.BUILD_REQUESTED)
-                        .withRequiredArg()
-                        .withValuesConvertedBy(new EnumConverter<BatchIndexingState>(BatchIndexingState.class))
-                        .defaultsTo(BatchIndexingState.DEFAULT)
-                        .describedAs("state");
+                .acceptsAll(Lists.newArrayList("batch"), "Batch indexing state, can only be set to  " +
+                        BatchIndexingState.BUILD_REQUESTED)
+                .withRequiredArg()
+                .withValuesConvertedBy(new EnumConverter<BatchIndexingState>(BatchIndexingState.class))
+                .defaultsTo(BatchIndexingState.DEFAULT)
+                .describedAs("state");
 
-        defaultBatchIndexConfOption = parser
-                        .acceptsAll(Lists.newArrayList("dbi", "default-batch-conf"),
-                                "Default batch indexing settings for this indexer. On update, use this option without"
-                                + " filename argument to remove the config.")
-                        .withOptionalArg().ofType(String.class).describedAs("batchconf.xml");
+        defaultBatchIndexCliArgumentsOption = parser
+                .acceptsAll(Lists.newArrayList("dbc", "default-batch-cli-arguments"),
+                        "Default batch indexing cli arguments for this indexer. On update, use this option without"
+                                + " filename argument to clear the setting.")
+                .withOptionalArg().ofType(String.class).describedAs("file-with-arguments");
 
-        batchIndexConfOption = parser
-                        .acceptsAll(Lists.newArrayList("bi", "batch-conf"),
-                                "Batch indexing settings to use for the next batch index build triggered, this overrides"
-                                + " the default batch index configuration (if any). On update, use this option without"
-                                + " filename argument to remove the config.")
-                        .withOptionalArg().ofType(String.class).describedAs("batchconf.xml");
+        batchIndexCliArgumentsOption = parser
+                .acceptsAll(Lists.newArrayList("bc", "batch-cli-arguments"),
+                        "Batch indexing cli arguments to use for the next batch index build triggered, this overrides"
+                                + " the default batch index cli arguments (if any). On update, use this option without"
+                                + " filename argument to clear the setting.")
+                .withOptionalArg().ofType(String.class).describedAs("file-with-arguments");
 
         return parser;
     }
@@ -168,21 +169,21 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         if (indexerConf != null)
             builder.configuration(indexerConf);
 
-        byte[] defaultBatchIndexConf = getBatchIndexingConf(options, defaultBatchIndexConfOption);
-        if (defaultBatchIndexConf != null) {
-            if (defaultBatchIndexConf.length == 0) {
-                builder.defaultBatchIndexConfiguration(null);
+        String[] defaultBatchIndexCliArguments = getBatchIndexingCliArguments(options, defaultBatchIndexCliArgumentsOption);
+        if (defaultBatchIndexCliArguments != null) {
+            if (defaultBatchIndexCliArguments.length == 0) {
+                builder.defaultBatchIndexCliArguments(null);
             } else {
-                builder.defaultBatchIndexConfiguration(defaultBatchIndexConf);
+                builder.defaultBatchIndexCliArguments(defaultBatchIndexCliArguments);
             }
         }
 
-        byte[] batchIndexConf = getBatchIndexingConf(options, batchIndexConfOption);
-        if (batchIndexConf != null) {
-            if (batchIndexConf.length == 0) {
-                builder.batchIndexConfiguration(null);
+        String[] batchIndexCliArguments = getBatchIndexingCliArguments(options, batchIndexCliArgumentsOption);
+        if (batchIndexCliArguments != null) {
+            if (batchIndexCliArguments.length == 0) {
+                builder.batchIndexCliArguments(null);
             } else {
-                builder.batchIndexConfiguration(batchIndexConf);
+                builder.batchIndexCliArguments(batchIndexCliArguments);
             }
         }
 
@@ -273,12 +274,12 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             // remove any solr.shard.* parameter that wasn't set explicitly
             List<String> shardParams = Lists.newArrayList();
             Pattern pattern = Pattern.compile(Pattern.quote(SolrConnectionParams.SOLR_SHARD_PREFIX) + "\\d+");
-            for (String param: connectionParams.keySet()) {
+            for (String param : connectionParams.keySet()) {
                 if (pattern.matcher(param).matches()) {
                     shardParams.add(param);
                 }
             }
-            for (String shardParam: shardParams) {
+            for (String shardParam : shardParams) {
                 removeUnlessExplicit(explicit, connectionParams, shardParam);
             }
         }
@@ -299,7 +300,8 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
 
             if (!connectionParams.containsKey(SolrConnectionParams.COLLECTION)) {
-                throw new CliException("ERROR: no -cp solr.collection=collectionName specified (this is required when solr.mode=cloud)");
+                throw new CliException(
+                        "ERROR: no -cp solr.collection=collectionName specified (this is required when solr.mode=cloud)");
             }
 
             // TODO: throw error if sharder type is specified or if shards are listed
@@ -312,8 +314,9 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
             if (connectionParams.containsKey(SolrConnectionParams.SHARDER_TYPE)) {
                 if (!sharderTypes.contains(connectionParams.get(SolrConnectionParams.SHARDER_TYPE))) {
-                    throw new CliException("ERROR: Invalid solr.sharder value: " + connectionParams.get(SolrConnectionParams.SHARDER_TYPE) +
-                            " Valid values are: " + Joiner.on(",").join(sharderTypes));
+                    throw new CliException(
+                            "ERROR: Invalid solr.sharder value: " + connectionParams.get(SolrConnectionParams.SHARDER_TYPE) +
+                                    " Valid values are: " + Joiner.on(",").join(sharderTypes));
                 }
             }
 
@@ -323,7 +326,8 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
 
         } else {
-            throw new CliException("ERROR: solr.mode should be 'cloud' or 'classic'. Invalid value: " + connectionParams.get(SolrConnectionParams.MODE));
+            throw new CliException("ERROR: solr.mode should be 'cloud' or 'classic'. Invalid value: " +
+                    connectionParams.get(SolrConnectionParams.MODE));
         }
 
         return connectionParams;
@@ -331,9 +335,10 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
     /**
      * Removes a connection parameter unless it was set explicitly
-     * @param explicit List of parameters that were set explicitly
+     *
+     * @param explicit         List of parameters that were set explicitly
      * @param connectionParams Current connectionParams
-     * @param param The parameter to remove
+     * @param param            The parameter to remove
      */
     private void removeUnlessExplicit(List<String> explicit, Map<String, String> connectionParams, String param) {
         if (!explicit.contains(param)) {
@@ -361,23 +366,23 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
     }
 
     /**
-     * Returns a zero-length byte array in case the configuration should be removed.
+     * Returns a zero-length array in case the configuration should be removed.
      */
-    protected byte[] getBatchIndexingConf(OptionSet options, OptionSpec<String> option) throws IOException {
+    protected String[] getBatchIndexingCliArguments(OptionSet options, OptionSpec<String> option) throws IOException {
         String fileName = option.value(options);
         if (fileName == null) {
-            return new byte[0];
+            return new String[0];
         }
 
         File file = new File(fileName);
         if (!file.exists()) {
             StringBuilder msg = new StringBuilder();
-            msg.append("Specified batch indexing configuration file not found:\n");
+            msg.append("Specified batch cli arguments configuration file not found:\n");
             msg.append(file.getAbsolutePath());
             throw new CliException(msg.toString());
         }
 
-        return FileUtils.readFileToByteArray(file);
+        return Iterables.toArray(Splitter.on(" ").split(FileUtils.readFileToString(file)), String.class);
     }
 
     /**
@@ -400,7 +405,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         @Override
         public Class<Pair<String, String>> valueType() {
             Class<?> pairClass = Pair.class;
-            return (Class<Pair<String, String>>)pairClass;
+            return (Class<Pair<String, String>>) pairClass;
         }
 
         @Override

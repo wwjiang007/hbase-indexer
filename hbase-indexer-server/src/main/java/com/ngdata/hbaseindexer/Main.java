@@ -68,7 +68,6 @@ public class Main {
     }
 
     /**
-     *
      * @param conf the configuration object containing the hbase-indexer configuration, as well
      *             as the hbase/hadoop settings. Typically created using {@link HBaseIndexerConfiguration}.
      */
@@ -91,27 +90,27 @@ public class Main {
 
         sepModel = new SepModelImpl(zk, conf);
 
-        indexerMaster = new IndexerMaster(zk, indexerModel, null, null, conf, zkConnectString, zkSessionTimeout,
-                sepModel, hostname);
+        indexerMaster = new IndexerMaster(zk, indexerModel, null, conf, zkConnectString,
+                sepModel);
         indexerMaster.start();
 
         IndexerRegistry indexerRegistry = new IndexerRegistry();
         IndexerProcessRegistry indexerProcessRegistry = new IndexerProcessRegistryImpl(zk, conf);
         indexerSupervisor = new IndexerSupervisor(indexerModel, zk, hostname, indexerRegistry,
-                                        indexerProcessRegistry, tablePool, conf);
+                indexerProcessRegistry, tablePool, conf);
 
         indexerSupervisor.init();
         startHttpServer();
-        
+
     }
 
-    private void startHttpServer () {
+    private void startHttpServer() {
         server = new Server();
         SelectChannelConnector selectChannelConnector = new SelectChannelConnector();
         selectChannelConnector.setPort(11060);
-        server.setConnectors(new Connector[] { selectChannelConnector });
+        server.setConnectors(new Connector[]{selectChannelConnector});
 
-        PackagesResourceConfig packagesResourceConfig =new PackagesResourceConfig("com/ngdata/hbaseindexer/rest");
+        PackagesResourceConfig packagesResourceConfig = new PackagesResourceConfig("com/ngdata/hbaseindexer/rest");
 
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(packagesResourceConfig));
         servletHolder.setName("HBase-Indexer");
@@ -131,7 +130,7 @@ public class Main {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }
-    
+
     private void setupMetrics(Configuration conf) {
         String gangliaHost = conf.get(ConfKeys.GANGLIA_SERVER);
         if (gangliaHost != null) {
@@ -173,7 +172,7 @@ public class Main {
         return indexerMaster;
     }
 
-    public class ShutdownHandler implements  Runnable {
+    public class ShutdownHandler implements Runnable {
         @Override
         public void run() {
             stopServices();

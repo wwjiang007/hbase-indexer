@@ -15,11 +15,11 @@
  */
 package com.ngdata.hbaseindexer.model.api;
 
-import org.apache.commons.lang.builder.EqualsBuilder;
-
 import java.util.Map;
 
 import com.ngdata.hbaseindexer.util.IndexerNameValidator;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
 
 /**
  * Defines an indexer within the {@link IndexerModel}.
@@ -31,9 +31,9 @@ import com.ngdata.hbaseindexer.util.IndexerNameValidator;
  * <p>An important aspect of an indexer definition are the state flags:</p>
  *
  * <ul>
- *     <li>{@link LifecycleState}</li>
- *     <li>{@link BatchIndexingState}</li>
- *     <li>{@link IncrementalIndexingState}</li>
+ * <li>{@link LifecycleState}</li>
+ * <li>{@link BatchIndexingState}</li>
+ * <li>{@link IncrementalIndexingState}</li>
  * </ul>
  *
  * <p>Some operations, like triggering a batch index rebuild or deleting an index or done
@@ -48,10 +48,10 @@ public class IndexerDefinition {
     private byte[] configuration;
     private String connectionType;
     private Map<String, String> connectionParams;
-    private byte[] defaultBatchIndexConfiguration;
-    private byte[] batchIndexConfiguration;
+    private String[] defaultBatchIndexCliArguments;
+    private String[] batchIndexCliArguments;
     private BatchBuildInfo lastBatchBuildInfo;
-    private ActiveBatchBuildInfo activeBatchBuildInfo;
+    private BatchBuildInfo activeBatchBuildInfo;
     private long subscriptionTimestamp;
     private int occVersion = 0; // not -1 by default, since otherwise users might unintentionally disable OCC
 
@@ -59,19 +59,19 @@ public class IndexerDefinition {
      * Use {@link IndexerDefinitionBuilder} to make instances of this class.
      */
     IndexerDefinition(String name,
-            LifecycleState lifecycleState,
-            BatchIndexingState batchIndexingState,
-            IncrementalIndexingState incrementalIndexingState,
-            String subscriptionId,
-            byte[] configuration,
-            String connectionType,
-            Map<String, String> connectionParams,
-            byte[] defaultBatchIndexConfiguration,
-            byte[] batchIndexConfiguration,
-            BatchBuildInfo lastBatchBuildInfo,
-            ActiveBatchBuildInfo activeBatchBuildInfo,
-            long subscriptionTimestamp,
-            int occVersion) {
+                      LifecycleState lifecycleState,
+                      BatchIndexingState batchIndexingState,
+                      IncrementalIndexingState incrementalIndexingState,
+                      String subscriptionId,
+                      byte[] configuration,
+                      String connectionType,
+                      Map<String, String> connectionParams,
+                      String[] defaultBatchIndexCliArguments,
+                      String[] batchIndexCliArguments,
+                      BatchBuildInfo lastBatchBuildInfo,
+                      BatchBuildInfo activeBatchBuildInfo,
+                      long subscriptionTimestamp,
+                      int occVersion) {
         IndexerNameValidator.validate(name);
         this.name = name;
         this.lifecycleState = lifecycleState;
@@ -81,8 +81,8 @@ public class IndexerDefinition {
         this.configuration = configuration;
         this.connectionType = connectionType;
         this.connectionParams = connectionParams;
-        this.defaultBatchIndexConfiguration = defaultBatchIndexConfiguration;
-        this.batchIndexConfiguration = batchIndexConfiguration;
+        this.defaultBatchIndexCliArguments = defaultBatchIndexCliArguments;
+        this.batchIndexCliArguments = batchIndexCliArguments;
         this.lastBatchBuildInfo = lastBatchBuildInfo;
         this.activeBatchBuildInfo = activeBatchBuildInfo;
         this.subscriptionTimestamp = subscriptionTimestamp;
@@ -170,42 +170,53 @@ public class IndexerDefinition {
      *
      * <p>This information is written by the system, not by clients.</p>
      */
-    public ActiveBatchBuildInfo getActiveBatchBuildInfo() {
+    public BatchBuildInfo getActiveBatchBuildInfo() {
         return activeBatchBuildInfo;
     }
 
     /**
-     * Parameters for the next batch index build.
+     * CLI arguments for the next batch index build.
      *
      * <p>These parameters are used once. Typically you will set these parameters together with updating
      * the {@link #getBatchIndexingState() batch indexing state} to {@link BatchIndexingState#BUILD_REQUESTED}.
      * After the system started the batch index build, it will reset this property to null.</p>
      *
-     * <p>There are also {@link #getDefaultBatchIndexConfiguration() default parameters} that are used in case
+     * <p>There are also {@link #getDefaultBatchIndexCliArguments() default parameters} that are used in case
      * this is not set.</p>
+     *
+     * @see HBaseMapReduceIndexerTool
      */
-    public byte[] getBatchIndexConfiguration() {
-        return batchIndexConfiguration;
+    public String[] getBatchIndexCliArguments() {
+        return batchIndexCliArguments;
     }
 
     /**
-     * Default parameters for batch index builds.
+     * Default CLI arguments for batch index builds.
      *
      * <p>These parameters can be overridden for individual batch indexing runs by the ones in
-     * {@link #getBatchIndexConfiguration()}.</p>
+     * {@link #getBatchIndexCliArguments()}.</p>
      */
-    public byte[] getDefaultBatchIndexConfiguration() {
-        return defaultBatchIndexConfiguration;
+    public String[] getDefaultBatchIndexCliArguments() {
+        return defaultBatchIndexCliArguments;
+    }
+
+    public String[] getBatchIndexCliArgumentsOrDefault() {
+        if (batchIndexCliArguments != null)
+            return batchIndexCliArguments;
+        else if (defaultBatchIndexCliArguments != null)
+            return defaultBatchIndexCliArguments;
+        else
+            return new String[0];
     }
 
     /**
      * The timestamp of when this indexer's subscription started. Only record updates that have
      * occurred after this timestamp will be consumed by this index.
-
+     *
      * <p>This is useful for certain subscription implementations, such as the HBase SEP, which can possibly
      * play back older events (in the case of the HBase SEP, events from the start of the current HLog are
      * delivered).</p>
-     * 
+     *
      * @return Number of milliseconds since the epoch
      */
     public long getSubscriptionTimestamp() {
@@ -216,7 +227,12 @@ public class IndexerDefinition {
     public boolean equals(Object obj) {
         return EqualsBuilder.reflectionEquals(this, obj);
     }
-    
+
+    @Override
+    public int hashCode() {
+        return HashCodeBuilder.reflectionHashCode(this);
+    }
+
     @Override
     public String toString() {
         return "Indexer '" + name + "', state=" + lifecycleState;

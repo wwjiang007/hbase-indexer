@@ -18,10 +18,12 @@ package com.ngdata.hbaseindexer.mr;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 
+import com.ngdata.hbaseindexer.conf.IndexerConf;
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.hbase.mapreduce.MultiTableInputFormat;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
@@ -35,10 +37,6 @@ import org.apache.solr.hadoop.SolrInputDocumentWritable;
 import org.apache.solr.hadoop.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.ngdata.hbaseindexer.conf.IndexerConf;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
-import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 
 /**
  * Top-level tool for running MapReduce-based indexing pipelines over HBase tables.
@@ -55,17 +53,20 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
 
     @Override
     public int run(String[] args) throws Exception {
+        return run(args, new NopJobProcessCallback());
+    }
 
+    public int run(String[] args, JobProcessCallback callback) throws Exception {
         HBaseIndexingOptions hbaseIndexingOpts = new HBaseIndexingOptions(getConf());
         Integer exitCode = new HBaseIndexerArgumentParser().parseArgs(args, getConf(), hbaseIndexingOpts);
         if (exitCode != null) {
-          return exitCode;
+            return exitCode;
         }
 
-        return run(hbaseIndexingOpts);
+        return run(hbaseIndexingOpts, callback);
     }
 
-    public int run(HBaseIndexingOptions hbaseIndexingOpts) throws Exception {
+    public int run(HBaseIndexingOptions hbaseIndexingOpts, JobProcessCallback callback) throws Exception {
 
         if (hbaseIndexingOpts.isDryRun) {
             return new IndexerDryRun(hbaseIndexingOpts, getConf(), System.out).run();
@@ -80,9 +81,9 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, indexingSpec.getIndexerName());
         conf.set(HBaseIndexerMapper.TABLE_NAME_CONF_KEY, indexingSpec.getTableName());
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
-        
+
         IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(
-                    indexingSpec.getIndexConfigXml().getBytes()));
+                indexingSpec.getIndexConfigXml().getBytes()));
 
         String morphlineFile = indexerConf.getGlobalParams().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         if (hbaseIndexingOpts.morphlineFile != null) {
@@ -92,7 +93,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             conf.set(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, new File(morphlineFile).getName());
             ForkedMapReduceIndexerTool.addDistributedCacheFile(new File(morphlineFile), conf);
         }
-        
+
         String morphlineId = indexerConf.getGlobalParams().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
         if (hbaseIndexingOpts.morphlineId != null) {
             morphlineId = hbaseIndexingOpts.morphlineId;
@@ -102,11 +103,11 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         }
 
         conf.setBoolean(HBaseIndexerMapper.INDEX_DIRECT_WRITE_CONF_KEY, hbaseIndexingOpts.isDirectWrite());
-        
+
         if (hbaseIndexingOpts.fairSchedulerPool != null) {
             conf.set("mapred.fairscheduler.pool", hbaseIndexingOpts.fairSchedulerPool);
         }
-        
+
         // switch off a false warning about allegedly not implementing Tool
         // also see http://hadoop.6.n7.nabble.com/GenericOptionsParser-warning-td8103.html
         // also see https://issues.apache.org/jira/browse/HADOOP-8183
@@ -134,13 +135,16 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         LOG.info("Cluster reports {} mapper slots", mappers);
 
         LOG.info("Using these parameters: " +
-            "reducers: {}, shards: {}, fanout: {}, maxSegments: {}",
-            new Object[] {hbaseIndexingOpts.reducers, hbaseIndexingOpts.shards, hbaseIndexingOpts.fanout, hbaseIndexingOpts.maxSegments});
+                "reducers: {}, shards: {}, fanout: {}, maxSegments: {}",
+                new Object[]{hbaseIndexingOpts.reducers, hbaseIndexingOpts.shards, hbaseIndexingOpts.fanout,
+                        hbaseIndexingOpts.maxSegments});
 
         if (hbaseIndexingOpts.isDirectWrite()) {
             // Run a mapper-only MR job that sends index documents directly to a live Solr instance.
             job.setOutputFormatClass(NullOutputFormat.class);
             job.setNumReduceTasks(0);
+            job.submit();
+            callback.jobStarted(job.getJobID().toString(), job.getTrackingURL());
             if (!ForkedMapReduceIndexerTool.waitForCompletion(job, hbaseIndexingOpts.isVerbose)) {
                 return -1; // job failed
             }
@@ -152,7 +156,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             return 0;
         } else {
             FileSystem fileSystem = FileSystem.get(getConf());
-            
+
             if (fileSystem.exists(hbaseIndexingOpts.outputDir)) {
                 if (hbaseIndexingOpts.overwriteOutputDir) {
                     LOG.info("Removing existing output directory {}", hbaseIndexingOpts.outputDir);
@@ -162,19 +166,19 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                     }
                 } else {
                     LOG.error("Output directory '{}' already exists. Run with --overwrite-output-dir to " +
-                    		"overwrite it, or remove it manually", hbaseIndexingOpts.outputDir);
+                            "overwrite it, or remove it manually", hbaseIndexingOpts.outputDir);
                     return -1;
                 }
             }
-            
+
             int exitCode = ForkedMapReduceIndexerTool.runIndexingPipeline(
-                                            job, getConf(), hbaseIndexingOpts.asOptions(),
-                                            programStartTime,
-                                            fileSystem,
-                                            null, -1, // File-based parameters
-                                            -1, // num mappers, only of importance for file-based indexing
-                                            hbaseIndexingOpts.reducers
-                                            );
+                    job, callback, getConf(), hbaseIndexingOpts.asOptions(),
+                    programStartTime,
+                    fileSystem,
+                    null, -1, // File-based parameters
+                    -1, // num mappers, only of importance for file-based indexing
+                    hbaseIndexingOpts.reducers
+            );
 
 
             if (hbaseIndexingOpts.isGeneratedOutputDir()) {

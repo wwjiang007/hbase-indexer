@@ -15,14 +15,14 @@
  */
 package com.ngdata.hbaseindexer.model.api;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Map;
-
 import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
 import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
 import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
+
+import java.util.Map;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 
 public class IndexerDefinitionBuilder {
     private String name;
@@ -33,10 +33,10 @@ public class IndexerDefinitionBuilder {
     private byte[] configuration;
     private String connectionType;
     private Map<String, String> connectionParams;
-    private byte[] defaultBatchIndexConfiguration;
-    private byte[] batchIndexConfiguration;
+    private String[] defaultBatchIndexCliArguments;
+    private String[] batchIndexCliArguments;
     private BatchBuildInfo lastBatchBuildInfo;
-    private ActiveBatchBuildInfo activeBatchBuildInfo;
+    private BatchBuildInfo activeBatchBuildInfo;
     private long subscriptionTimestamp;
     private int occVersion = -1;
 
@@ -49,8 +49,8 @@ public class IndexerDefinitionBuilder {
         this.configuration = existingDefinition.getConfiguration();
         this.connectionType = existingDefinition.getConnectionType();
         this.connectionParams = existingDefinition.getConnectionParams();
-        this.defaultBatchIndexConfiguration = existingDefinition.getDefaultBatchIndexConfiguration();
-        this.batchIndexConfiguration = existingDefinition.getBatchIndexConfiguration();
+        this.defaultBatchIndexCliArguments = existingDefinition.getDefaultBatchIndexCliArguments();
+        this.batchIndexCliArguments = existingDefinition.getBatchIndexCliArguments();
         this.lastBatchBuildInfo = existingDefinition.getLastBatchBuildInfo();
         this.activeBatchBuildInfo = existingDefinition.getActiveBatchBuildInfo();
         this.subscriptionTimestamp = existingDefinition.getSubscriptionTimestamp();
@@ -133,24 +133,24 @@ public class IndexerDefinitionBuilder {
     /**
      * @see IndexerDefinition#activeBatchBuildInfo
      */
-    public IndexerDefinitionBuilder activeBatchBuildInfo(ActiveBatchBuildInfo info) {
+    public IndexerDefinitionBuilder activeBatchBuildInfo(BatchBuildInfo info) {
         this.activeBatchBuildInfo = info;
         return this;
     }
 
     /**
-     * @see IndexerDefinition#defaultBatchIndexConfiguration
+     * @see IndexerDefinition#defaultBatchIndexCliArguments
      */
-    public IndexerDefinitionBuilder defaultBatchIndexConfiguration(byte[] defaultBatchIndexConfiguration) {
-        this.defaultBatchIndexConfiguration = defaultBatchIndexConfiguration;
+    public IndexerDefinitionBuilder defaultBatchIndexCliArguments(String[] defaultBatchIndexCliArguments) {
+        this.defaultBatchIndexCliArguments = defaultBatchIndexCliArguments;
         return this;
     }
 
     /**
-     * @see IndexerDefinition#batchIndexConfiguration
+     * @see IndexerDefinition#batchIndexCliArguments
      */
-    public IndexerDefinitionBuilder batchIndexConfiguration(byte[] batchIndexConfiguration) {
-        this.batchIndexConfiguration = batchIndexConfiguration;
+    public IndexerDefinitionBuilder batchIndexCliArguments(String[] batchIndexCliArguments) {
+        this.batchIndexCliArguments = batchIndexCliArguments;
         return this;
     }
 
@@ -177,7 +177,7 @@ public class IndexerDefinitionBuilder {
         Preconditions.checkNotNull(incrementalIndexingState, "incrementalIndexingState");
 
         return new IndexerDefinition(name, lifecycleState, batchIndexingState, incrementalIndexingState, subscriptionId,
-                configuration, connectionType, connectionParams, defaultBatchIndexConfiguration, batchIndexConfiguration,
+                configuration, connectionType, connectionParams, defaultBatchIndexCliArguments, batchIndexCliArguments,
                 lastBatchBuildInfo, activeBatchBuildInfo, subscriptionTimestamp, occVersion);
     }
 }
