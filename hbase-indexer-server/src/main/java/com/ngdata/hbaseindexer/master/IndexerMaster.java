@@ -21,6 +21,8 @@ import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UP
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -32,6 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
@@ -46,6 +50,7 @@ import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.model.api.IndexerLifecycleListener;
 import com.ngdata.hbaseindexer.model.api.IndexerModelEvent;
 import com.ngdata.hbaseindexer.model.api.IndexerModelListener;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
@@ -62,9 +67,13 @@ import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.JobInProgress;
+import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.RunningJob;
+import org.apache.hadoop.mapred.Task;
 import org.apache.zookeeper.KeeperException;
 
 /**
@@ -89,6 +98,8 @@ public class IndexerMaster {
 
     private IndexerModelListener listener = new MyListener();
 
+    private final List<IndexerLifecycleListener> lifecycleListeners = Lists.newArrayList();
+
     private EventWorker eventWorker = new EventWorker();
 
     private JobClient jobClient;
@@ -111,6 +122,22 @@ public class IndexerMaster {
         this.hbaseConf = hbaseConf;
         this.zkConnectString = zkConnectString;
         this.sepModel = sepModel;
+
+        registerLifecycleListeners();
+    }
+
+    private void registerLifecycleListeners() {
+        String listenerConf = hbaseConf.get("hbaseindexer.lifecycle.listeners", "");
+        Iterable<String> classNames =  Splitter.on(",").trimResults().omitEmptyStrings().split(listenerConf);
+        for (String className : classNames) {
+            try {
+                Class<IndexerLifecycleListener> listenerClass = (Class<IndexerLifecycleListener>)getClass()
+                        .getClassLoader().loadClass(className);
+                lifecycleListeners.add(listenerClass.newInstance());
+            } catch (Exception e) {
+                log.error("Could not add an instance of " + className + " to the indexerMaster lifecycle listeners." + e);
+            }
+        }
     }
 
     @PostConstruct
@@ -531,15 +558,24 @@ public class IndexerMaster {
                             if (indexer.getLifecycleState() == IndexerDefinition.LifecycleState.DELETE_REQUESTED ||
                                     indexer.getLifecycleState() == IndexerDefinition.LifecycleState.DELETING) {
                                 prepareDeleteIndex(indexer.getName());
+                                for (IndexerLifecycleListener lifecycleListener : lifecycleListeners) {
+                                    lifecycleListener.onDelete(indexer);
+                                }
 
                                 // in case of delete, we do not need to handle any other cases
                             } else {
                                 if (needsSubscriptionIdAssigned(indexer)) {
                                     assignSubscription(indexer.getName());
+                                    for (IndexerLifecycleListener lifecycleListener : lifecycleListeners) {
+                                        lifecycleListener.onSubscribe(indexer);
+                                    }
                                 }
 
                                 if (needsSubscriptionIdUnassigned(indexer)) {
                                     unassignSubscription(indexer.getName());
+                                    for (IndexerLifecycleListener lifecycleListener : lifecycleListeners) {
+                                        lifecycleListener.onUnsubscribe(indexer);
+                                    }
                                 }
 
                                 if (needsBatchBuildStart(indexer)) {
