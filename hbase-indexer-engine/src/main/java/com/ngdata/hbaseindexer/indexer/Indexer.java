@@ -40,6 +40,7 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueTableKeyFormatter;
+import com.ngdata.sep.util.io.Closer;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
@@ -223,6 +224,8 @@ public abstract class Indexer {
     }
 
     public void stop() {
+        Closer.close(mapper);
+        Closer.close(uniqueKeyFormatter);
         IndexerMetricsUtil.shutdownMetrics(indexerName);
     }
     
