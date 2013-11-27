@@ -56,6 +56,15 @@
     </description>
   </property>
 
+  <property>
+    <name>hbaseindexer.lifecycle.listeners</name>
+    <value></value>
+    <description>
+      A list of class names that implement the IndexerLifecycleListener interface. Instances of these listeners
+      live in the IndexerMaster.
+    </description>
+  </property>
+
 
   <!-- 
     Ganglia-based monitoring 
