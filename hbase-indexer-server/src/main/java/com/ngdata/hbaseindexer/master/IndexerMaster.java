@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
@@ -133,11 +134,16 @@ public class IndexerMaster {
             try {
                 Class<IndexerLifecycleListener> listenerClass = (Class<IndexerLifecycleListener>)getClass()
                         .getClassLoader().loadClass(className);
-                lifecycleListeners.add(listenerClass.newInstance());
+                registerLifecycleListener(listenerClass.newInstance());
             } catch (Exception e) {
                 log.error("Could not add an instance of " + className + " to the indexerMaster lifecycle listeners." + e);
             }
         }
+    }
+
+    @VisibleForTesting
+    public void registerLifecycleListener(IndexerLifecycleListener indexerLifecycleListener) {
+        lifecycleListeners.add(indexerLifecycleListener);
     }
 
     @PostConstruct

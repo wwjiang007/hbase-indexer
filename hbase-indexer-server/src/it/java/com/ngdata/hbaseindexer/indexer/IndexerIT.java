@@ -33,6 +33,7 @@ import com.ngdata.hbaseindexer.Main;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.model.api.IndexerLifecycleListener;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
 import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
@@ -65,6 +66,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 /**
  * Integration tests.
@@ -713,6 +715,72 @@ public class IndexerIT {
         assertEquals(1, response.getResults().size());
 
         table.close();
+    }
+
+    @Test
+    public void testLifecycleListeners () throws Exception{
+        IndexerLifecycleListener indexerLifecycleListener = Mockito.mock(IndexerLifecycleListener.class);
+        main.getIndexerMaster().registerLifecycleListener(indexerLifecycleListener);
+        createTable("table1", "family1");
+
+        HTable table = new HTable(conf, "table1");
+
+        StringBuilder indexerConf = new StringBuilder();
+        indexerConf.append("<indexer table='table1'>");
+        indexerConf.append("  <field name='field1_s' value='family1:field1' type='string'/>");
+        indexerConf.append("</indexer>");
+
+        checkLifecycleEvents(0,0,0,0, indexerLifecycleListener);
+        createIndexer1(indexerConf.toString());
+        IndexerDefinitionBuilder indexerDefinitionBuilder;
+
+        SepTestUtil.waitOnReplicationPeerReady(peerId("indexer1"));
+        checkLifecycleEvents(1,0,0,0, indexerLifecycleListener);
+        Mockito.reset(indexerLifecycleListener);
+
+        IndexerDefinition indexerDefinition = main.getIndexerModel().getIndexer("indexer1");
+
+        markEventCounts();
+        indexerDefinitionBuilder = new IndexerDefinitionBuilder().startFrom(indexerDefinition);
+        indexerDefinitionBuilder.incrementalIndexingState(IncrementalIndexingState.DO_NOT_SUBSCRIBE);
+        String lock = main.getIndexerModel().lockIndexer(indexerDefinition.getName());
+        main.getIndexerModel().updateIndexer(indexerDefinitionBuilder.build(), lock);
+        main.getIndexerModel().unlockIndexer(lock);
+        waitOnEventsProcessed(1);
+
+        checkLifecycleEvents(0, 1, 0, 0, indexerLifecycleListener);
+        Mockito.reset(indexerLifecycleListener);
+
+        markEventCounts();
+        indexerDefinition = main.getIndexerModel().getIndexer("indexer1");
+        indexerDefinitionBuilder = new IndexerDefinitionBuilder().startFrom(indexerDefinition);
+        indexerDefinitionBuilder.batchIndexingState(IndexerDefinition.BatchIndexingState.BUILD_REQUESTED);
+        lock = main.getIndexerModel().lockIndexer(indexerDefinition.getName());
+        main.getIndexerModel().updateIndexer(indexerDefinitionBuilder.build(), lock);
+        main.getIndexerModel().unlockIndexer(lock);
+        waitOnEventsProcessed(1);
+
+        checkLifecycleEvents(0, 0, 0, 1, indexerLifecycleListener);
+        Mockito.reset(indexerLifecycleListener);
+
+        markEventCounts();
+        indexerDefinition = main.getIndexerModel().getIndexer("indexer1");
+        indexerDefinitionBuilder = new IndexerDefinitionBuilder().startFrom(indexerDefinition);
+        indexerDefinitionBuilder.lifecycleState(IndexerDefinition.LifecycleState.DELETE_REQUESTED);
+        lock = main.getIndexerModel().lockIndexer(indexerDefinition.getName());
+        main.getIndexerModel().updateIndexer(indexerDefinitionBuilder.build(), lock);
+        main.getIndexerModel().unlockIndexer(lock);
+        waitOnEventsProcessed(1);
+
+        checkLifecycleEvents(0, 0, 1, 0, indexerLifecycleListener);
+    }
+
+    private void checkLifecycleEvents(int subscribes, int unsubscribes, int deletes, int builds,
+                                      IndexerLifecycleListener listener) {
+        Mockito.verify(listener, Mockito.times(subscribes)).onSubscribe(Mockito.any(IndexerDefinition.class));
+        Mockito.verify(listener, Mockito.times(unsubscribes)).onUnsubscribe(Mockito.any(IndexerDefinition.class));
+        Mockito.verify(listener, Mockito.times(deletes)).onDelete(Mockito.any(IndexerDefinition.class));
+        Mockito.verify(listener, Mockito.times(builds)).onBatchBuild(Mockito.any(IndexerDefinition.class));
     }
 
 
