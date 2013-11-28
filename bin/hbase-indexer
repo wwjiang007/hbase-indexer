@@ -46,8 +46,10 @@
 #
 #   HBASE_INDEXER_ROOT_LOGGER   The root appender. Default is INFO,console
 #
-#
-bin=`dirname "$0"`
+
+# cross-platform version of gnu 'readlink -f'
+realpath=$(python -c 'import os; import sys; print os.path.realpath(sys.argv[1])' "$0")
+bin=`dirname "$realpath`
 bin=`cd "$bin">/dev/null; pwd`
 
 # This will set HBASE_INDEXER_HOME, etc.
