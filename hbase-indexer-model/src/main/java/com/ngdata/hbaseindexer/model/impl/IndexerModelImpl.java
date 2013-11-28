@@ -255,10 +255,10 @@ public class IndexerModelImpl implements WriteableIndexerModel {
 //            throw new IndexValidityException("The indexer configuration is not XML well-formed or valid.", e);
 //        }
 //
-//        if (index.getBatchIndexConfiguration() != null && index.getBatchBuildState() !=
-//                IndexBatchBuildState.BUILD_REQUESTED) {
-//            throw new IndexValidityException("The build state must be set to BUILD_REQUESTED when setting a batchIndexConfiguration");
-//        }
+        if (indexer.getBatchIndexCliArguments() != null && indexer.getBatchIndexingState() !=
+                BatchIndexingState.BUILD_REQUESTED) {
+            throw new IndexerValidityException("The build state must be set to BUILD_REQUESTED when setting batchIndexCliArguments");
+        }
     }
 
     @Override
