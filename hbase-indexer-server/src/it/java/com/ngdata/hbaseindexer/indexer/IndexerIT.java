@@ -583,7 +583,7 @@ public class IndexerIT {
         QueryResponse response = collection1.query(new SolrQuery("*:*"));
         assertEquals(1, response.getResults().size());
         SolrDocument doc = response.getResults().get(0);
-        assertEquals("\u0000\u0000\u0000\u0000", doc.getFirstValue("id").toString());
+        assertEquals("#0;#0;#0;#0;", doc.getFirstValue("id").toString());
 
         table.close();
     }
