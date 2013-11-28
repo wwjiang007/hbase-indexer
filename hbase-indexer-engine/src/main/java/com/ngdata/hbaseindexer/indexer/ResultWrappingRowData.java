@@ -50,7 +50,7 @@ public class ResultWrappingRowData implements RowData {
 
     @Override
     public byte[] getTable() {
-        return new byte[0];  //To change body of implemented methods use File | Settings | File Templates.
+        return tableName;
     }
 
 }
