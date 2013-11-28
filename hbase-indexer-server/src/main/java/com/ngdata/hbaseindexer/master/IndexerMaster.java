@@ -584,6 +584,9 @@ public class IndexerMaster {
 
                                 if (needsBatchBuildStart(indexer)) {
                                     startFullIndexBuild(indexer.getName());
+                                    for (IndexerLifecycleListener lifecycleListener : lifecycleListeners) {
+                                        lifecycleListener.onBatchBuild(indexer);
+                                    }
                                 }
                             }
                         }
