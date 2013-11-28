@@ -64,6 +64,7 @@ import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobClient;
 import org.apache.hadoop.mapred.JobConf;
@@ -136,6 +137,10 @@ public class IndexerMaster {
 
     @VisibleForTesting
     public void registerLifecycleListener(IndexerLifecycleListener indexerLifecycleListener) {
+        if (indexerLifecycleListener instanceof Configurable) {
+            ((Configurable)indexerLifecycleListener).setConf(hbaseConf);
+        }
+
         lifecycleListeners.add(indexerLifecycleListener);
     }
 
