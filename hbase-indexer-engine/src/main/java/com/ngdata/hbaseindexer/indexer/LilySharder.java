@@ -24,24 +24,28 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
- * Shards ids using the default sharding logic as it existed before Lily 3.0. (i.e. return value is a function of the master id contained in the incoming id value
+ * Shards ids using the default sharding Lily sharding logic. (i.e. return value is a function of the master id
+ * contained in the incoming id value)
  */
 public class LilySharder implements Sharder {
 
     private int numShards;
     private MessageDigest mdAlgorithm;
 
-    public LilySharder(int numShards) throws NoSuchAlgorithmException {
+    public LilySharder(int numShards) throws SharderException {
         Preconditions.checkArgument(numShards > 0, "There should be at least one shard");
         this.numShards = numShards;
-        this.mdAlgorithm = MessageDigest.getInstance("MD5");
-
+        try {
+            this.mdAlgorithm = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new SharderException("failed to initialize MD5 digest", e);
+        }
     }
 
     private long hash(String key) throws SharderException {
         try {
             // Cloning message digest rather than looking it up each time
-            MessageDigest md = (MessageDigest)mdAlgorithm.clone();
+            MessageDigest md = (MessageDigest) mdAlgorithm.clone();
             byte[] digest = md.digest(key.getBytes("UTF-8"));
             return ((digest[0] & 0xFF) << 8) + ((digest[1] & 0xFF));
         } catch (UnsupportedEncodingException e) {
@@ -66,7 +70,7 @@ public class LilySharder implements Sharder {
         stringBuilder.append(escapeReservedCharacters(parts[1]));
 
         long h = hash(stringBuilder.toString());
-        return (int)((h % numShards) + numShards) % numShards;
+        return (int) ((h % numShards) + numShards) % numShards;
 
     }
 

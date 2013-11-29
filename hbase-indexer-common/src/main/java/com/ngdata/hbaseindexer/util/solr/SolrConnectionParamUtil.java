@@ -18,6 +18,7 @@ package com.ngdata.hbaseindexer.util.solr;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
@@ -30,7 +31,7 @@ public class SolrConnectionParamUtil {
 
     public static List<String> getShards(Map<String, String> connectionParams) {
         Map<Integer, String> shardsByUserIndex = Maps.newTreeMap();
-        for (Map.Entry<String, String> param: connectionParams.entrySet()) {
+        for (Map.Entry<String, String> param : connectionParams.entrySet()) {
             if (param.getKey().startsWith(SolrConnectionParams.SOLR_SHARD_PREFIX)) {
                 Integer index = Integer.valueOf(param.getKey().substring(SolrConnectionParams.SOLR_SHARD_PREFIX.length()));
                 shardsByUserIndex.put(index, param.getValue());
@@ -38,6 +39,19 @@ public class SolrConnectionParamUtil {
         }
 
         return Lists.newArrayList(shardsByUserIndex.values());
+    }
+
+    public static String getSolrMode(Map<String, String> connectionParameters) {
+        return Optional.fromNullable(connectionParameters.get(SolrConnectionParams.MODE)).or("cloud").toLowerCase();
+    }
+
+    public static int getSolrMaxConnectionsPerRoute(Map<String, String> connectionParameters) {
+        return Integer.parseInt(
+                Optional.fromNullable(connectionParameters.get(SolrConnectionParams.MAX_CONNECTIONS_PER_HOST)).or("128"));
+    }
+
+    public static int getSolrMaxConnectionsTotal(Map<String, String> connectionParameters) {
+        return Integer.parseInt(Optional.fromNullable(connectionParameters.get(SolrConnectionParams.MAX_CONNECTIONS)).or("32"));
     }
 
 }

@@ -28,7 +28,6 @@ import java.util.regex.Pattern;
 
 import javax.xml.parsers.ParserConfigurationException;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -88,8 +87,8 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
                 .describedAs("key=value");
 
         lifecycleStateOption = parser
-                .acceptsAll(Lists.newArrayList("lifecycle"), "Lifecycle state, one of " +
-                        LifecycleState.ACTIVE + ", " + LifecycleState.DELETE_REQUESTED)
+                .acceptsAll(Lists.newArrayList("lifecycle"), "Lifecycle state, one of "
+                        + LifecycleState.ACTIVE + ", " + LifecycleState.DELETE_REQUESTED)
                 .withRequiredArg()
                 .withValuesConvertedBy(new EnumConverter<LifecycleState>(LifecycleState.class))
                 .defaultsTo(LifecycleState.DEFAULT)
@@ -106,8 +105,9 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
                 .describedAs("state");
 
         batchIdxStateOption = parser
-                .acceptsAll(Lists.newArrayList("batch"), "Batch indexing state, can only be set to  " +
-                        BatchIndexingState.BUILD_REQUESTED)
+                .acceptsAll(Lists.newArrayList("batch"), "Batch indexing state, can only be set to "
+                        + BatchIndexingState.BUILD_REQUESTED + (". This will trigger a batch rebuild of the index in "
+                        + "\"direct write\" mode (scanning over all records and sending the results to a live solr cluster)."))
                 .withRequiredArg()
                 .withValuesConvertedBy(new EnumConverter<BatchIndexingState>(BatchIndexingState.class))
                 .defaultsTo(BatchIndexingState.DEFAULT)
@@ -116,14 +116,18 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         defaultBatchIndexCliArgumentsOption = parser
                 .acceptsAll(Lists.newArrayList("dbc", "default-batch-cli-arguments"),
                         "Default batch indexing cli arguments for this indexer. On update, use this option without"
-                                + " filename argument to clear the setting.")
+                                + " filename argument to clear the setting. Note that not all options of the map reduce"
+                                + " batch index job make sense in this context, because it only supports direct write to"
+                                + " a running solr cluster (i.e. --reducers 0)")
                 .withOptionalArg().ofType(String.class).describedAs("file-with-arguments");
 
         batchIndexCliArgumentsOption = parser
                 .acceptsAll(Lists.newArrayList("bc", "batch-cli-arguments"),
                         "Batch indexing cli arguments to use for the next batch index build triggered, this overrides"
                                 + " the default batch index cli arguments (if any). On update, use this option without"
-                                + " filename argument to clear the setting.")
+                                + " filename argument to clear the setting. Note that not all options of the map reduce"
+                                + " batch index job make sense in this context, because it only supports direct write to"
+                                + " a running solr cluster (i.e. --reducers 0)")
                 .withOptionalArg().ofType(String.class).describedAs("file-with-arguments");
 
         return parser;
@@ -308,17 +312,6 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
         } else if (connectionParams.get(SolrConnectionParams.MODE).equals("classic")) {
             // handle classic params
-
-            // Check sharder type
-            List<String> sharderTypes = Lists.newArrayList("default", "lily");
-
-            if (connectionParams.containsKey(SolrConnectionParams.SHARDER_TYPE)) {
-                if (!sharderTypes.contains(connectionParams.get(SolrConnectionParams.SHARDER_TYPE))) {
-                    throw new CliException(
-                            "ERROR: Invalid solr.sharder value: " + connectionParams.get(SolrConnectionParams.SHARDER_TYPE) +
-                                    " Valid values are: " + Joiner.on(",").join(sharderTypes));
-                }
-            }
 
             // Check that there is at least one shard, and that the shards are valid
             if (SolrConnectionParamUtil.getShards(connectionParams).size() == 0) {

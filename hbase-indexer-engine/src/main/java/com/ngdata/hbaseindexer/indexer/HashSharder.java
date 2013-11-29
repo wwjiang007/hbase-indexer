@@ -18,7 +18,6 @@ package com.ngdata.hbaseindexer.indexer;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.List;
 
 import com.google.common.base.Preconditions;
 
@@ -30,17 +29,20 @@ public class HashSharder implements Sharder {
     private int numShards;
     private MessageDigest mdAlgorithm;
 
-    public HashSharder(int numShards) throws NoSuchAlgorithmException {
+    public HashSharder(int numShards) throws SharderException {
         Preconditions.checkArgument(numShards > 0, "There should be at least one shard");
         this.numShards = numShards;
-        this.mdAlgorithm = MessageDigest.getInstance("MD5");
-
+        try {
+            this.mdAlgorithm = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new SharderException("failed to initialize MD5 digest", e);
+        }
     }
 
     private long hash(String key) throws SharderException {
         try {
             // Cloning message digest rather than looking it up each time
-            MessageDigest md = (MessageDigest)mdAlgorithm.clone();
+            MessageDigest md = (MessageDigest) mdAlgorithm.clone();
             byte[] digest = md.digest(key.getBytes("UTF-8"));
             return ((digest[0] & 0xFF) << 8) + ((digest[1] & 0xFF));
         } catch (UnsupportedEncodingException e) {
@@ -53,7 +55,7 @@ public class HashSharder implements Sharder {
 
     public int getShard(String id) throws SharderException {
         long a = hash(id);
-        return (int)((a % numShards + numShards) % numShards); // make sure we get positive values
+        return (int) ((a % numShards + numShards) % numShards); // make sure we get positive values
     }
-    
+
 }

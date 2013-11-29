@@ -15,7 +15,9 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
-import javax.annotation.Nullable;
+import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+import static com.ngdata.sep.impl.HBaseShims.newResult;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -23,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+
+import javax.annotation.Nullable;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -55,16 +59,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
-
-import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
-import static com.ngdata.sep.impl.HBaseShims.newResult;
-
 /**
  * The indexing algorithm. It receives an event from the SEP, handles it based on the configuration, and eventually
  * calls Solr.
@@ -81,26 +75,27 @@ public abstract class Indexer {
     protected ResultToSolrMapper mapper;
     protected UniqueKeyFormatter uniqueKeyFormatter;
     private Timer indexingTimer;
-    
 
 
     /**
      * Instantiate an indexer based on the given {@link IndexerConf}.
      */
-    public static Indexer createIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool,
-            Sharder sharder, SolrInputDocumentWriter solrWriter) {
+    public static Indexer createIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper,
+                                        HTablePool tablePool,
+                                        Sharder sharder, SolrInputDocumentWriter solrWriter) {
         switch (conf.getMappingType()) {
-        case COLUMN:
-            return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, sharder, solrWriter);
-        case ROW:
-            return new RowBasedIndexer(indexerName, conf, tableName, mapper, tablePool, sharder, solrWriter);
-        default:
-            throw new IllegalStateException("Can't determine the type of indexing to use for mapping type "
-                    + conf.getMappingType());
+            case COLUMN:
+                return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, sharder, solrWriter);
+            case ROW:
+                return new RowBasedIndexer(indexerName, conf, tableName, mapper, tablePool, sharder, solrWriter);
+            default:
+                throw new IllegalStateException("Can't determine the type of indexing to use for mapping type "
+                        + conf.getMappingType());
         }
     }
 
-    Indexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, Sharder sharder, SolrInputDocumentWriter solrWriter) {
+    Indexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, Sharder sharder,
+            SolrInputDocumentWriter solrWriter) {
         this.indexerName = indexerName;
         this.conf = conf;
         this.tableName = tableName;
@@ -114,33 +109,33 @@ public abstract class Indexer {
         this.sharder = sharder;
         this.solrWriter = solrWriter;
         this.indexingTimer = Metrics.newTimer(metricName(getClass(),
-                                "Index update calculation timer", indexerName),
-                                 TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
-       
+                "Index update calculation timer", indexerName),
+                TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+
     }
-    
+
     /**
      * Returns the name of this indexer.
-     * 
+     *
      * @return indexer name
      */
     public String getName() {
         return indexerName;
     }
-    
+
 
     /**
      * Build all new documents and ids to delete based on a list of {@code RowData}s.
-     * 
-     * @param rowDataList list of RowData instances to be considered for indexing
+     *
+     * @param rowDataList     list of RowData instances to be considered for indexing
      * @param updateCollector collects updates to be written to Solr
      */
     abstract void calculateIndexUpdates(List<RowData> rowDataList, SolrUpdateCollector updateCollector) throws IOException;
-    
+
 
     /**
      * Create index documents based on a nested list of RowData instances.
-     * 
+     *
      * @param rowDataList list of RowData instances to be considered for indexing
      */
     public void indexRowData(List<RowData> rowDataList) throws IOException, SolrServerException, SharderException {
@@ -168,35 +163,33 @@ public abstract class Indexer {
             // with sharding
             if (!updateCollector.getDocumentsToAdd().isEmpty()) {
                 Map<Integer, Map<String, SolrInputDocument>> addsByShard = shardByMapKey(updateCollector.getDocumentsToAdd());
-                for (Map.Entry<Integer, Map<String, SolrInputDocument>> entry: addsByShard.entrySet()) {
+                for (Map.Entry<Integer, Map<String, SolrInputDocument>> entry : addsByShard.entrySet()) {
                     solrWriter.add(entry.getKey(), entry.getValue());
                 }
             }
             if (!updateCollector.getIdsToDelete().isEmpty()) {
                 Map<Integer, Collection<String>> idsByShard = shardByValue(updateCollector.getIdsToDelete());
-                for (Map.Entry<Integer, Collection<String>> entry: idsByShard.entrySet()) {
+                for (Map.Entry<Integer, Collection<String>> entry : idsByShard.entrySet()) {
                     solrWriter.deleteById(entry.getKey(), Lists.newArrayList(entry.getValue()));
                 }
             }
         }
-        
+
         for (String deleteQuery : updateCollector.getDeleteQueries()) {
             solrWriter.deleteByQuery(deleteQuery);
         }
-        
+
     }
 
     /**
      * groups a map of (id->document) pairs by shard
      * (consider moving this to a BaseSharder class)
-     * @param documentsToAdd
-     * @return
-     * @throws SharderException
      */
-    private Map<Integer, Map<String, SolrInputDocument>> shardByMapKey(Map<String, SolrInputDocument> documentsToAdd) throws SharderException {
+    private Map<Integer, Map<String, SolrInputDocument>> shardByMapKey(Map<String, SolrInputDocument> documentsToAdd)
+            throws SharderException {
         Table<Integer, String, SolrInputDocument> table = HashBasedTable.create();
 
-        for (Map.Entry<String, SolrInputDocument> entry: documentsToAdd.entrySet()) {
+        for (Map.Entry<String, SolrInputDocument> entry : documentsToAdd.entrySet()) {
             table.put(sharder.getShard(entry.getKey()), entry.getKey(), entry.getValue());
         }
 
@@ -206,10 +199,8 @@ public abstract class Indexer {
     /**
      * groups a list of ids by shard
      * (consider moving this to a BaseSharder class)
-     * @param idsToDelete
-     * @return
      */
-    private Map<Integer,Collection<String>> shardByValue(List<String> idsToDelete) {
+    private Map<Integer, Collection<String>> shardByValue(List<String> idsToDelete) {
         Multimap<Integer, String> map = Multimaps.index(idsToDelete, new Function<String, Integer>() {
             @Override
             public Integer apply(@Nullable String id) {
@@ -228,24 +219,19 @@ public abstract class Indexer {
         Closer.close(uniqueKeyFormatter);
         IndexerMetricsUtil.shutdownMetrics(indexerName);
     }
-    
-    void addTableName(SolrInputDocument document) {
-        if (conf.getTableNameField() != null) {
-            document.addField(conf.getTableNameField(), tableName);
-        }
-    }
-    
 
     static class RowBasedIndexer extends Indexer {
-        
+
         private HTablePool tablePool;
         private Timer rowReadTimer;
 
-        public RowBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, HTablePool tablePool,
-                   Sharder sharder, SolrInputDocumentWriter solrWriter) {
+        public RowBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper,
+                               HTablePool tablePool,
+                               Sharder sharder, SolrInputDocumentWriter solrWriter) {
             super(indexerName, conf, tableName, mapper, sharder, solrWriter);
             this.tablePool = tablePool;
-            rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+            rowReadTimer = Metrics.newTimer(metricName(getClass(), "Row read timer", indexerName), TimeUnit.MILLISECONDS,
+                    TimeUnit.SECONDS);
         }
 
         private Result readRow(RowData rowData) throws IOException {
@@ -282,7 +268,7 @@ public abstract class Indexer {
 
                 String documentId;
                 if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
-                    documentId = ((UniqueTableKeyFormatter)uniqueKeyFormatter).formatRow(rowData.getRow(),
+                    documentId = ((UniqueTableKeyFormatter) uniqueKeyFormatter).formatRow(rowData.getRow(),
                             rowData.getTable());
                 } else {
                     documentId = uniqueKeyFormatter.formatRow(rowData.getRow());
@@ -296,11 +282,11 @@ public abstract class Indexer {
                     }
                 } else {
                     IdAddingSolrUpdateWriter idAddingUpdateWriter = new IdAddingSolrUpdateWriter(
-                                                                            conf.getUniqueKeyField(),
-                                                                            documentId,
-                                                                            conf.getTableNameField(),
-                                                                            tableName,
-                                                                            updateCollector);
+                            conf.getUniqueKeyField(),
+                            documentId,
+                            conf.getTableNameField(),
+                            tableName,
+                            updateCollector);
                     mapper.map(result, idAddingUpdateWriter);
                 }
             }
@@ -325,7 +311,7 @@ public abstract class Indexer {
                     break;
                 }
                 if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
-                    idToEvent.put(((UniqueTableKeyFormatter)uniqueKeyFormatter).formatRow(rowData.getRow(),
+                    idToEvent.put(((UniqueTableKeyFormatter) uniqueKeyFormatter).formatRow(rowData.getRow(),
                             rowData.getTable()), rowData);
                 } else {
                     idToEvent.put(uniqueKeyFormatter.formatRow(rowData.getRow()), rowData);
@@ -339,7 +325,8 @@ public abstract class Indexer {
 
     static class ColumnBasedIndexer extends Indexer {
 
-        public ColumnBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper, Sharder sharder, SolrInputDocumentWriter solrWriter) {
+        public ColumnBasedIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper,
+                                  Sharder sharder, SolrInputDocumentWriter solrWriter) {
             super(indexerName, conf, tableName, mapper, sharder, solrWriter);
         }
 
@@ -365,13 +352,13 @@ public abstract class Indexer {
                                     conf.getTableNameField(),
                                     tableName,
                                     updateCollector));
-                   
+
                     mapper.map(result, updateWriter);
 
                 }
             }
         }
-        
+
         private void handleDelete(String documentId, KeyValue deleteKeyValue, SolrUpdateCollector updateCollector,
                                   UniqueKeyFormatter uniqueKeyFormatter) {
             byte deleteType = deleteKeyValue.getType();
@@ -380,7 +367,7 @@ public abstract class Indexer {
             } else if (deleteType == KeyValue.Type.DeleteFamily.getCode()) {
                 if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
                     deleteFamily(deleteKeyValue, updateCollector, uniqueKeyFormatter,
-                            ((UniqueTableKeyFormatter)uniqueKeyFormatter).unformatTable(documentId));
+                            ((UniqueTableKeyFormatter) uniqueKeyFormatter).unformatTable(documentId));
                 } else {
                     deleteFamily(deleteKeyValue, updateCollector, uniqueKeyFormatter, null);
                 }
@@ -407,7 +394,7 @@ public abstract class Indexer {
             String rowValue;
             String familyValue;
             if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
-                UniqueTableKeyFormatter uniqueTableKeyFormatter = (UniqueTableKeyFormatter)uniqueKeyFormatter;
+                UniqueTableKeyFormatter uniqueTableKeyFormatter = (UniqueTableKeyFormatter) uniqueKeyFormatter;
                 rowValue = uniqueTableKeyFormatter.formatRow(deleteKeyValue.getRow(), tableName);
                 familyValue = uniqueTableKeyFormatter.formatFamily(deleteKeyValue.getFamily(), tableName);
             } else {
@@ -439,7 +426,7 @@ public abstract class Indexer {
                         rowValue));
             }
         }
-        
+
         /**
          * Calculate a map of Solr document ids to KeyValue, only taking the most recent event for each document id.
          */
@@ -450,7 +437,7 @@ public abstract class Indexer {
                     if (mapper.isRelevantKV(kv)) {
                         String id;
                         if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
-                            id = ((UniqueTableKeyFormatter)uniqueKeyFormatter).formatKeyValue(kv, rowData.getTable());
+                            id = ((UniqueTableKeyFormatter) uniqueKeyFormatter).formatKeyValue(kv, rowData.getTable());
                         } else {
                             id = uniqueKeyFormatter.formatKeyValue(kv);
                         }

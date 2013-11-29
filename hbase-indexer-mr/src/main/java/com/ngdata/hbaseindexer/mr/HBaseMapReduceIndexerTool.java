@@ -15,9 +15,18 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import static com.ngdata.hbaseindexer.indexer.SolrServerFactory.createHttpSolrServers;
+import static com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil.getSolrMaxConnectionsPerRoute;
+import static com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil.getSolrMaxConnectionsTotal;
+import static com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil.getSolrMode;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
+import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
@@ -31,6 +40,11 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
 import org.apache.solr.hadoop.SolrInputDocumentWritable;
@@ -157,9 +171,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             if (!ForkedMapReduceIndexerTool.waitForCompletion(job, hbaseIndexingOpts.isVerbose)) {
                 return -1; // job failed
             }
-
-            solrServer.commit(false, false);
-            solrServer.shutdown();
+            commitSolr(indexingSpec.getIndexConnectionParams());
             ForkedMapReduceIndexerTool.goodbye(job, programStartTime);
             return 0;
         } else {
@@ -195,7 +207,31 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             }
             return exitCode;
         }
+    }
 
+    private void commitSolr(Map<String, String> indexConnectionParams) throws SolrServerException, IOException {
+        String solrMode = getSolrMode(indexConnectionParams);
+        if (solrMode.equals("cloud")) {
+            String indexZkHost = indexConnectionParams.get(SolrConnectionParams.ZOOKEEPER);
+            String collectionName = indexConnectionParams.get(SolrConnectionParams.COLLECTION);
+            CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
+            solrServer.setDefaultCollection(collectionName);
+            solrServer.commit(false, false);
+            solrServer.shutdown();
+        } else if (solrMode.equals("classic")) {
+            PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager();
+            connectionManager.setDefaultMaxPerRoute(getSolrMaxConnectionsPerRoute(indexConnectionParams));
+            connectionManager.setMaxTotal(getSolrMaxConnectionsTotal(indexConnectionParams));
+
+            HttpClient httpClient = new DefaultHttpClient(connectionManager);
+            List<SolrServer> solrServers = createHttpSolrServers(indexConnectionParams, httpClient);
+            for (SolrServer solrServer : solrServers) {
+                solrServer.commit();
+                solrServer.shutdown();
+            }
+        } else {
+            throw new RuntimeException("Only 'cloud' and 'classic' are valid values for solr.mode, but got " + solrMode);
+        }
     }
 
 }

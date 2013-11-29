@@ -15,13 +15,13 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
-import org.apache.solr.common.SolrInputDocument;
-
 /**
- * The Sharder interface. The sharder determines to which shard a document should be sent
+ * The Sharder interface. The sharder determines to which shard a document should be sent.
+ *
+ * Implementations should have a constructor that takes a single int argument that defines the number of shards.
  */
 public interface Sharder {
 
     int getShard(String id) throws SharderException;
-    
+
 }

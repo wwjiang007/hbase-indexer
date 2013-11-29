@@ -15,6 +15,8 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
+import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -31,8 +33,6 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrInputDocument;
 
-import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
-
 /**
  * Writes updates (new documents and deletes) directly to a set of SolrServer (one for each shard).
  * <p>
@@ -45,7 +45,7 @@ import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
  * If a write to Solr throws an exception signifying that the underlying problem lies with the document being written,
  * then the exception will be logged, but otherwise ignored. The intention of this behaviour is to stop a single bad
  * document from holding up the whole indexing process for other documents.
- * 
+ *
  * <h3>Individual retry of documents</h3>
  * If a single document in a batch causes an exception to be thrown that is related to the document itself, then each
  * update will be retried individually.
@@ -169,13 +169,13 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
 
     /**
      * Has the same behavior as {@link org.apache.solr.client.solrj.SolrServer#deleteByQuery(String)}.
-     * 
+     *
      * @param deleteQuery delete query to be executed
      */
     @Override
     public void deleteByQuery(String deleteQuery) throws SolrServerException, IOException {
         try {
-            for (SolrServer server: solrServers) {
+            for (SolrServer server : solrServers) {
                 server.deleteByQuery(deleteQuery);
             }
         } catch (SolrException e) {
@@ -190,12 +190,15 @@ public class DirectSolrClassicInputDocumentWriter implements SolrInputDocumentWr
             throw sse;
         }
     }
-    
+
     @Override
     public void close() {
-        for (SolrServer server: solrServers) {
+        for (SolrServer server : solrServers) {
             server.shutdown();
         }
     }
 
+    public int getNumServers() {
+        return solrServers.size();
+    }
 }

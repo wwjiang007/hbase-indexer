@@ -25,20 +25,6 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
-import org.apache.solr.hadoop.ForkedZooKeeperInspector;
-import org.apache.solr.hadoop.MapReduceIndexerTool;
-import org.apache.solr.hadoop.MorphlineClasspathUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
@@ -70,6 +56,7 @@ import org.apache.hadoop.mapred.JobClient;
 import org.apache.solr.hadoop.ForkedMapReduceIndexerTool.OptionsBridge;
 import org.apache.solr.hadoop.ForkedZooKeeperInspector;
 import org.apache.solr.hadoop.MapReduceIndexerTool;
+import org.apache.solr.hadoop.MorphlineClasspathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,11 +142,11 @@ class HBaseIndexingOptions extends OptionsBridge {
         if (isDirectWrite() || isDryRun) {
             if (outputDir != null) {
                 throw new IllegalStateException(
-                    "--output-dir must not be specified if --reducers is 0 or --dry-run is enabled");
+                        "--output-dir must not be specified if --reducers is 0 or --dry-run is enabled");
             }
             if (zkHost == null && (hbaseIndexerName == null || hbaseIndexerZkHost == null)) {
                 throw new IllegalStateException(
-                    "--zk-host must be specified if --reducers is 0 or --dry-run is enabled");
+                        "--zk-host must be specified if --reducers is 0 or --dry-run is enabled");
             }
             return;
         }
@@ -187,7 +174,8 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scans = Lists.newArrayList();
-        IndexerConf indexerConf = loadIndexerConf(new ByteArrayInputStream(hbaseIndexingSpecification.getIndexConfigXml().getBytes()));
+        IndexerConf indexerConf =
+                loadIndexerConf(new ByteArrayInputStream(hbaseIndexingSpecification.getIndexConfigXml().getBytes()));
         HTableDescriptor[] tables = new HTableDescriptor[0];
         try {
             HBaseAdmin admin = getHbaseAdmin();
@@ -251,8 +239,8 @@ class HBaseIndexingOptions extends OptionsBridge {
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
     @VisibleForTesting
     void evaluateGoLiveArgs() {
-        if (zkHost == null && solrHomeDir == null) {
-            throw new IllegalStateException("At least one of --zk-host or --solr-home-dir is required");
+        if (goLive && zkHost == null && solrHomeDir == null) {
+            throw new IllegalStateException("--go-live requires at least one of --zk-host or --solr-home-dir");
         }
         if (goLive && zkHost == null && shardUrls == null) {
             throw new IllegalStateException("--go-live requires that you also pass --shard-url or --zk-host");
@@ -290,9 +278,9 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
         return hBaseAdmin;
     }
-    
+
     // Taken from org.apache.solr.hadoop.MapReduceIndexerTool
-    private void evaluateShards()  {
+    private void evaluateShards() {
         if (zkHost != null) {
             assert collection != null;
             ForkedZooKeeperInspector zki = new ForkedZooKeeperInspector();
@@ -345,7 +333,7 @@ class HBaseIndexingOptions extends OptionsBridge {
         if (reduceTaskCount != shards) {
             // Ensure fanout isn't misconfigured. fanout can't meaningfully be larger than what would be
             // required to merge all leaf shards in one single tree merge iteration into root shards
-            fanout = Math.min(fanout, (int)ceilDivide(reduceTaskCount, shards));
+            fanout = Math.min(fanout, (int) ceilDivide(reduceTaskCount, shards));
 
             // Ensure invariant reducers == options.shards * (fanout ^ N) where N is an integer >= 1.
             // N is the number of mtree merge iterations.
@@ -373,7 +361,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     void evaluateIndexingSpecification() {
         String tableName = null;
         String indexerConfigXml = null;
-        Map<String,String> indexConnectionParams = Maps.newHashMap();
+        Map<String, String> indexConnectionParams = Maps.newHashMap();
 
         if (hbaseIndexerZkHost != null) {
 
@@ -458,31 +446,31 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
 
         this.hbaseIndexingSpecification = new IndexingSpecification(
-                                            tableName,
-                                            hbaseIndexerName,
-                                            indexerConfigXml,
-                                            indexConnectionParams);
+                tableName,
+                hbaseIndexerName,
+                indexerConfigXml,
+                indexConnectionParams);
     }
 
     private IndexerConf loadIndexerConf(InputStream indexerConfigInputStream) {
         IndexerConf indexerConf;
         try {
-            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);       
+            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             Closer.close(indexerConfigInputStream);
         }
-        
+
         if (morphlineFile != null) {
             indexerConf.getGlobalParams().put(
-                MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile.getPath());
+                    MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile.getPath());
         }
         if (morphlineId != null) {
             indexerConf.getGlobalParams().put(
-                MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+                    MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
         }
-        
+
         for (Map.Entry<String, String> entry : conf) {
             if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
                 indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
@@ -503,9 +491,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     /**
      * Evaluate a timestamp string with an optional format. If the format is not present,
      * the timestamp string is assumed to be a Long.
-     * 
-     * @param timestampString
-     * @param timestampFormat
+     *
      * @return evaluated timestamp, or null if there is no timestamp information supplied
      */
     static Long evaluateTimestamp(String timestampString, String timestampFormat) {

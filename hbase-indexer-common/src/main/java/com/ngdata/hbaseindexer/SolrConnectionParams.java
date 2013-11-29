@@ -38,7 +38,7 @@ public class SolrConnectionParams {
     public static final String SOLR_SHARD_PREFIX = "solr.shard.";
 
     /**
-     * The sharder type (default, lily, ...)
+     * The sharder type ("default", or a fully qualified class name of a Sharder implementation)
      */
     public static final String SHARDER_TYPE = "solr.sharder";
 

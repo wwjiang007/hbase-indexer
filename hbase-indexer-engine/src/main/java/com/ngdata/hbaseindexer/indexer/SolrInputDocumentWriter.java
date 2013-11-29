@@ -34,23 +34,25 @@ public interface SolrInputDocumentWriter {
     /**
      * Write a collection of documents to an underlying datastore.
      *
-     * @param shard
+     * @param shard            shard id (ignored when using solr cloud)
      * @param inputDocumentMap map of document ids to {@code SolrInputDocument}s
      */
     void add(int shard, Map<String, SolrInputDocument> inputDocumentMap) throws SolrServerException, IOException;
 
     /**
      * Delete a list of documents from an underlying datastore (optional operation).
+     *
+     * @param shard shard id (ignored when using solr cloud)
      */
     void deleteById(int shard, List<String> idsToDelete) throws SolrServerException, IOException;
 
     /**
      * Has the same behavior as {@link SolrServer#deleteByQuery(String)} (optional operation).
-     * 
+     *
      * @param deleteQuery delete query to be executed
      */
     void deleteByQuery(String deleteQuery) throws SolrServerException, IOException;
-    
+
     /**
      * Close any open resources being used by this writer.
      */
