@@ -23,8 +23,11 @@ import static com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil.getSolrM
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.net.MalformedURLException;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -158,9 +161,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
 
             if (hbaseIndexingOpts.clearIndex) {
-                solrServer.deleteByQuery("*:*");
-                solrServer.commit(false, false);
-                //TODO : solrclassic (aka solr-in-non-cloud-mode) do a delete *:* on all shards
+                clearSolr(indexingSpec.getIndexConnectionParams());
             }
 
             // Run a mapper-only MR job that sends index documents directly to a live Solr instance.
@@ -209,29 +210,41 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         }
     }
 
+    private void clearSolr(Map<String, String> indexConnectionParams) throws SolrServerException, IOException {
+        Set<SolrServer> servers = createSolrServers(indexConnectionParams);
+        for (SolrServer server : servers) {
+            server.deleteByQuery("*:*");
+            server.commit(false, false);
+            server.shutdown();
+        }
+    }
+
     private void commitSolr(Map<String, String> indexConnectionParams) throws SolrServerException, IOException {
+        Set<SolrServer> servers = createSolrServers(indexConnectionParams);
+        for (SolrServer server : servers) {
+            server.commit(false, false);
+            server.shutdown();
+        }
+    }
+
+    private Set<SolrServer> createSolrServers(Map<String, String> indexConnectionParams) throws MalformedURLException {
         String solrMode = getSolrMode(indexConnectionParams);
         if (solrMode.equals("cloud")) {
             String indexZkHost = indexConnectionParams.get(SolrConnectionParams.ZOOKEEPER);
             String collectionName = indexConnectionParams.get(SolrConnectionParams.COLLECTION);
             CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
             solrServer.setDefaultCollection(collectionName);
-            solrServer.commit(false, false);
-            solrServer.shutdown();
+            return Collections.singleton((SolrServer) solrServer);
         } else if (solrMode.equals("classic")) {
             PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager();
             connectionManager.setDefaultMaxPerRoute(getSolrMaxConnectionsPerRoute(indexConnectionParams));
             connectionManager.setMaxTotal(getSolrMaxConnectionsTotal(indexConnectionParams));
 
             HttpClient httpClient = new DefaultHttpClient(connectionManager);
-            List<SolrServer> solrServers = createHttpSolrServers(indexConnectionParams, httpClient);
-            for (SolrServer solrServer : solrServers) {
-                solrServer.commit();
-                solrServer.shutdown();
-            }
+            return new HashSet<SolrServer>(createHttpSolrServers(indexConnectionParams, httpClient));
         } else {
             throw new RuntimeException("Only 'cloud' and 'classic' are valid values for solr.mode, but got " + solrMode);
         }
-    }
 
+    }
 }
