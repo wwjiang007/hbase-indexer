@@ -101,6 +101,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     public String hbaseEndTimeString;
     public String hbaseTimestampFormat;
     public boolean overwriteOutputDir;
+    public boolean clearIndex;
 
     public HBaseIndexingOptions(Configuration conf) {
         Preconditions.checkNotNull(conf);

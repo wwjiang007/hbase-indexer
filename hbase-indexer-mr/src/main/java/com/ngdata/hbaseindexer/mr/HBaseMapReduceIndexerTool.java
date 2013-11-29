@@ -140,6 +140,15 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                         hbaseIndexingOpts.maxSegments});
 
         if (hbaseIndexingOpts.isDirectWrite()) {
+            CloudSolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
+            solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
+
+            if (hbaseIndexingOpts.clearIndex) {
+                solrServer.deleteByQuery("*:*");
+                solrServer.commit(false, false);
+                //TODO : solrclassic (aka solr-in-non-cloud-mode) do a delete *:* on all shards
+            }
+
             // Run a mapper-only MR job that sends index documents directly to a live Solr instance.
             job.setOutputFormatClass(NullOutputFormat.class);
             job.setNumReduceTasks(0);
@@ -148,8 +157,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             if (!ForkedMapReduceIndexerTool.waitForCompletion(job, hbaseIndexingOpts.isVerbose)) {
                 return -1; // job failed
             }
-            CloudSolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
-            solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
+
             solrServer.commit(false, false);
             solrServer.shutdown();
             ForkedMapReduceIndexerTool.goodbye(job, programStartTime);

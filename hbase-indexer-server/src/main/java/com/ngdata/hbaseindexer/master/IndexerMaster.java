@@ -315,6 +315,7 @@ public class IndexerMaster {
                     updatedIndexer
                             .activeBatchBuildInfo(jobInfo)
                             .batchIndexingState(BatchIndexingState.BUILDING)
+                            .batchIndexCliArguments(null)
                             .build();
 
                     indexerModel.updateIndexerInternal(updatedIndexer.build());

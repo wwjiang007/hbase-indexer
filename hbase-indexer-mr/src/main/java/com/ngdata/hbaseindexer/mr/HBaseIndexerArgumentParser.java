@@ -449,6 +449,11 @@ class HBaseIndexerArgumentParser {
         Argument verboseArg = optionalGroup.addArgument("--verbose", "-v")
                 .action(Arguments.storeTrue())
                 .help("Turn on verbose output.");
+
+        Argument clearIndexArg = optionalGroup.addArgument("--clear-index")
+                .action(Arguments.storeTrue())
+                .help("Will attempt to delete all entries in a solr index before starting batch build. This is not " +
+                        "transactional so if the build fails the index will be empty.");
         
         optionalGroup.addArgument(SHOW_NON_SOLR_CLOUD)
                 .action(Arguments.storeTrue())
@@ -489,6 +494,7 @@ class HBaseIndexerArgumentParser {
         opts.goLive = ns.getBoolean(goLiveArg.getDest());
         opts.goLiveThreads = ns.getInt(goLiveThreadsArg.getDest());
         opts.collection = ns.getString(collectionArg.getDest());
+        opts.clearIndex = ns.getBoolean(clearIndexArg.getDest());
 
         opts.hbaseIndexerConfigFile = (File) ns.get(hbaseIndexerConfigArg.getDest());
         opts.hbaseIndexerZkHost = ns.getString(indexerZkHostArg.getDest());

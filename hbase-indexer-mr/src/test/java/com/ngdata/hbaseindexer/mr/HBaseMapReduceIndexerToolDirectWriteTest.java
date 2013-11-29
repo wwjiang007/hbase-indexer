@@ -20,10 +20,12 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -37,6 +39,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.SolrInputDocument;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -307,7 +310,52 @@ public class HBaseMapReduceIndexerToolDirectWriteTest {
         assertEquals(1, executeSolrQuery(COLLECTION2, solrQuery).size());
     }
 
-   
+    @Test
+    public void testIndexer_ClearIndex() throws Exception {
+        indexClearTester(true);
+    }
+
+    @Test
+    public void testIndexer_NoClearIndex() throws Exception {
+        indexClearTester(false);
+    }
+
+    private void indexClearTester(boolean clear) throws Exception{
+        SolrInputDocument solrDoc = new SolrInputDocument();
+        solrDoc.addField("id", "nomatter");
+        solrDoc.addField("firstname_s", "John");
+        solrDoc.addField("lastname_s", "Doe");
+
+        COLLECTION1.add(solrDoc);
+        COLLECTION1.commit();
+
+        String solrQuery = "firstname_s:John lastname_s:Doe";
+
+        assertEquals(1, executeSolrQuery(COLLECTION1, solrQuery).size());
+
+        writeHBaseRecord("row1", ImmutableMap.of(
+                "firstname", "John",
+                "lastname", "Doe"));
+
+        List<String> args = Lists.newArrayList(
+                "--hbase-indexer-file", new File(Resources.getResource(getClass(), "user_indexer.xml").toURI()).toString(),
+                "--reducers", "0",
+                "--collection", "collection1",
+                "--zk-host", SOLR_ZK);
+
+        if (clear) {
+            args.add("--clear-index");
+        }
+
+        MR_TEST_UTIL.runTool(args.toArray(new String[args.size()]));
+
+        if (clear) {
+            assertEquals(1, executeSolrQuery(COLLECTION1, solrQuery).size());
+        } else {
+            assertEquals(2, executeSolrQuery(COLLECTION1, solrQuery).size());
+        }
+
+    }
     
     @Test
     public void testIndexer_StartRowDefined() throws Exception {
