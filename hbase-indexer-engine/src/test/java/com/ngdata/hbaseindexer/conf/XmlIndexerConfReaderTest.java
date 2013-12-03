@@ -24,6 +24,7 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.uniquekey.HexUniqueKeyFormatter;
 import org.junit.Test;
@@ -70,7 +71,7 @@ public class XmlIndexerConfReaderTest {
                         ImmutableMap.of("extractKeyA", "extractValueA", "extractKeyB", "extractValueB")));
         assertEquals(expectedExtractDefs, extractDefs);
 
-        assertEquals(ImmutableMap.of("globalKeyA", "globalValueA", "globalKeyB", "globalValueB"), conf.getGlobalConfig());
+        assertEquals(ImmutableMap.of("globalKeyA", "globalValueA", "globalKeyB", "globalValueB"), ConfigureUtil.jsonToMap(conf.getGlobalConfig()));
         
     }
 

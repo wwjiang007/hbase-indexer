@@ -45,7 +45,7 @@ public class ConfigureUtilTest {
 
         ConfigureUtil.configure(configurable, ConfigureUtil.mapToJson(params));
         
-        assertEquals(params, configurable.params);
+        assertEquals(params, ConfigureUtil.jsonToMap(configurable.params));
     }
     
     

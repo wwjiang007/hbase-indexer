@@ -205,7 +205,9 @@ public class IndexerDefinitionJsonSerDeser {
 
         node.put("subscriptionTimestamp", indexer.getSubscriptionTimestamp());
 
-        node.put("indexerConfReader", indexer.getIndexerConfReader());
+        if (indexer.getIndexerConfReader() != null) {
+            node.put("indexerConfReader", indexer.getIndexerConfReader());
+        }
         setByteArrayProperty(node, "configuration", indexer.getConfiguration());
 
         if (indexer.getConnectionType() != null)
