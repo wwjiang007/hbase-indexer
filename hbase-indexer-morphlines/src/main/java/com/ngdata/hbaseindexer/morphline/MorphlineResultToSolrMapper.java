@@ -17,6 +17,7 @@ package com.ngdata.hbaseindexer.morphline;
 
 import java.util.Map;
 
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 
 import org.apache.hadoop.hbase.KeyValue;
@@ -27,6 +28,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.ngdata.hbaseindexer.Configurable;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import org.codehaus.jackson.node.ObjectNode;
 
 /**
  * Pipes a given HBase Result into a morphline and extracts and transforms the specified HBase cells to a
@@ -88,7 +90,7 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
                 throw new IllegalStateException("Can't create a LocalMorphlineToSolrMapper, not yet configured");
             }
             LocalMorphlineResultToSolrMapper localMorphlineMapper = new LocalMorphlineResultToSolrMapper();
-            localMorphlineMapper.configure(ImmutableMap.copyOf(params));
+            localMorphlineMapper.configure(ConfigureUtil.mapToJson(params));
             return localMorphlineMapper;
         }
     };
@@ -118,9 +120,9 @@ public final class MorphlineResultToSolrMapper implements ResultToSolrMapper, Co
     }
 
     @Override
-    public void configure(Map<String, String> params) {
-        Preconditions.checkNotNull(params);
-        this.params = ImmutableMap.copyOf(params);
+    public void configure(byte[] config) {
+        Preconditions.checkNotNull(config);
+        this.params = ConfigureUtil.jsonToMap(config);
         this.localMorphlineMapper.get(); // startup: fail fast on morphline compilation error
     }
 

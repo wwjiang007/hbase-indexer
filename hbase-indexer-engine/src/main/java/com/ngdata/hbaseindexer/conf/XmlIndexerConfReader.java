@@ -15,13 +15,6 @@
  */
 package com.ngdata.hbaseindexer.conf;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -33,14 +26,19 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-
-import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import com.google.common.collect.Maps;
-
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
+import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -51,13 +49,15 @@ import org.xml.sax.SAXException;
 /**
  * Constructs an {@link IndexerConf} from an XML file.
  */
-public class XmlIndexerConfReader {
-    public IndexerConf read(InputStream is) throws IOException, SAXException, ParserConfigurationException {
+public class XmlIndexerConfReader implements IndexerConfReader {
+    @Override
+    public IndexerConf read(InputStream is) throws IndexerConfException {
         Document document = parse(is);
         return read(document);
     }
 
-    public void validate(InputStream is) throws IOException, SAXException, ParserConfigurationException {
+    @Override
+    public void validate(InputStream is) throws IndexerConfException {
         Document document = parse(is);
         validate(document);
     }
@@ -76,7 +76,7 @@ public class XmlIndexerConfReader {
         builder.rowField(getAttribute(indexEl, "row-field", false));
         builder.columnFamilyField(getAttribute(indexEl, "column-family-field", false));
         builder.tableNameField(getAttribute(indexEl, "table-name-field", false));
-        builder.globalParams(buildParams(indexEl));
+        builder.globalParams(ConfigureUtil.mapToJson(buildParams(indexEl)));
         
         String mapperClassName = getAttribute(indexEl, "mapper", false);
         if (mapperClassName != null) {
@@ -113,20 +113,28 @@ public class XmlIndexerConfReader {
         return builder.build();
     }
     
-    private Map<String,String> buildParams(Element parentElement) {
-        Map<String,String> paramMap = Maps.newHashMap();
+    private Map<String, String> buildParams(Element parentElement) {
+        Map<String, String> params = Maps.newHashMap();
         for (Element paramElement : evalXPathAsElementList("param", parentElement)) {
             String key = getAttribute(paramElement, "name", true);
             String value = getAttribute(paramElement, "value", true);
-            paramMap.put(key, value);
+            params.put(key, value);
         }
-        return paramMap;
+        return params;
     }
 
-    private static Document parse(InputStream is) throws ParserConfigurationException, IOException, SAXException {
+    private static Document parse(InputStream is) throws IndexerConfException {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(true);
-        return factory.newDocumentBuilder().parse(is);
+        try {
+            return factory.newDocumentBuilder().parse(is);
+        } catch (ParserConfigurationException e) {
+            throw new IndexerConfException("Failed to parse configuration", e);
+        } catch (IOException e) {
+            throw new IndexerConfException("Failed to parse configuration", e);
+        } catch (SAXException e) {
+            throw new IndexerConfException("Failed to parse configuration", e);
+        }
     }
 
     private void validate(Document document) {

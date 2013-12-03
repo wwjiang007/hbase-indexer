@@ -70,7 +70,7 @@ public class XmlIndexerConfReaderTest {
                         ImmutableMap.of("extractKeyA", "extractValueA", "extractKeyB", "extractValueB")));
         assertEquals(expectedExtractDefs, extractDefs);
 
-        assertEquals(ImmutableMap.of("globalKeyA", "globalValueA", "globalKeyB", "globalValueB"), conf.getGlobalParams());
+        assertEquals(ImmutableMap.of("globalKeyA", "globalValueA", "globalKeyB", "globalValueB"), conf.getGlobalConfig());
         
     }
 

@@ -17,8 +17,10 @@ package com.ngdata.hbaseindexer.indexer;
 
 import com.google.common.collect.Lists;
 import com.ngdata.hbaseindexer.Configurable;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.parse.ByteArrayValueMapper;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.codehaus.jackson.node.ObjectNode;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,7 +31,8 @@ public class CsvByteArrayValueMapper implements ByteArrayValueMapper, Configurab
     private List<String> defaultEntries;
 
     @Override
-    public void configure(Map<String, String> params) {
+    public void configure(byte[] config) {
+        Map<String, String> params = ConfigureUtil.jsonToMap(config);
         if (params.containsKey("defaults")) {
             defaultEntries = Arrays.asList(params.get("defaults").split(","));
         } else {

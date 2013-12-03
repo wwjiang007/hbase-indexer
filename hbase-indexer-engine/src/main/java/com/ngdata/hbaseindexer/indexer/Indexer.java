@@ -59,6 +59,9 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
+import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
+import static com.ngdata.sep.impl.HBaseShims.newResult;
+
 /**
  * The indexing algorithm. It receives an event from the SEP, handles it based on the configuration, and eventually
  * calls Solr.
@@ -105,7 +108,7 @@ public abstract class Indexer {
         } catch (Exception e) {
             throw new RuntimeException("Problem instantiating the UniqueKeyFormatter.", e);
         }
-        ConfigureUtil.configure(uniqueKeyFormatter, conf.getGlobalParams());
+        ConfigureUtil.configure(uniqueKeyFormatter, conf.getGlobalConfig());
         this.sharder = sharder;
         this.solrWriter = solrWriter;
         this.indexingTimer = Metrics.newTimer(metricName(getClass(),

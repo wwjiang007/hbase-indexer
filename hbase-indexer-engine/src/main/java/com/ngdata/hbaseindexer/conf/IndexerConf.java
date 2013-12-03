@@ -25,13 +25,14 @@ import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.uniquekey.StringUniqueKeyFormatter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
+import org.codehaus.jackson.node.ObjectNode;
 
 /**
  * The configuration for an indexer, i.e. this defines the behavior of the {@link Indexer} and of the parser/mapper
  * called by the indexer.
  *
- * <p>Instances of IndexerConf can be created using {@link IndexerConfBuilder} or from XML using
- * {@link XmlIndexerConfReader}.</p>
+ * <p>Instances of IndexerConf can be created using {@link IndexerConfBuilder} or from XML using an
+ * {@link IndexerConfReader}.</p>
  */
 public class IndexerConf {
     private String table;
@@ -45,7 +46,7 @@ public class IndexerConf {
     private Class<? extends UniqueKeyFormatter> uniqueKeyFormatterClass;
     private List<FieldDefinition> fieldDefinitions;
     private List<DocumentExtractDefinition> extractDefinitions;
-    private Map<String,String> globalParams;
+    private byte[] globalConfig;
 
     public enum MappingType { ROW, COLUMN }
 
@@ -138,8 +139,8 @@ public class IndexerConf {
     /**
      * Get the map of global configuration parameters for this indexer.
      */
-    public Map<String,String> getGlobalParams() {
-        return globalParams;
+    public byte[] getGlobalConfig() {
+        return globalConfig;
     }
 
     void setMappingType(MappingType mappingType) {
@@ -182,8 +183,8 @@ public class IndexerConf {
         this.uniqueKeyFormatterClass = uniqueKeyFormatterClass;
     }
     
-    void setGlobalParams(Map<String,String> globalParams) {
-        this.globalParams = globalParams;
+    public void setGlobalConfig(byte[] globalConfig) {
+        this.globalConfig = globalConfig;
     }
 
    

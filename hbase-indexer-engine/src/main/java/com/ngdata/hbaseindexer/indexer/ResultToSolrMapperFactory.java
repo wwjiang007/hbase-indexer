@@ -15,29 +15,13 @@
  */
 package com.ngdata.hbaseindexer.indexer;
 
-import java.io.IOException;
-import java.util.Map;
-
-import javax.xml.parsers.ParserConfigurationException;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.solr.core.SolrConfig;
-import org.apache.solr.core.SolrResourceLoader;
-import org.apache.solr.schema.IndexSchema;
-import org.apache.solr.util.SystemIdResolver;
-import org.apache.zookeeper.ZooKeeper;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
 
 import com.ngdata.hbaseindexer.ConfigureUtil;
-import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
-import com.ngdata.hbaseindexer.util.solr.SolrConfigLoader;
-import com.ngdata.sep.impl.HBaseShims;
-import com.ngdata.sep.util.io.Closer;
 
 /**
  * Instantiates and configures {@code ResultToSolrMapper} instances based on a supplied hbase-indexer configuration.
@@ -64,7 +48,7 @@ public class ResultToSolrMapperFactory {
                         indexerConf.getDocumentExtractDefinitions());
             } else {
                 mapper = indexerConf.getMapperClass().newInstance();
-                ConfigureUtil.configure(mapper, indexerConf.getGlobalParams());
+                ConfigureUtil.configure(mapper, indexerConf.getGlobalConfig());
             }
         } catch (Exception e) {
             LOG.error("Error instantiating ResultToSolrMapper for " + indexName, e);

@@ -15,6 +15,9 @@
  */
 package com.ngdata.hbaseindexer.conf;
 
+import com.google.common.collect.Iterators;
+import com.ngdata.hbaseindexer.ConfigureUtil;
+import org.codehaus.jackson.node.ObjectNode;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
@@ -63,7 +66,8 @@ public class XmlIndexerConfWriter {
         if (conf.getColumnFamilyField() != null) indexerEl.setAttribute("column-family-field", conf.getColumnFamilyField());
         if (conf.getTableNameField() != null) indexerEl.setAttribute("table-name-field", conf.getTableNameField());
 
-        addParams(conf.getGlobalParams(), indexerEl);
+        Map<String, String> params = ConfigureUtil.jsonToMap(conf.getGlobalConfig());
+        addParams(params, indexerEl);
 
         if (conf.getMapperClass() != null) indexerEl.setAttribute("mapper", conf.getMapperClass().getName());
         if (conf.getUniqueKeyFormatterClass() != null) indexerEl.setAttribute("unique-key-formatter",
@@ -92,6 +96,8 @@ public class XmlIndexerConfWriter {
                 addParams(docExtrDef.getParams(), docExtrEl);
             }
         }
+
+        conf.setGlobalConfig(ConfigureUtil.mapToJson(params));
 
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer =  transformerFactory.newTransformer();

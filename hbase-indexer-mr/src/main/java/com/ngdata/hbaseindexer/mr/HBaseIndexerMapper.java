@@ -31,6 +31,23 @@ import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import com.google.common.base.Charsets;
+import com.ngdata.hbaseindexer.ConfigureUtil;
+import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.hbase.mapreduce.TableSplit;
+import org.apache.hadoop.io.Text;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
+import org.apache.solr.hadoop.SolrInputDocumentWritable;
+import org.apache.solr.hadoop.SolrOutputFormat;
+import org.apache.solr.hadoop.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.Counting;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
@@ -92,6 +109,9 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     /**
      * Configuration key for setting the contents of the indexer config.
      */
+    public static final String INDEX_CONFIGURATION_CONF_READER_KEY = "hbase.indexer.configuration.reader";
+
+    /** Configuration key for setting the contents of the indexer config. */
     public static final String INDEX_CONFIGURATION_CONF_KEY = "hbase.indexer.configuration";
 
     /**
@@ -165,6 +185,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);
+        String indexConfReaderClass = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_READER_KEY);
         String indexConfiguration = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_KEY);
         String tableName = context.getConfiguration().get(TABLE_NAME_CONF_KEY);
 
@@ -180,13 +201,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new IllegalStateException("No configuration value supplied for " + TABLE_NAME_CONF_KEY);
         }
 
-        IndexerConf indexerConf;
-        try {
-            indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(
-                    indexConfiguration.getBytes()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(indexConfReaderClass, indexConfiguration.getBytes(Charsets.UTF_8));
 
         // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
         // infrastructure to handle converting an in-memory model into XML (we can only interpret an
@@ -197,24 +212,27 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
         String morphlineFile = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
+        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
         if (morphlineFile != null) {
-            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile);
+            params.put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile);
         }
 
         String morphlineId = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
         if (morphlineId != null) {
-            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
+            params.put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
         }
 
         for (Map.Entry<String, String> entry : context.getConfiguration()) {
-            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
-                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
-            }
-            if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
-                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
-            }
+          if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
+              params.put(entry.getKey(), entry.getValue());
+          }
+          if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
+              params.put(entry.getKey(), entry.getValue());
+          }
         }
 
+        indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
+        
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
 
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(indexName, indexerConf);

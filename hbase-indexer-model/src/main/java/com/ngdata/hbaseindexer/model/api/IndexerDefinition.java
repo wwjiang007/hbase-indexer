@@ -45,6 +45,7 @@ public class IndexerDefinition {
     private BatchIndexingState batchIndexingState = BatchIndexingState.INACTIVE;
     private IncrementalIndexingState incrementalIndexingState = IncrementalIndexingState.SUBSCRIBE_AND_CONSUME;
     private String subscriptionId;
+    private String indexerConfReader;
     private byte[] configuration;
     private String connectionType;
     private Map<String, String> connectionParams;
@@ -64,6 +65,7 @@ public class IndexerDefinition {
                       IncrementalIndexingState incrementalIndexingState,
                       String subscriptionId,
                       byte[] configuration,
+                      String indexerConfReader,
                       String connectionType,
                       Map<String, String> connectionParams,
                       String[] defaultBatchIndexCliArguments,
@@ -79,6 +81,7 @@ public class IndexerDefinition {
         this.incrementalIndexingState = incrementalIndexingState;
         this.subscriptionId = subscriptionId;
         this.configuration = configuration;
+        this.indexerConfReader = indexerConfReader;
         this.connectionType = connectionType;
         this.connectionParams = connectionParams;
         this.defaultBatchIndexCliArguments = defaultBatchIndexCliArguments;
@@ -221,6 +224,10 @@ public class IndexerDefinition {
      */
     public long getSubscriptionTimestamp() {
         return subscriptionTimestamp;
+    }
+
+    public String getIndexerConfReader() {
+        return indexerConfReader;
     }
 
     @Override

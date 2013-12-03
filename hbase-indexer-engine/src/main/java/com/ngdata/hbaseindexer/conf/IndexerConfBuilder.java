@@ -15,16 +15,17 @@
  */
 package com.ngdata.hbaseindexer.conf;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A builder for creating {@link IndexerConf} instances.
@@ -41,7 +42,7 @@ public class IndexerConfBuilder {
     private IndexerConf.MappingType mappingType = IndexerConf.MappingType.ROW;
     private List<FieldDefinition> fieldDefinitions = Lists.newArrayList();
     private List<DocumentExtractDefinition> documentExtractDefinitions = Lists.newArrayList();
-    private Map<String,String> globalParams;
+    private byte[] globalParams;
 
     /**
      * Default constructor.
@@ -67,7 +68,7 @@ public class IndexerConfBuilder {
         this.mappingType = indexerConf.getMappingType();
         this.fieldDefinitions = Lists.newArrayList(indexerConf.getFieldDefinitions());
         this.documentExtractDefinitions = Lists.newArrayList(indexerConf.getDocumentExtractDefinitions());
-        this.globalParams = Maps.newHashMap(indexerConf.getGlobalParams());
+        this.globalParams = Arrays.copyOf(indexerConf.getGlobalConfig(), indexerConf.getGlobalConfig().length);
     }
 
     public IndexerConfBuilder table(String table) {
@@ -115,7 +116,7 @@ public class IndexerConfBuilder {
         return this;
     }
     
-    public IndexerConfBuilder globalParams(Map<String,String> globalParams) {
+    public IndexerConfBuilder globalParams(byte[] globalParams) {
         this.globalParams = globalParams;
         return this;
     }
@@ -150,7 +151,7 @@ public class IndexerConfBuilder {
                 uniqueKeyFormatterClass : IndexerConf.DEFAULT_UNIQUE_KEY_FORMATTER);
         conf.setFieldDefinitions(fieldDefinitions);
         conf.setDocumentExtractDefinitions(documentExtractDefinitions);
-        conf.setGlobalParams(globalParams);
+        conf.setGlobalConfig(globalParams);
         return conf;
     }
 }

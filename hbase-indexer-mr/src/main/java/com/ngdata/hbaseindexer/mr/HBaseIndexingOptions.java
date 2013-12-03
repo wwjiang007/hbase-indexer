@@ -15,11 +15,8 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -27,15 +24,15 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.ConfKeys;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
@@ -174,8 +171,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scans = Lists.newArrayList();
-        IndexerConf indexerConf =
-                loadIndexerConf(new ByteArrayInputStream(hbaseIndexingSpecification.getIndexConfigXml().getBytes()));
+        IndexerConf indexerConf = loadIndexerConf(hbaseIndexingSpecification.getConfigReader(), hbaseIndexingSpecification.getConfiguration());
         HTableDescriptor[] tables = new HTableDescriptor[0];
         try {
             HBaseAdmin admin = getHbaseAdmin();
@@ -360,8 +356,9 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateIndexingSpecification() {
         String tableName = null;
-        String indexerConfigXml = null;
-        Map<String, String> indexConnectionParams = Maps.newHashMap();
+        String confReader = null;
+        byte[] configuration = null;
+        Map<String,String> indexConnectionParams = Maps.newHashMap();
 
         if (hbaseIndexerZkHost != null) {
 
@@ -374,9 +371,8 @@ class HBaseIndexingOptions extends OptionsBridge {
                 zk = new StateWatchingZooKeeper(hbaseIndexerZkHost, 30000);
                 IndexerModelImpl indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
                 IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexerName);
-                byte[] indexConfigBytes = indexerDefinition.getConfiguration();
-                tableName = getTableNameFromConf(new ByteArrayInputStream(indexConfigBytes));
-                indexerConfigXml = Bytes.toString(indexConfigBytes);
+                confReader = indexerDefinition.getIndexerConfReader();
+                configuration = indexerDefinition.getConfiguration();
                 if (indexerDefinition.getConnectionParams() != null) {
                     indexConnectionParams.putAll(indexerDefinition.getConnectionParams());
                 }
@@ -416,17 +412,18 @@ class HBaseIndexingOptions extends OptionsBridge {
 
         if (this.hbaseIndexerConfigFile != null) {
             try {
-                indexerConfigXml = Files.toString(hbaseIndexerConfigFile, Charsets.UTF_8);
-                tableName = getTableNameFromConf(new FileInputStream(hbaseIndexerConfigFile));
+                configuration = Files.toByteArray(hbaseIndexerConfigFile);
             } catch (IOException e) {
                 throw new RuntimeException("Error loading " + hbaseIndexerConfigFile, e);
             }
         }
 
+        IndexerConf indexerConf = loadIndexerConf(confReader, configuration);
         if (hbaseTableName != null) {
             tableName = hbaseTableName;
+        } else {
+            tableName = indexerConf.getTable();
         }
-
 
         if (solrHomeDir != null) {
             indexConnectionParams.put("solr.mode", "classic");
@@ -446,46 +443,35 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
 
         this.hbaseIndexingSpecification = new IndexingSpecification(
-                tableName,
-                hbaseIndexerName,
-                indexerConfigXml,
-                indexConnectionParams);
+                                            tableName,
+                                            hbaseIndexerName, confReader,
+                                            configuration, indexConnectionParams);
     }
 
-    private IndexerConf loadIndexerConf(InputStream indexerConfigInputStream) {
-        IndexerConf indexerConf;
-        try {
-            indexerConf = new XmlIndexerConfReader().read(indexerConfigInputStream);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            Closer.close(indexerConfigInputStream);
-        }
+    private IndexerConf loadIndexerConf(String readerClass, byte[] configuration) {
+        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(readerClass, configuration);
 
+        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
         if (morphlineFile != null) {
-            indexerConf.getGlobalParams().put(
+            params.put(
                     MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile.getPath());
         }
         if (morphlineId != null) {
-            indexerConf.getGlobalParams().put(
+            params.put(
                     MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, morphlineId);
         }
 
         for (Map.Entry<String, String> entry : conf) {
             if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
-                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+                params.put(entry.getKey(), entry.getValue());
             }
             if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
-                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+                params.put(entry.getKey(), entry.getValue());
             }
         }
 
+        indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
         return indexerConf;
-    }
-
-    private String getTableNameFromConf(InputStream indexerConfigInputStream) {
-
-        return loadIndexerConf(indexerConfigInputStream).getTable();
     }
 
     /**

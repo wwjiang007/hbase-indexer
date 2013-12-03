@@ -24,6 +24,8 @@ import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UP
 import static com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil.getSolrMaxConnectionsPerRoute;
 import static com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil.getSolrMaxConnectionsTotal;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -36,15 +38,15 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.DirectSolrClassicInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.DirectSolrInputDocumentWriter;
+import com.ngdata.hbaseindexer.conf.IndexerConfReader;
+import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
+import com.ngdata.hbaseindexer.indexer.HashSharder;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.IndexingEventListener;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
@@ -71,6 +73,10 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.zookeeper.KeeperException;
+
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_ADDED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_DELETED;
+import static com.ngdata.hbaseindexer.model.api.IndexerModelEventType.INDEXER_UPDATED;
 
 /**
  * Responsible for starting, stopping and restarting {@link Indexer}s for the indexers defined in the
@@ -195,7 +201,8 @@ public class IndexerSupervisor {
             indexerProcessIds.put(indexerDef.getName(), indexerProcessId);
 
             // Create and register the indexer
-            IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(indexerDef.getConfiguration()));
+            IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(indexerDef.getIndexerConfReader(), indexerDef.getConfiguration());
+
             ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(
                     indexerDef.getName(), indexerConf);
 

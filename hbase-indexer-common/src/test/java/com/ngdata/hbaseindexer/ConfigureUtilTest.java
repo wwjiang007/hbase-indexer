@@ -20,17 +20,19 @@ import static org.junit.Assert.assertEquals;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Test;
 
 public class ConfigureUtilTest {
     
     static class ConfigurableObject implements Configurable {
 
-        Map<String,String> params;
+        byte[] params;
         
         @Override
-        public void configure(Map<String, String> params) {
-            this.params = params;
+        public void configure(byte[] config) {
+            this.params = config;
         }
         
     }
@@ -38,10 +40,10 @@ public class ConfigureUtilTest {
     @Test
     public void testConfigure_ConfigurableObject() {
         ConfigurableObject configurable = new ConfigurableObject();
-        Map<String,String> params = Maps.newHashMap();
+        Map<String, String> params = Maps.newHashMap();
         params.put("key", "value");
 
-        ConfigureUtil.configure(configurable, params);
+        ConfigureUtil.configure(configurable, ConfigureUtil.mapToJson(params));
         
         assertEquals(params, configurable.params);
     }
@@ -50,10 +52,10 @@ public class ConfigureUtilTest {
     @Test
     public void testConfigure_NotConfigurableObject() {
         Object o = new Object();
-        Map<String,String> params = Maps.newHashMap();
+        Map<String, String> params = Maps.newHashMap();
         params.put("key", "value");
         
-        ConfigureUtil.configure(o, params);
+        ConfigureUtil.configure(o, ConfigureUtil.mapToJson(params));
         
         // Nothing to check
     }

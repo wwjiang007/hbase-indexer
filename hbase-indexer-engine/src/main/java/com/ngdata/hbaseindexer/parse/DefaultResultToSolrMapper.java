@@ -73,7 +73,7 @@ public class DefaultResultToSolrMapper implements ResultToSolrMapper {
             ByteArrayExtractor byteArrayExtractor = ByteArrayExtractors.getExtractor(
                     fieldDefinition.getValueExpression(), fieldDefinition.getValueSource());
             ByteArrayValueMapper valueMapper = ByteArrayValueMappers.getMapper(fieldDefinition.getTypeName());
-            ConfigureUtil.configure(valueMapper, fieldDefinition.getParams());
+            ConfigureUtil.configure(valueMapper, ConfigureUtil.mapToJson(fieldDefinition.getParams()));
             resultDocumentExtractors.add(new HBaseSolrDocumentExtractor(fieldDefinition.getName(), byteArrayExtractor,
                     valueMapper));
             extractors.add(byteArrayExtractor);

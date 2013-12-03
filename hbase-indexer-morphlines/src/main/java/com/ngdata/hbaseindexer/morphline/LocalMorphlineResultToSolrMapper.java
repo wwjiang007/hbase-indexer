@@ -25,11 +25,13 @@ import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.TreeMap;
 
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
+import org.codehaus.jackson.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +86,8 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     }
     
     @Override
-    public void configure(Map<String, String> params) {
+    public void configure(byte[] configBytes) {
+        Map<String, String> params = ConfigureUtil.jsonToMap(configBytes);
         if (LOG.isTraceEnabled()) {
             LOG.trace("CWD is {}", new File(".").getAbsolutePath());
             LOG.trace("Configuration:\n{}", Joiner.on("\n").join(new TreeMap(params).entrySet()));
@@ -123,7 +126,7 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
         this.morphline = new Compiler().compile(new File(morphlineFile), morphlineId, morphlineContext, collector,
                 override);
         
-        for (Map.Entry<String,String> entry : params.entrySet()) {     
+        for (Map.Entry<String,String> entry : params.entrySet()) {
             String fieldPrefix = MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".";
             if (entry.getKey().startsWith(fieldPrefix)) {
                 forcedRecordFields.put(entry.getKey().substring(fieldPrefix.length()), entry.getValue());

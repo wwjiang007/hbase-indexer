@@ -31,6 +31,7 @@ public class IndexerDefinitionBuilder {
     private IncrementalIndexingState incrementalIndexingState = IncrementalIndexingState.SUBSCRIBE_AND_CONSUME;
     private String subscriptionId;
     private byte[] configuration;
+    private String indexerConfReader;
     private String connectionType;
     private Map<String, String> connectionParams;
     private String[] defaultBatchIndexCliArguments;
@@ -47,6 +48,7 @@ public class IndexerDefinitionBuilder {
         this.incrementalIndexingState = existingDefinition.getIncrementalIndexingState();
         this.subscriptionId = existingDefinition.getSubscriptionId();
         this.configuration = existingDefinition.getConfiguration();
+        this.indexerConfReader = existingDefinition.getIndexerConfReader();
         this.connectionType = existingDefinition.getConnectionType();
         this.connectionParams = existingDefinition.getConnectionParams();
         this.defaultBatchIndexCliArguments = existingDefinition.getDefaultBatchIndexCliArguments();
@@ -163,6 +165,14 @@ public class IndexerDefinitionBuilder {
     }
 
     /**
+     * @see IndexerDefinition#indexerConfReader
+     */
+    public IndexerDefinitionBuilder indexerConfReader(String indexerConfReader) {
+        this.indexerConfReader = indexerConfReader;
+        return this;
+    }
+
+    /**
      * @see IndexerDefinition#occVersion
      */
     public IndexerDefinitionBuilder occVersion(int occVersion) {
@@ -177,7 +187,7 @@ public class IndexerDefinitionBuilder {
         Preconditions.checkNotNull(incrementalIndexingState, "incrementalIndexingState");
 
         return new IndexerDefinition(name, lifecycleState, batchIndexingState, incrementalIndexingState, subscriptionId,
-                configuration, connectionType, connectionParams, defaultBatchIndexCliArguments, batchIndexCliArguments,
-                lastBatchBuildInfo, activeBatchBuildInfo, subscriptionTimestamp, occVersion);
+                configuration, indexerConfReader, connectionType, connectionParams, defaultBatchIndexCliArguments,
+                batchIndexCliArguments, lastBatchBuildInfo, activeBatchBuildInfo, subscriptionTimestamp, occVersion);
     }
 }

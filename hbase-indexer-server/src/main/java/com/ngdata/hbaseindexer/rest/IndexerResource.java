@@ -15,24 +15,6 @@
  */
 package com.ngdata.hbaseindexer.rest;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
-import com.ngdata.hbaseindexer.indexer.Indexer;
-import com.ngdata.hbaseindexer.indexer.RowData;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
-import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
-import com.ngdata.hbaseindexer.model.impl.IndexerDefinitionJsonSerDeser;
-import com.ngdata.hbaseindexer.supervisor.IndexerSupervisor;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.Result;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ObjectNode;
-
 import javax.servlet.ServletContext;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -47,13 +29,29 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
+import com.ngdata.hbaseindexer.indexer.Indexer;
+import com.ngdata.hbaseindexer.indexer.RowData;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
+import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
+import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
+import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
+import com.ngdata.hbaseindexer.model.impl.IndexerDefinitionJsonSerDeser;
+import com.ngdata.hbaseindexer.supervisor.IndexerSupervisor;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Result;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ObjectNode;
 
 @Path("indexer")
 public class IndexerResource {
@@ -156,11 +154,12 @@ public class IndexerResource {
         }
     }
 
-    private String fetchIndexerTableName (String indexerName) throws Exception{
+    private String fetchIndexerTableName(String indexerName) throws Exception{
         // best effort since this could be a pattern ...
         IndexerDefinition indexerDefinition = get(indexerName);
-        String tableName = new XmlIndexerConfReader().read(
-                new ByteArrayInputStream(indexerDefinition.getConfiguration())).getTable();
+        String tableName = IndexerConfReaderUtil.getIndexerConf(indexerDefinition.getIndexerConfReader(),
+                indexerDefinition.getConfiguration()).getTable();
+
         // TODO we should fail if the table does not exist
         return tableName;
     }

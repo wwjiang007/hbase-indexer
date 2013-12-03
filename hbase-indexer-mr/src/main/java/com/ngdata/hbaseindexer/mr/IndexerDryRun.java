@@ -15,31 +15,19 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrInputDocument;
-import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
-import org.apache.solr.hadoop.MorphlineClasspathUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
@@ -55,6 +43,8 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.hadoop.ForkedMapReduceIndexerTool;
+import org.apache.solr.hadoop.MorphlineClasspathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,35 +83,32 @@ class IndexerDryRun {
       
         long programStartTime = System.currentTimeMillis();
         IndexingSpecification indexingSpec = indexingOpts.getIndexingSpecification();
-        
-        IndexerConf indexerConf;
-        try {
-            indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(
-                    indexingSpec.getIndexConfigXml().getBytes()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        
+
+        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(indexingSpec.getConfigReader(), indexingSpec.getConfiguration());
+
         if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {
             LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
         }
-        
+
+        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
         if (indexingOpts.morphlineFile != null) {
-            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, indexingOpts.morphlineFile.getPath());
+            params.put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, indexingOpts.morphlineFile.getPath());
         }
         if (indexingOpts.morphlineId != null) {
-            indexerConf.getGlobalParams().put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, indexingOpts.morphlineId);
+            params.put(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM, indexingOpts.morphlineId);
         }
-        
+
         for (Map.Entry<String, String> entry : hbaseConf) {
             if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_VARIABLE_PARAM + ".")) {
-                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+                params.put(entry.getKey(), entry.getValue());
             }
             if (entry.getKey().startsWith(MorphlineResultToSolrMapper.MORPHLINE_FIELD_PARAM + ".")) {
-                indexerConf.getGlobalParams().put(entry.getKey(), entry.getValue());
+                params.put(entry.getKey(), entry.getValue());
             }
         }
+
+        indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
 
         MorphlineClasspathUtil.setupJavaCompilerClasspath();
         

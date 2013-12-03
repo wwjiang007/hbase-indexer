@@ -15,10 +15,6 @@
  */
 package com.ngdata.hbaseindexer.cli;
 
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -26,8 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import javax.xml.parsers.ParserConfigurationException;
-
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -36,6 +31,7 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConfException;
+import com.ngdata.hbaseindexer.conf.IndexerConfReader;
 import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
@@ -49,7 +45,10 @@ import joptsimple.ValueConversionException;
 import joptsimple.ValueConverter;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hbase.util.Pair;
-import org.xml.sax.SAXException;
+
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
 
 /**
  * Base class for the {@link AddIndexerCli} and {@link UpdateIndexerCli}.
@@ -57,6 +56,7 @@ import org.xml.sax.SAXException;
 public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
     protected OptionSpec<String> nameOption;
     protected ArgumentAcceptingOptionSpec<String> indexerConfOption;
+    protected ArgumentAcceptingOptionSpec<String> indexerConfReaderOption;
     protected OptionSpec<Pair<String, String>> connectionParamOption;
     protected OptionSpec<IndexerDefinition.LifecycleState> lifecycleStateOption;
     protected OptionSpec<IndexerDefinition.IncrementalIndexingState> incrementalIdxStateOption;
@@ -72,6 +72,11 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
                 .acceptsAll(Lists.newArrayList("n", "name"), "a name for the index")
                 .withRequiredArg().ofType(String.class)
                 .required();
+
+        indexerConfReaderOption = parser
+                .acceptsAll(Lists.newArrayList("r", "indexer-conf-reader"), "Indexer conf reader class")
+                .withRequiredArg().ofType(String.class).describedAs("indexerconf.xml")
+                .defaultsTo(XmlIndexerConfReader.class.getName());
 
         indexerConfOption = parser
                 .acceptsAll(Lists.newArrayList("c", "indexer-conf"), "Indexer configuration")
@@ -169,7 +174,9 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         if (connectionParams != null)
             builder.connectionParams(connectionParams);
 
-        byte[] indexerConf = getIndexerConf(options, indexerConfOption);
+        builder.indexerConfReader(indexerConfReaderOption.value(options));
+
+        byte[] indexerConf = getIndexerConf(options, indexerConfReaderOption, indexerConfOption);
         if (indexerConf != null)
             builder.configuration(indexerConf);
 
@@ -194,35 +201,50 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         return builder;
     }
 
-    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> configOption) throws IOException {
+    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption) throws IOException {
+        String readerClassName = readerOption.value(options);
+        IndexerConfReader reader = null;
+        try {
+            reader = (IndexerConfReader)Class.forName(readerClassName).newInstance();
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("The supplied reader class could not be found: " + readerClassName, e);
+        } catch (InstantiationException e) {
+            throw new RuntimeException("Could not create reader class", e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Could not create reader class", e);
+        } catch (ClassCastException e) {
+            throw new RuntimeException("Class does not implement IndexerConfReader: " + readerClassName, e);
+        }
+
         String fileName = configOption.value(options);
-        if (fileName == null) {
+        byte[] data = null;
+        if (fileName != null) {
+            File file = new File(fileName);
+            if (!file.exists()) {
+                StringBuilder msg = new StringBuilder();
+                msg.append("Specified indexer configuration file not found:\n");
+                msg.append(file.getAbsolutePath());
+                throw new CliException(msg.toString());
+            }
+
+            data = ByteStreams.toByteArray(Files.newInputStreamSupplier(file).getInput());
+        }
+
+        if (data == null) {
+            // verify that configuration is optional
+            reader.validate(null);
             return null;
         }
 
-        File file = new File(fileName);
-        if (!file.exists()) {
-            StringBuilder msg = new StringBuilder();
-            msg.append("Specified indexer configuration file not found:\n");
-            msg.append(file.getAbsolutePath());
-            throw new CliException(msg.toString());
-        }
 
-        byte[] data = ByteStreams.toByteArray(Files.newInputStreamSupplier(file));
+
         try {
-            new XmlIndexerConfReader().validate(new ByteArrayInputStream(data));
+            reader.validate(new ByteArrayInputStream(data));
         } catch (IndexerConfException e) {
             StringBuilder msg = new StringBuilder();
-            msg.append("Failed to parse file ").append(fileName).append('\n');
+            msg.append("Failed to parse configuration ").append(fileName).append('\n');
             addExceptionMessages(e, msg);
             throw new CliException(msg.toString());
-        } catch (SAXException e) {
-            StringBuilder msg = new StringBuilder();
-            msg.append("Failed to parse file ").append(fileName).append('\n');
-            addExceptionMessages(e, msg);
-            throw new CliException(msg.toString());
-        } catch (ParserConfigurationException e) {
-            throw new RuntimeException(e);
         }
         return data;
     }

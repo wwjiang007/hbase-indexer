@@ -69,6 +69,8 @@ public class IndexerDefinitionJsonSerDeser {
         String queueSubscriptionId = JsonUtil.getString(node, "subscriptionId", null);
         long subscriptionTimestamp = JsonUtil.getLong(node, "subscriptionTimestamp", 0L);
 
+        String indexerConfReader = JsonUtil.getString(node, "indexerConfReader", null);
+
         byte[] configuration = getByteArrayProperty(node, "configuration");
 
         String connectionType = JsonUtil.getString(node, "connectionType", null);
@@ -105,6 +107,7 @@ public class IndexerDefinitionJsonSerDeser {
         indexerDefinitionBuilder.subscriptionId(queueSubscriptionId);
         indexerDefinitionBuilder.subscriptionTimestamp(subscriptionTimestamp);
         indexerDefinitionBuilder.configuration(configuration);
+        indexerDefinitionBuilder.indexerConfReader(indexerConfReader);
         indexerDefinitionBuilder.connectionType(connectionType);
         indexerDefinitionBuilder.connectionParams(connectionParams);
         indexerDefinitionBuilder.activeBatchBuildInfo(activeBatchBuild);
@@ -202,6 +205,7 @@ public class IndexerDefinitionJsonSerDeser {
 
         node.put("subscriptionTimestamp", indexer.getSubscriptionTimestamp());
 
+        node.put("indexerConfReader", indexer.getIndexerConfReader());
         setByteArrayProperty(node, "configuration", indexer.getConfiguration());
 
         if (indexer.getConnectionType() != null)

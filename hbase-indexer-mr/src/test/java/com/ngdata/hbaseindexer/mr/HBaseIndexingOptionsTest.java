@@ -479,11 +479,10 @@ public class HBaseIndexingOptionsTest {
         INDEXER_MODEL.deleteIndexerInternal("userindexer");
         
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                            "record", "userindexer",
-                            Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
-                            ImmutableMap.of(
-                                    "solr.zk", "myZkHost/solr",
-                                    "solr.collection", "mycollection"));
+                            "record", "userindexer", null,
+                Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
+                        "solr.zk", "myZkHost/solr",
+                        "solr.collection", "mycollection"));
 
 
 
@@ -502,11 +501,10 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME,
-                            Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
-                            ImmutableMap.of(
-                                    "solr.zk", "myZkHost/solr",
-                                    "solr.collection", "mycollection"));
+                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, null,
+                Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
+                        "solr.zk", "myZkHost/solr",
+                        "solr.collection", "mycollection"));
 
         assertEquals(expectedSpec, opts.getIndexingSpecification());
 
@@ -524,11 +522,10 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME,
-                            Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
-                            ImmutableMap.of(
-                                    "solr.mode", "classic",
-                                    "solr.home", opts.solrHomeDir.getAbsolutePath()));
+                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, null,
+                Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
+                        "solr.mode", "classic",
+                        "solr.home", opts.solrHomeDir.getAbsolutePath()));
 
         assertEquals(expectedSpec, opts.getIndexingSpecification());
     }
@@ -560,9 +557,8 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                "record", HBaseIndexingOptions.DEFAULT_INDEXER_NAME,
-                Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
-                ImmutableMap.of(
+                "record", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, null,
+                Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"));
 
@@ -625,9 +621,8 @@ public class HBaseIndexingOptionsTest {
         INDEXER_MODEL.deleteIndexerInternal("userindexer");
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                "mytable", "userindexer",
-                Resources.toString(Resources.getResource(getClass(), "user_indexer.xml"), Charsets.UTF_8),
-                ImmutableMap.of(
+                "mytable", "userindexer", null,
+                Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
                         "solr.zk", "myOtherZkHost/solr",
                         "solr.collection", "mycollection"));
 

@@ -16,19 +16,23 @@
 package com.ngdata.hbaseindexer.conf;
 
 import com.google.common.collect.Maps;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.StringUniqueKeyFormatter;
 import junit.framework.Assert;
 import org.apache.commons.io.IOUtils;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 import java.util.Map;
 
 public class XmlIndexerConfWriterTest {
     @Test
     public void testWrite() throws Exception {
-        Map<String,String> params = Maps.newHashMap();
+        Map<String, String> params = Maps.newHashMap();
         params.put("thename", "thevalue");
         IndexerConf conf = new IndexerConfBuilder()
                 .table("the-table")
@@ -38,7 +42,7 @@ public class XmlIndexerConfWriterTest {
                 .rowField("rf")
                 .columnFamilyField("cf-field")
                 .tableNameField("tn-field")
-                .globalParams(params)
+                .globalParams(ConfigureUtil.mapToJson(params))
                 .mapperClass(DefaultResultToSolrMapper.class)
                 .uniqueKeyFormatterClass(StringUniqueKeyFormatter.class)
                 .addFieldDefinition("fieldname", "fieldvalue", FieldDefinition.ValueSource.VALUE, "fieldtype", params)
@@ -66,7 +70,7 @@ public class XmlIndexerConfWriterTest {
         Assert.assertEquals(conf.getRowField(),conf2.getRowField());
         Assert.assertEquals(conf.getColumnFamilyField(),conf2.getColumnFamilyField());
         Assert.assertEquals(conf.getTableNameField(),conf2.getTableNameField());
-        Assert.assertEquals(conf.getGlobalParams().size(),conf2.getGlobalParams().size());
+        Assert.assertTrue(Arrays.equals(conf.getGlobalConfig(), conf2.getGlobalConfig()));
         Assert.assertEquals(conf.getMapperClass(),conf2.getMapperClass());
         Assert.assertEquals(conf.getUniqueKeyFormatterClass(),conf2.getUniqueKeyFormatterClass());
         Assert.assertEquals(conf.getFieldDefinitions().size(),conf2.getFieldDefinitions().size());

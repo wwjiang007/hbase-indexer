@@ -30,8 +30,13 @@ import java.util.Map;
 import java.util.Set;
 
 import com.ngdata.hbaseindexer.SolrConnectionParams;
+import java.io.File;
+import java.util.Map;
+
+import com.google.common.base.Charsets;
+import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
+import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
 import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -94,15 +99,16 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
 
         IndexingSpecification indexingSpec = hbaseIndexingOpts.getIndexingSpecification();
 
-        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, indexingSpec.getIndexConfigXml());
+        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_READER_KEY, indexingSpec.getConfigReader());
+        conf.set(HBaseIndexerMapper.INDEX_CONFIGURATION_CONF_KEY, new String(indexingSpec.getConfiguration(), Charsets.UTF_8));
         conf.set(HBaseIndexerMapper.INDEX_NAME_CONF_KEY, indexingSpec.getIndexerName());
         conf.set(HBaseIndexerMapper.TABLE_NAME_CONF_KEY, indexingSpec.getTableName());
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
 
-        IndexerConf indexerConf = new XmlIndexerConfReader().read(new ByteArrayInputStream(
-                indexingSpec.getIndexConfigXml().getBytes()));
+        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(indexingSpec.getConfigReader(), indexingSpec.getConfiguration());
 
-        String morphlineFile = indexerConf.getGlobalParams().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
+        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
+        String morphlineFile = params.get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         if (hbaseIndexingOpts.morphlineFile != null) {
             morphlineFile = hbaseIndexingOpts.morphlineFile.getPath();
         }
@@ -111,7 +117,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             ForkedMapReduceIndexerTool.addDistributedCacheFile(new File(morphlineFile), conf);
         }
 
-        String morphlineId = indexerConf.getGlobalParams().get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
+        String morphlineId = params.get(MorphlineResultToSolrMapper.MORPHLINE_ID_PARAM);
         if (hbaseIndexingOpts.morphlineId != null) {
             morphlineId = hbaseIndexingOpts.morphlineId;
         }

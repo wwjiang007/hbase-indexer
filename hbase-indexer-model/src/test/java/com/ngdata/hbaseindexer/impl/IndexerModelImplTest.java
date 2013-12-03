@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.impl;
 
+import com.google.common.base.Charsets;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
 import com.ngdata.hbaseindexer.model.api.IndexerModelEvent;
@@ -136,7 +137,7 @@ public class IndexerModelImplTest {
             IndexerDefinition indexer2 = new IndexerDefinitionBuilder()
                     .name("indexer2")
                     .incrementalIndexingState(IncrementalIndexingState.DO_NOT_SUBSCRIBE)
-                    .configuration("my-conf".getBytes())
+                    .configuration("my-conf".getBytes(Charsets.UTF_8))
                     .build();
             lock = model1.lockIndexer("indexer2");
             model1.updateIndexer(indexer2, lock);
@@ -166,7 +167,7 @@ public class IndexerModelImplTest {
             // Create an index
             IndexerDefinition indexer1 = new IndexerDefinitionBuilder()
                     .name(indexerName)
-                    .configuration("foo".getBytes())
+                    .configuration("foo".getBytes(Charsets.UTF_8))
                     .build();
             model1.addIndexer(indexer1);
 
@@ -176,7 +177,7 @@ public class IndexerModelImplTest {
             // Try to update it via the second client
             indexer1 = new IndexerDefinitionBuilder()
                     .startFrom(indexer1)
-                    .configuration("foo1".getBytes())
+                    .configuration("foo1".getBytes(Charsets.UTF_8))
                     .build();
 
             try {
