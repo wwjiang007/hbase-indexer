@@ -15,6 +15,10 @@
  */
 package com.ngdata.hbaseindexer.cli;
 
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -45,10 +48,6 @@ import joptsimple.ValueConversionException;
 import joptsimple.ValueConverter;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hbase.util.Pair;
-
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
 
 /**
  * Base class for the {@link AddIndexerCli} and {@link UpdateIndexerCli}.
@@ -75,7 +74,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
         indexerConfReaderOption = parser
                 .acceptsAll(Lists.newArrayList("r", "indexer-conf-reader"), "Indexer conf reader class")
-                .withRequiredArg().ofType(String.class).describedAs("indexerconf.xml")
+                .withRequiredArg().ofType(String.class).describedAs("reader")
                 .defaultsTo(XmlIndexerConfReader.class.getName());
 
         indexerConfOption = parser
