@@ -101,6 +101,10 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <classifier>tests</classifier>
+    </dependency>
+    <dependency>
+	  <groupId>joda-time</groupId>
+	  <artifactId>joda-time</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
