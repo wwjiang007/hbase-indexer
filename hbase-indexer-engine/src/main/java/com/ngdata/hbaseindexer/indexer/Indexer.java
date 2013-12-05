@@ -59,9 +59,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrInputDocument;
 
-import static com.ngdata.hbaseindexer.metrics.IndexerMetricsUtil.metricName;
-import static com.ngdata.sep.impl.HBaseShims.newResult;
-
 /**
  * The indexing algorithm. It receives an event from the SEP, handles it based on the configuration, and eventually
  * calls Solr.
@@ -84,8 +81,7 @@ public abstract class Indexer {
      * Instantiate an indexer based on the given {@link IndexerConf}.
      */
     public static Indexer createIndexer(String indexerName, IndexerConf conf, String tableName, ResultToSolrMapper mapper,
-                                        HTablePool tablePool,
-                                        Sharder sharder, SolrInputDocumentWriter solrWriter) {
+                                        HTablePool tablePool, Sharder sharder, SolrInputDocumentWriter solrWriter) {
         switch (conf.getMappingType()) {
             case COLUMN:
                 return new ColumnBasedIndexer(indexerName, conf, tableName, mapper, sharder, solrWriter);
