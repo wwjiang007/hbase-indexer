@@ -32,7 +32,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.google.common.base.Charsets;
-import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -200,7 +199,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
         String morphlineFile = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
-        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
+        Map<String, String> params = indexerConf.getGlobalParams();
         if (morphlineFile != null) {
             params.put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile);
         }
@@ -219,7 +218,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
           }
         }
 
-        indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
+        indexerConf.setGlobalParams(params);
         
         Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
 

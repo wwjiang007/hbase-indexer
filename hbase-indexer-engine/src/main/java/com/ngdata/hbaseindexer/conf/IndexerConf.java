@@ -17,6 +17,7 @@ package com.ngdata.hbaseindexer.conf;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 
@@ -44,7 +45,7 @@ public class IndexerConf {
     private Class<? extends UniqueKeyFormatter> uniqueKeyFormatterClass;
     private List<FieldDefinition> fieldDefinitions;
     private List<DocumentExtractDefinition> extractDefinitions;
-    private byte[] globalConfig;
+    private Map<String, String> globalParams;
 
     public enum MappingType { ROW, COLUMN }
 
@@ -137,8 +138,8 @@ public class IndexerConf {
     /**
      * Get the map of global configuration parameters for this indexer.
      */
-    public byte[] getGlobalConfig() {
-        return globalConfig;
+    public Map<String, String> getGlobalParams() {
+        return globalParams;
     }
 
     void setMappingType(MappingType mappingType) {
@@ -181,8 +182,8 @@ public class IndexerConf {
         this.uniqueKeyFormatterClass = uniqueKeyFormatterClass;
     }
     
-    public void setGlobalConfig(byte[] globalConfig) {
-        this.globalConfig = globalConfig;
+    public void setGlobalParams(Map<String, String> globalParams) {
+        this.globalParams = globalParams;
     }
 
    

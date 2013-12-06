@@ -30,7 +30,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.ConfKeys;
-import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.DefaultIndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
@@ -462,7 +461,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     }
 
     private void applyMorphLineParams(IndexerConf indexerConf) {
-        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
+        Map<String, String> params = indexerConf.getGlobalParams();
         if (morphlineFile != null) {
             params.put(
                     MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, morphlineFile.getPath());
@@ -481,7 +480,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
+        indexerConf.setGlobalParams(params);
     }
 
     /**

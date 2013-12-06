@@ -16,7 +16,6 @@
 package com.ngdata.hbaseindexer.conf;
 
 import com.google.common.collect.Maps;
-import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.StringUniqueKeyFormatter;
 import junit.framework.Assert;
@@ -40,7 +39,7 @@ public class XmlIndexerConfWriterTest {
                 .rowField("rf")
                 .columnFamilyField("cf-field")
                 .tableNameField("tn-field")
-                .globalParams(ConfigureUtil.mapToJson(params))
+                .globalParams(params)
                 .mapperClass(DefaultResultToSolrMapper.class)
                 .uniqueKeyFormatterClass(StringUniqueKeyFormatter.class)
                 .addFieldDefinition("fieldname", "fieldvalue", FieldDefinition.ValueSource.VALUE, "fieldtype", params)
@@ -68,7 +67,7 @@ public class XmlIndexerConfWriterTest {
         Assert.assertEquals(conf.getRowField(),conf2.getRowField());
         Assert.assertEquals(conf.getColumnFamilyField(),conf2.getColumnFamilyField());
         Assert.assertEquals(conf.getTableNameField(),conf2.getTableNameField());
-        Assert.assertTrue(Arrays.equals(conf.getGlobalConfig(), conf2.getGlobalConfig()));
+        Assert.assertEquals(conf.getGlobalParams(), conf2.getGlobalParams());
         Assert.assertEquals(conf.getMapperClass(),conf2.getMapperClass());
         Assert.assertEquals(conf.getUniqueKeyFormatterClass(),conf2.getUniqueKeyFormatterClass());
         Assert.assertEquals(conf.getFieldDefinitions().size(),conf2.getFieldDefinitions().size());

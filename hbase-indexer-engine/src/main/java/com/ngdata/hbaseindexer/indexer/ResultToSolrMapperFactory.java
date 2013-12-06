@@ -49,7 +49,7 @@ public class ResultToSolrMapperFactory {
                         indexerConf.getDocumentExtractDefinitions());
             } else {
                 mapper = indexerConf.getMapperClass().newInstance();
-                ConfigureUtil.configure(mapper, indexerConf.getGlobalConfig());
+                ConfigureUtil.configure(mapper, indexerConf.getGlobalParams());
             }
         } catch (Exception e) {
             LOG.error("Error instantiating ResultToSolrMapper for " + indexName, e);

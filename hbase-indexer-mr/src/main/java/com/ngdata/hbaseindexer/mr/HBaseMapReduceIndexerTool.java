@@ -32,7 +32,6 @@ import java.util.Set;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 
 import com.google.common.base.Charsets;
-import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -107,7 +106,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexingSpec.getIndexerComponentFactory(), new ByteArrayInputStream(indexingSpec.getConfiguration()));
         IndexerConf indexerConf = factory.createIndexerConf();
 
-        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
+        Map<String, String> params = indexerConf.getGlobalParams();
         String morphlineFile = params.get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         if (hbaseIndexingOpts.morphlineFile != null) {
             morphlineFile = hbaseIndexingOpts.morphlineFile.getPath();

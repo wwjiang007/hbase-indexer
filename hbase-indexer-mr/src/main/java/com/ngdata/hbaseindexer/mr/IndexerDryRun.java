@@ -24,7 +24,6 @@ import java.util.Map;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
-import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -94,7 +93,7 @@ class IndexerDryRun {
             indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
         }
 
-        Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
+        Map<String, String> params = indexerConf.getGlobalParams();
         if (indexingOpts.morphlineFile != null) {
             params.put(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM, indexingOpts.morphlineFile.getPath());
         }
@@ -111,7 +110,7 @@ class IndexerDryRun {
             }
         }
 
-        indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
+        indexerConf.setGlobalParams(params);
 
         MorphlineClasspathUtil.setupJavaCompilerClasspath();
         

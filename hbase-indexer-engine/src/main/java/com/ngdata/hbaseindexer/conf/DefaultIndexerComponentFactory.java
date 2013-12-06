@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
-import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
@@ -90,7 +89,7 @@ public class DefaultIndexerComponentFactory implements IndexerComponentFactory {
         builder.rowField(getAttribute(indexEl, "row-field", false));
         builder.columnFamilyField(getAttribute(indexEl, "column-family-field", false));
         builder.tableNameField(getAttribute(indexEl, "table-name-field", false));
-        builder.globalParams(ConfigureUtil.mapToJson(buildParams(indexEl)));
+        builder.globalParams(buildParams(indexEl));
         
         String mapperClassName = getAttribute(indexEl, "mapper", false);
         if (mapperClassName == null) {
