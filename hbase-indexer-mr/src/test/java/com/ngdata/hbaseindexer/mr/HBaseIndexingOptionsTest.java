@@ -30,6 +30,7 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
@@ -501,7 +502,7 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, null,
+                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, XmlIndexerConfReader.class.getName(),
                 Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"));
