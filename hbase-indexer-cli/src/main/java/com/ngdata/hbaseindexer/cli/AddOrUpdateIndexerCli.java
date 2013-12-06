@@ -173,7 +173,8 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         if (connectionParams != null)
             builder.connectionParams(connectionParams);
 
-        builder.indexerConfReader(indexerConfReaderOption.value(options));
+        if (oldIndexerDef == null || oldIndexerDef.getIndexerConfReader() == null)
+            builder.indexerConfReader(indexerConfReaderOption.value(options));
 
         byte[] indexerConf = getIndexerConf(options, indexerConfReaderOption, indexerConfOption);
         if (indexerConf != null)
@@ -200,11 +201,12 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         return builder;
     }
 
-    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption) throws IOException {
+    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption)
+            throws IOException {
         String readerClassName = readerOption.value(options);
-        IndexerConfReader reader = null;
+        IndexerConfReader reader;
         try {
-            reader = (IndexerConfReader)Class.forName(readerClassName).newInstance();
+            reader = (IndexerConfReader) Class.forName(readerClassName).newInstance();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException("The supplied reader class could not be found: " + readerClassName, e);
         } catch (InstantiationException e) {
@@ -230,12 +232,8 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         }
 
         if (data == null) {
-            // verify that configuration is optional
-            reader.validate(null);
             return null;
         }
-
-
 
         try {
             reader.validate(new ByteArrayInputStream(data));

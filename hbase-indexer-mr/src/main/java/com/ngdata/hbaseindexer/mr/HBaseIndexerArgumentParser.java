@@ -119,8 +119,12 @@ class HBaseIndexerArgumentParser {
                 .metavar("FILE")
                 .type(new FileArgumentType().verifyExists().verifyIsFile().verifyCanRead())
                 .help("Relative or absolute path to a local HBase indexer XML configuration file. If "
-                    + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name. "
-                    + "Example: /path/to/morphline-hbase-mapper.xml");
+                        + "supplied, this overrides --hbase-indexer-zk and --hbase-indexer-name. "
+                        + "Example: /path/to/morphline-hbase-mapper.xml");
+
+        Argument hbaseIndexerConfigReaderArg = hbaseIndexerGroup.addArgument("--hbase-indexer-reader")
+                .metavar("STRING")
+                .help("Classname of the hbase indexer configuration reader.");
 
         ArgumentGroup scanArgumentGroup = parser.addArgumentGroup("HBase scan parameters")
                 .description("Parameters for specifying what data is included while reading from HBase.");
@@ -496,6 +500,7 @@ class HBaseIndexerArgumentParser {
         opts.collection = ns.getString(collectionArg.getDest());
         opts.clearIndex = ns.getBoolean(clearIndexArg.getDest());
 
+        opts.hbaseIndexerConfigReader = (String) ns.get(hbaseIndexerConfigReaderArg.getDest());
         opts.hbaseIndexerConfigFile = (File) ns.get(hbaseIndexerConfigArg.getDest());
         opts.hbaseIndexerZkHost = ns.getString(indexerZkHostArg.getDest());
         opts.hbaseIndexerName = ns.getString(indexNameArg.getDest());
