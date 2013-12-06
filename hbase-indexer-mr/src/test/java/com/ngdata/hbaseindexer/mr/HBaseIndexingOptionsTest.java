@@ -523,7 +523,7 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, null,
+                            "mytable", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, XmlIndexerConfReader.class.getName(),
                 Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
                         "solr.mode", "classic",
                         "solr.home", opts.solrHomeDir.getAbsolutePath()));
@@ -558,7 +558,7 @@ public class HBaseIndexingOptionsTest {
         opts.evaluateIndexingSpecification();
 
         IndexingSpecification expectedSpec = new IndexingSpecification(
-                "record", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, null,
+                "record", HBaseIndexingOptions.DEFAULT_INDEXER_NAME, XmlIndexerConfReader.class.getName(),
                 Resources.toByteArray(Resources.getResource(getClass(), "user_indexer.xml")), ImmutableMap.of(
                         "solr.zk", "myZkHost/solr",
                         "solr.collection", "mycollection"));
