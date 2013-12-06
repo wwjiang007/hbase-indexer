@@ -33,6 +33,7 @@ import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
@@ -77,6 +78,7 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     public String hbaseIndexerZkHost;
     public String hbaseIndexerName = DEFAULT_INDEXER_NAME;
+    public String hbaseIndexerConfigReader;
     public File hbaseIndexerConfigFile;
     public String hbaseTableName;
     public String hbaseStartRow;
@@ -356,7 +358,6 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateIndexingSpecification() {
         String tableName = null;
-        String confReader = null;
         byte[] configuration = null;
         Map<String,String> indexConnectionParams = Maps.newHashMap();
 
@@ -371,7 +372,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 zk = new StateWatchingZooKeeper(hbaseIndexerZkHost, 30000);
                 IndexerModelImpl indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
                 IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexerName);
-                confReader = indexerDefinition.getIndexerConfReader();
+                hbaseIndexerConfigReader = indexerDefinition.getIndexerConfReader();
                 configuration = indexerDefinition.getConfiguration();
                 if (indexerDefinition.getConnectionParams() != null) {
                     indexConnectionParams.putAll(indexerDefinition.getConnectionParams());
@@ -393,6 +394,10 @@ class HBaseIndexingOptions extends OptionsBridge {
                 Closer.close(zk);
             }
         } else {
+            if (hbaseIndexerConfigReader == null) {
+                hbaseIndexerConfigReader = XmlIndexerConfReader.class.getName();
+            }
+
             if (hbaseIndexerConfigFile == null) {
                 throw new IllegalStateException(
                         "--hbase-indexer-file must be specified if --hbase-indexer-zk is not specified");
@@ -418,7 +423,8 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        IndexerConf indexerConf = loadIndexerConf(confReader, configuration);
+        IndexerConf indexerConf = loadIndexerConf(hbaseIndexerConfigReader, configuration);
+
         if (hbaseTableName != null) {
             tableName = hbaseTableName;
         } else {
@@ -444,7 +450,7 @@ class HBaseIndexingOptions extends OptionsBridge {
 
         this.hbaseIndexingSpecification = new IndexingSpecification(
                                             tableName,
-                                            hbaseIndexerName, confReader,
+                                            hbaseIndexerName, hbaseIndexerConfigReader,
                                             configuration, indexConnectionParams);
     }
 
