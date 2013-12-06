@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -107,6 +108,7 @@ public class HBaseMapReduceIndexerToolGoLiveTest {
         INDEXER_MODEL = new IndexerModelImpl(zkItf, "/ngdata/hbaseindexer");
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                                                 .name("zkindexerdef")
+                                                .indexerConfReader(XmlIndexerConfReader.class.getName())
                                                 .configuration(Resources.toByteArray(Resources.getResource(
                                                         HBaseMapReduceIndexerToolGoLiveTest.class, "user_indexer.xml")))
                                                 .connectionParams(ImmutableMap.of(
