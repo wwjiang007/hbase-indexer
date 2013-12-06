@@ -39,6 +39,7 @@ import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
+import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
 import org.w3c.dom.Document;
@@ -92,9 +93,10 @@ public class DefaultIndexerComponentFactory implements IndexerComponentFactory {
         builder.globalParams(ConfigureUtil.mapToJson(buildParams(indexEl)));
         
         String mapperClassName = getAttribute(indexEl, "mapper", false);
-        if (mapperClassName != null) {
-            builder.mapperClass(loadClass(mapperClassName, ResultToSolrMapper.class));
+        if (mapperClassName == null) {
+            mapperClassName = DefaultResultToSolrMapper.class.getName();
         }
+        builder.mapperClass(loadClass(mapperClassName, ResultToSolrMapper.class));
 
         String uniqueKeyFormatterName = getAttribute(indexEl, "unique-key-formatter", false);
         if (uniqueKeyFormatterName != null) {
