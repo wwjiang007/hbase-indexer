@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
+import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.HexUniqueKeyFormatter;
 import org.junit.Test;
 
@@ -91,7 +92,7 @@ public class DefaultIndexerComponentFactoryTest {
         assertNull(conf.getColumnFamilyField());
         assertNull(conf.getTableNameField());
         assertEquals(IndexerConf.DEFAULT_UNIQUE_KEY_FORMATTER, conf.getUniqueKeyFormatterClass());
-        assertEquals(null, conf.getMapperClass());
+        assertEquals(DefaultResultToSolrMapper.class, conf.getMapperClass());
 
         List<FieldDefinition> fieldDefs = conf.getFieldDefinitions();
         List<FieldDefinition> expectedFieldDefs = Lists.newArrayList(
