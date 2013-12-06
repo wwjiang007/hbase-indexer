@@ -21,8 +21,6 @@ import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.StringUniqueKeyFormatter;
 import junit.framework.Assert;
 import org.apache.commons.io.IOUtils;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ObjectNode;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -54,14 +52,14 @@ public class XmlIndexerConfWriterTest {
 
         String xmlString = os.toString();
 
-        XmlIndexerConfReader reader = new XmlIndexerConfReader();
+        IndexerConf conf2 = null;
         try {
-            reader.validate(IOUtils.toInputStream(xmlString));
+            IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), IOUtils.toInputStream(xmlString));
+            conf2 = factory.createIndexerConf();
         } catch (Exception e) {
             e.printStackTrace();
             Assert.fail("Xml is not valid");
         }
-        IndexerConf conf2 = reader.read(IOUtils.toInputStream(xmlString));
 
         Assert.assertEquals(conf.getTable(),conf2.getTable());
         Assert.assertEquals(conf.getMappingType(),conf2.getMappingType());

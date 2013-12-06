@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
@@ -30,10 +31,11 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.ngdata.hbaseindexer.ConfKeys;
 import com.ngdata.hbaseindexer.ConfigureUtil;
+import com.ngdata.hbaseindexer.conf.DefaultIndexerComponentFactory;
+import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
+import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
-import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
@@ -78,7 +80,7 @@ class HBaseIndexingOptions extends OptionsBridge {
 
     public String hbaseIndexerZkHost;
     public String hbaseIndexerName = DEFAULT_INDEXER_NAME;
-    public String hbaseIndexerConfigReader;
+    public String hbaseIndexerComponentFactory;
     public File hbaseIndexerConfigFile;
     public String hbaseTableName;
     public String hbaseStartRow;
@@ -173,7 +175,9 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scans = Lists.newArrayList();
-        IndexerConf indexerConf = loadIndexerConf(hbaseIndexingSpecification.getConfigReader(), hbaseIndexingSpecification.getConfiguration());
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexingSpecification.getIndexerComponentFactory(), new ByteArrayInputStream(hbaseIndexingSpecification.getConfiguration()));
+        IndexerConf indexerConf = factory.createIndexerConf();
+        applyMorphLineParams(indexerConf);
         HTableDescriptor[] tables = new HTableDescriptor[0];
         try {
             HBaseAdmin admin = getHbaseAdmin();
@@ -222,9 +226,10 @@ class HBaseIndexingOptions extends OptionsBridge {
             if (indexerConf.getMappingType() == MappingType.ROW) {
                 MorphlineClasspathUtil.setupJavaCompilerClasspath();
 
-                ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
+                ResultToSolrMapper resultToSolrMapper = factory.createMapper(
                         hbaseIndexingSpecification.getIndexerName(),
-                        indexerConf);
+                        hbaseIndexingSpecification.getIndexConnectionParams()
+                );
                 Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
                 hbaseScan.setFamilyMap(get.getFamilyMap());
             }
@@ -372,7 +377,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 zk = new StateWatchingZooKeeper(hbaseIndexerZkHost, 30000);
                 IndexerModelImpl indexerModel = new IndexerModelImpl(zk, conf.get(ConfKeys.ZK_ROOT_NODE, "/ngdata/hbaseindexer"));
                 IndexerDefinition indexerDefinition = indexerModel.getIndexer(hbaseIndexerName);
-                hbaseIndexerConfigReader = indexerDefinition.getIndexerConfReader();
+                hbaseIndexerComponentFactory = indexerDefinition.getIndexerComponentFactory();
                 configuration = indexerDefinition.getConfiguration();
                 if (indexerDefinition.getConnectionParams() != null) {
                     indexConnectionParams.putAll(indexerDefinition.getConnectionParams());
@@ -394,8 +399,8 @@ class HBaseIndexingOptions extends OptionsBridge {
                 Closer.close(zk);
             }
         } else {
-            if (hbaseIndexerConfigReader == null) {
-                hbaseIndexerConfigReader = XmlIndexerConfReader.class.getName();
+            if (hbaseIndexerComponentFactory == null) {
+                hbaseIndexerComponentFactory = DefaultIndexerComponentFactory.class.getName();
             }
 
             if (hbaseIndexerConfigFile == null) {
@@ -423,7 +428,9 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        IndexerConf indexerConf = loadIndexerConf(hbaseIndexerConfigReader, configuration);
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexerComponentFactory, new ByteArrayInputStream(configuration));
+        IndexerConf indexerConf = factory.createIndexerConf();
+        applyMorphLineParams(indexerConf);
 
         if (hbaseTableName != null) {
             tableName = hbaseTableName;
@@ -450,13 +457,11 @@ class HBaseIndexingOptions extends OptionsBridge {
 
         this.hbaseIndexingSpecification = new IndexingSpecification(
                                             tableName,
-                                            hbaseIndexerName, hbaseIndexerConfigReader,
+                                            hbaseIndexerName, hbaseIndexerComponentFactory,
                                             configuration, indexConnectionParams);
     }
 
-    private IndexerConf loadIndexerConf(String readerClass, byte[] configuration) {
-        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(readerClass, configuration);
-
+    private void applyMorphLineParams(IndexerConf indexerConf) {
         Map<String, String> params = ConfigureUtil.jsonToMap(indexerConf.getGlobalConfig());
         if (morphlineFile != null) {
             params.put(
@@ -477,7 +482,6 @@ class HBaseIndexingOptions extends OptionsBridge {
         }
 
         indexerConf.setGlobalConfig(ConfigureUtil.mapToJson(params));
-        return indexerConf;
     }
 
     /**

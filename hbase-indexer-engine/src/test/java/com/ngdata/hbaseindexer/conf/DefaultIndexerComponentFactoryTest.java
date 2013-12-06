@@ -29,15 +29,17 @@ import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.uniquekey.HexUniqueKeyFormatter;
 import org.junit.Test;
 
-public class XmlIndexerConfReaderTest {
+public class DefaultIndexerComponentFactoryTest {
     @Test
     public void testValid() throws Exception {
-        new XmlIndexerConfReader().read(asStream("<indexer table='foo'/>"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), asStream("<indexer table='foo'/>"));
+        factory.createIndexerConf();
     }
 
     @Test(expected = IndexerConfException.class)
     public void testInvalid() throws Exception {
-        new XmlIndexerConfReader().read(asStream("<foo/>"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), asStream("<foo/>"));
+        factory.createIndexerConf();
     }
 
     private InputStream asStream(String data) {
@@ -46,7 +48,8 @@ public class XmlIndexerConfReaderTest {
 
     @Test
     public void testFullIndexerConf() throws Exception {
-        IndexerConf conf = new XmlIndexerConfReader().read(getClass().getResourceAsStream("indexerconf_full.xml"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), getClass().getResourceAsStream("indexerconf_full.xml"));
+        IndexerConf conf = factory.createIndexerConf();
 
         assertEquals("table1", conf.getTable());
         assertEquals(IndexerConf.MappingType.COLUMN, conf.getMappingType());
@@ -77,7 +80,8 @@ public class XmlIndexerConfReaderTest {
 
     @Test
     public void testDefaults() throws Exception {
-        IndexerConf conf = new XmlIndexerConfReader().read(getClass().getResourceAsStream("indexerconf_defaults.xml"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), getClass().getResourceAsStream("indexerconf_defaults.xml"));
+        IndexerConf conf = factory.createIndexerConf();
 
         assertEquals("table1", conf.getTable());
         assertEquals(IndexerConf.DEFAULT_MAPPING_TYPE, conf.getMappingType());

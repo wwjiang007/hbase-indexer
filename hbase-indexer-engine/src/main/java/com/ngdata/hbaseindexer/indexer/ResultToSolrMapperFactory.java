@@ -43,7 +43,8 @@ public class ResultToSolrMapperFactory {
 
         ResultToSolrMapper mapper = null;
         try {
-            if (indexerConf.getMapperClass() == null) {
+            if (indexerConf.getMapperClass().equals(DefaultResultToSolrMapper.class)) {
+                // FIXME: this is cheating. Knowledge about mapper implementations should be handled by IndexerComponentFactory
                 mapper = new DefaultResultToSolrMapper(indexName, indexerConf.getFieldDefinitions(),
                         indexerConf.getDocumentExtractDefinitions());
             } else {

@@ -38,6 +38,7 @@ import com.ngdata.hbaseindexer.ConfigureUtil;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
+import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
 import org.w3c.dom.Document;
@@ -49,14 +50,26 @@ import org.xml.sax.SAXException;
 /**
  * Constructs an {@link IndexerConf} from an XML file.
  */
-public class XmlIndexerConfReader implements IndexerConfReader {
+public class DefaultIndexerComponentFactory implements IndexerComponentFactory {
+
+    private IndexerConf indexerConf;
+
     @Override
-    public IndexerConf read(InputStream is) throws IndexerConfException {
+    public void configure(InputStream is) throws IndexerConfException {
         Document document = parse(is);
-        return read(document);
+        indexerConf = read(document);
     }
 
     @Override
+    public IndexerConf createIndexerConf() throws IndexerConfException {
+        return indexerConf;
+    }
+
+    @Override
+    public ResultToSolrMapper createMapper(String indexName, Map<String, String> connectionParams) throws IndexerConfException {
+        return ResultToSolrMapperFactory.createResultToSolrMapper(indexName, indexerConf);
+    }
+
     public void validate(InputStream is) throws IndexerConfException {
         Document document = parse(is);
         validate(document);

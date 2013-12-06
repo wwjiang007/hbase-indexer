@@ -17,7 +17,6 @@ package com.ngdata.hbaseindexer.conf;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 
@@ -25,14 +24,13 @@ import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.uniquekey.StringUniqueKeyFormatter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
-import org.codehaus.jackson.node.ObjectNode;
 
 /**
  * The configuration for an indexer, i.e. this defines the behavior of the {@link Indexer} and of the parser/mapper
  * called by the indexer.
  *
  * <p>Instances of IndexerConf can be created using {@link IndexerConfBuilder} or from XML using an
- * {@link IndexerConfReader}.</p>
+ * {@link IndexerComponentFactory}.</p>
  */
 public class IndexerConf {
     private String table;

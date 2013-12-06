@@ -15,6 +15,7 @@
  */
 package com.ngdata.hbaseindexer.mr;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -24,10 +25,11 @@ import java.util.Map;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.ngdata.hbaseindexer.ConfigureUtil;
+import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
+import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
-import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
 import com.ngdata.hbaseindexer.indexer.Indexer;
 import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
@@ -84,7 +86,8 @@ class IndexerDryRun {
         long programStartTime = System.currentTimeMillis();
         IndexingSpecification indexingSpec = indexingOpts.getIndexingSpecification();
 
-        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(indexingSpec.getConfigReader(), indexingSpec.getConfiguration());
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexingSpec.getIndexerComponentFactory(), new ByteArrayInputStream(indexingSpec.getConfiguration()));
+        IndexerConf indexerConf = factory.createIndexerConf();
 
         if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {
             LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
@@ -113,8 +116,8 @@ class IndexerDryRun {
         MorphlineClasspathUtil.setupJavaCompilerClasspath();
         
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(
-                                                        indexingSpec.getIndexerName(),
-                                                        indexerConf);
+                indexingSpec.getIndexerName(),
+                indexerConf);
         
         Indexer indexer = Indexer.createIndexer(
                                 indexingSpec.getIndexerName(),

@@ -33,7 +33,8 @@ import java.util.TreeMap;
 
 import com.google.common.base.Charsets;
 import com.ngdata.hbaseindexer.ConfigureUtil;
-import com.ngdata.hbaseindexer.conf.IndexerConfReaderUtil;
+import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
+import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -59,7 +60,6 @@ import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
 import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
-import com.ngdata.hbaseindexer.conf.XmlIndexerConfReader;
 import com.ngdata.hbaseindexer.indexer.DirectSolrClassicInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.DirectSolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.Indexer;
@@ -78,23 +78,10 @@ import com.yammer.metrics.core.Meter;
 import com.yammer.metrics.core.Metric;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.TableMapper;
-import org.apache.hadoop.hbase.mapreduce.TableSplit;
-import org.apache.hadoop.io.Text;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.CloudSolrServer;
-import org.apache.solr.hadoop.SolrInputDocumentWritable;
-import org.apache.solr.hadoop.SolrOutputFormat;
-import org.apache.solr.hadoop.Utils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Mapper for converting HBase Result objects into index documents.
@@ -109,7 +96,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
     /**
      * Configuration key for setting the contents of the indexer config.
      */
-    public static final String INDEX_CONFIGURATION_CONF_READER_KEY = "hbase.indexer.configuration.reader";
+    public static final String INDEX_COMPONENT_FACTORY_KEY = "hbase.indexer.factory";
 
     /** Configuration key for setting the contents of the indexer config. */
     public static final String INDEX_CONFIGURATION_CONF_KEY = "hbase.indexer.configuration";
@@ -185,7 +172,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
         String indexName = context.getConfiguration().get(INDEX_NAME_CONF_KEY);
-        String indexConfReaderClass = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_READER_KEY);
+        String indexerComponentFactory = context.getConfiguration().get(INDEX_COMPONENT_FACTORY_KEY);
         String indexConfiguration = context.getConfiguration().get(INDEX_CONFIGURATION_CONF_KEY);
         String tableName = context.getConfiguration().get(TABLE_NAME_CONF_KEY);
 
@@ -201,7 +188,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new IllegalStateException("No configuration value supplied for " + TABLE_NAME_CONF_KEY);
         }
 
-        IndexerConf indexerConf = IndexerConfReaderUtil.getIndexerConf(indexConfReaderClass, indexConfiguration.getBytes(Charsets.UTF_8));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerComponentFactory, new ByteArrayInputStream(indexConfiguration.getBytes(Charsets.UTF_8)));
+        IndexerConf indexerConf = factory.createIndexerConf();
 
         // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
         // infrastructure to handle converting an in-memory model into XML (we can only interpret an
