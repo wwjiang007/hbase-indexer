@@ -251,7 +251,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
                 throw new RuntimeException("Only 'cloud' and 'classic' are valid values for solr.mode, but got " + solrMode);
             }
         } else {
-            solrDocWriter = new MapReduceSolrInputDocumentWrite(context);
+            solrDocWriter = new MapReduceSolrInputDocumentWriter(context);
             return Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, null, solrDocWriter);
         }
     }
