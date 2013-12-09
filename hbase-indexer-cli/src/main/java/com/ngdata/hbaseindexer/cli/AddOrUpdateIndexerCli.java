@@ -220,7 +220,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         }
 
         try {
-            IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data));
+            IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data), Maps.<String, String>newHashMap());
         } catch (IndexerConfException e) {
             StringBuilder msg = new StringBuilder();
             msg.append("Failed to parse configuration ").append(fileName).append('\n');

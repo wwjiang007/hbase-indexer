@@ -35,7 +35,6 @@ import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.MappingType;
-import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
 import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
 import com.ngdata.hbaseindexer.model.impl.IndexerModelImpl;
@@ -174,7 +173,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scans = Lists.newArrayList();
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexingSpecification.getIndexerComponentFactory(), new ByteArrayInputStream(hbaseIndexingSpecification.getConfiguration()));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexingSpecification.getIndexerComponentFactory(), new ByteArrayInputStream(hbaseIndexingSpecification.getConfiguration()), Maps.<String, String>newHashMap());
         IndexerConf indexerConf = factory.createIndexerConf();
         applyMorphLineParams(indexerConf);
         HTableDescriptor[] tables = new HTableDescriptor[0];
@@ -226,8 +225,7 @@ class HBaseIndexingOptions extends OptionsBridge {
                 MorphlineClasspathUtil.setupJavaCompilerClasspath();
 
                 ResultToSolrMapper resultToSolrMapper = factory.createMapper(
-                        hbaseIndexingSpecification.getIndexerName(),
-                        hbaseIndexingSpecification.getIndexConnectionParams()
+                        hbaseIndexingSpecification.getIndexerName()
                 );
                 Get get = resultToSolrMapper.getGet(HBaseShims.newGet().getRow());
                 hbaseScan.setFamilyMap(get.getFamilyMap());
@@ -427,7 +425,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexerComponentFactory, new ByteArrayInputStream(configuration));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexerComponentFactory, new ByteArrayInputStream(configuration), Maps.<String, String>newHashMap());
         IndexerConf indexerConf = factory.createIndexerConf();
         applyMorphLineParams(indexerConf);
 

@@ -194,10 +194,10 @@ public class IndexerSupervisor {
             indexerProcessIds.put(indexerDef.getName(), indexerProcessId);
 
             // Create and register the indexer
-            IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerDef.getIndexerComponentFactory(), new ByteArrayInputStream(indexerDef.getConfiguration()));
+            IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerDef.getIndexerComponentFactory(), new ByteArrayInputStream(indexerDef.getConfiguration()), indexerDef.getConnectionParams());
             IndexerConf indexerConf = factory.createIndexerConf();
 
-            ResultToSolrMapper mapper = factory.createMapper(indexerDef.getName(), indexerDef.getConnectionParams());
+            ResultToSolrMapper mapper = factory.createMapper(indexerDef.getName());
 
             Sharder sharder = null;
             SolrInputDocumentWriter solrWriter;

@@ -55,7 +55,7 @@ public class DefaultIndexerComponentFactory implements IndexerComponentFactory {
     private IndexerConf indexerConf;
 
     @Override
-    public void configure(InputStream is) throws IndexerConfException {
+    public void configure(InputStream is, Map<String, String> connectionParams) throws IndexerConfException {
         Document document = parse(is);
         indexerConf = read(document);
     }
@@ -66,8 +66,8 @@ public class DefaultIndexerComponentFactory implements IndexerComponentFactory {
     }
 
     @Override
-    public ResultToSolrMapper createMapper(String indexName, Map<String, String> connectionParams) throws IndexerConfException {
-        return ResultToSolrMapperFactory.createResultToSolrMapper(indexName, indexerConf);
+    public ResultToSolrMapper createMapper(String indexerName) throws IndexerConfException {
+        return ResultToSolrMapperFactory.createResultToSolrMapper(indexerName, indexerConf);
     }
 
     public void validate(InputStream is) throws IndexerConfException {

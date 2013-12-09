@@ -1,11 +1,11 @@
 package com.ngdata.hbaseindexer.conf;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.Map;
 
 public class IndexerComponentFactoryUtil {
 
-    public static IndexerComponentFactory getComponentFactory(String factoryClass, InputStream configuration) {
+    public static IndexerComponentFactory getComponentFactory(String factoryClass, InputStream configuration, Map<String, String> connectionParams) {
         IndexerComponentFactory factory;
         if (factoryClass == null) {
             factory = new DefaultIndexerComponentFactory();
@@ -20,7 +20,7 @@ public class IndexerComponentFactoryUtil {
                 throw new AssertionError(e);
             }
         }
-        factory.configure(configuration);
+        factory.configure(configuration, connectionParams);
         return factory;
     }
 

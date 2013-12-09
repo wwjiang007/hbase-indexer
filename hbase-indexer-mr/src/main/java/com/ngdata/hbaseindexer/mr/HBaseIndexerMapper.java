@@ -32,6 +32,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -187,7 +188,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new IllegalStateException("No configuration value supplied for " + TABLE_NAME_CONF_KEY);
         }
 
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerComponentFactory, new ByteArrayInputStream(indexConfiguration.getBytes(Charsets.UTF_8)));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerComponentFactory, new ByteArrayInputStream(indexConfiguration.getBytes(Charsets.UTF_8)), Maps.<String, String>newHashMap());
         IndexerConf indexerConf = factory.createIndexerConf();
 
         // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
@@ -250,7 +251,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
                 throw new RuntimeException("Only 'cloud' and 'classic' are valid values for solr.mode, but got " + solrMode);
             }
         } else {
-            solrDocWriter = new MapReduceSolrInputDocumentWriter(context);
+            solrDocWriter = new MapReduceSolrInputDocumentWrite(context);
             return Indexer.createIndexer(indexName, indexerConf, tableName, mapper, null, null, solrDocWriter);
         }
     }

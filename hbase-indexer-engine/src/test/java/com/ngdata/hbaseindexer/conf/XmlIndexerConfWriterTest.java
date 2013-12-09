@@ -23,7 +23,6 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
 import java.util.Map;
 
 public class XmlIndexerConfWriterTest {
@@ -35,7 +34,7 @@ public class XmlIndexerConfWriterTest {
                 .table("the-table")
                 .mappingType(IndexerConf.MappingType.COLUMN)
                 .rowReadMode(IndexerConf.RowReadMode.DYNAMIC)
-                .uniqueyKeyField("kyefield")
+                .uniqueyKeyField("keyfield")
                 .rowField("rf")
                 .columnFamilyField("cf-field")
                 .tableNameField("tn-field")
@@ -53,7 +52,7 @@ public class XmlIndexerConfWriterTest {
 
         IndexerConf conf2 = null;
         try {
-            IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), IOUtils.toInputStream(xmlString));
+            IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), IOUtils.toInputStream(xmlString), Maps.<String, String>newHashMap());
             conf2 = factory.createIndexerConf();
         } catch (Exception e) {
             e.printStackTrace();

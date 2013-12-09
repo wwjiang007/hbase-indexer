@@ -24,6 +24,7 @@ import java.util.Map;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -85,7 +86,7 @@ class IndexerDryRun {
         long programStartTime = System.currentTimeMillis();
         IndexingSpecification indexingSpec = indexingOpts.getIndexingSpecification();
 
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexingSpec.getIndexerComponentFactory(), new ByteArrayInputStream(indexingSpec.getConfiguration()));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexingSpec.getIndexerComponentFactory(), new ByteArrayInputStream(indexingSpec.getConfiguration()), Maps.<String, String>newHashMap());
         IndexerConf indexerConf = factory.createIndexerConf();
 
         if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {

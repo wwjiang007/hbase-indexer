@@ -24,21 +24,25 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.conf.FieldDefinition.ValueSource;
 import com.ngdata.hbaseindexer.parse.DefaultResultToSolrMapper;
 import com.ngdata.hbaseindexer.uniquekey.HexUniqueKeyFormatter;
 import org.junit.Test;
 
 public class DefaultIndexerComponentFactoryTest {
+
+    private static final String impl = DefaultIndexerComponentFactory.class.getName();
+
     @Test
     public void testValid() throws Exception {
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), asStream("<indexer table='foo'/>"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(impl, asStream("<indexer table='foo'/>"), Maps.<String, String>newHashMap());
         factory.createIndexerConf();
     }
 
     @Test(expected = IndexerConfException.class)
     public void testInvalid() throws Exception {
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), asStream("<foo/>"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(impl, asStream("<foo/>"), Maps.<String, String>newHashMap());
         factory.createIndexerConf();
     }
 
@@ -48,7 +52,7 @@ public class DefaultIndexerComponentFactoryTest {
 
     @Test
     public void testFullIndexerConf() throws Exception {
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), getClass().getResourceAsStream("indexerconf_full.xml"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(impl, getClass().getResourceAsStream("indexerconf_full.xml"), Maps.<String, String>newHashMap());
         IndexerConf conf = factory.createIndexerConf();
 
         assertEquals("table1", conf.getTable());
@@ -80,7 +84,7 @@ public class DefaultIndexerComponentFactoryTest {
 
     @Test
     public void testDefaults() throws Exception {
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(DefaultIndexerComponentFactory.class.getName(), getClass().getResourceAsStream("indexerconf_defaults.xml"));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(impl, getClass().getResourceAsStream("indexerconf_defaults.xml"), Maps.<String, String>newHashMap());
         IndexerConf conf = factory.createIndexerConf();
 
         assertEquals("table1", conf.getTable());

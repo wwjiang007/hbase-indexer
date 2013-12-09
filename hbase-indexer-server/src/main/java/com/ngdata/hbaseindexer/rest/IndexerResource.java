@@ -159,7 +159,7 @@ public class IndexerResource {
     private String fetchIndexerTableName(String indexerName) throws Exception{
         // best effort since this could be a pattern ...
         IndexerDefinition indexerDefinition = get(indexerName);
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerDefinition.getIndexerComponentFactory(), new ByteArrayInputStream(indexerDefinition.getConfiguration()));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerDefinition.getIndexerComponentFactory(), new ByteArrayInputStream(indexerDefinition.getConfiguration()), indexerDefinition.getConnectionParams());
         String tableName = factory.createIndexerConf().getTable();
 
         // TODO we should fail if the table does not exist

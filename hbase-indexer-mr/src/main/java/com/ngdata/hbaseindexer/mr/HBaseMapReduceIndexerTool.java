@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 
 import com.google.common.base.Charsets;
@@ -103,7 +104,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
         conf.set(HBaseIndexerMapper.TABLE_NAME_CONF_KEY, indexingSpec.getTableName());
         HBaseIndexerMapper.configureIndexConnectionParams(conf, indexingSpec.getIndexConnectionParams());
 
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexingSpec.getIndexerComponentFactory(), new ByteArrayInputStream(indexingSpec.getConfiguration()));
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexingSpec.getIndexerComponentFactory(), new ByteArrayInputStream(indexingSpec.getConfiguration()), Maps.<String, String>newHashMap());
         IndexerConf indexerConf = factory.createIndexerConf();
 
         Map<String, String> params = indexerConf.getGlobalParams();
