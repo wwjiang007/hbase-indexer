@@ -188,7 +188,8 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new IllegalStateException("No configuration value supplied for " + TABLE_NAME_CONF_KEY);
         }
 
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerComponentFactory, new ByteArrayInputStream(indexConfiguration.getBytes(Charsets.UTF_8)), Maps.<String, String>newHashMap());
+        Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerComponentFactory, new ByteArrayInputStream(indexConfiguration.getBytes(Charsets.UTF_8)), indexConnectionParams);
         IndexerConf indexerConf = factory.createIndexerConf();
 
         // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
@@ -221,8 +222,6 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
 
         indexerConf.setGlobalParams(params);
         
-        Map<String, String> indexConnectionParams = getIndexConnectionParams(context.getConfiguration());
-
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(indexName, indexerConf);
 
         try {

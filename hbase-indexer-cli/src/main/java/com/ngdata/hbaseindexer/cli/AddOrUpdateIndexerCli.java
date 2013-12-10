@@ -176,7 +176,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         if (oldIndexerDef == null || oldIndexerDef.getIndexerComponentFactory() == null)
             builder.indexerComponentFactory(indexerComponentFactoryOption.value(options));
 
-        byte[] indexerConf = getIndexerConf(options, indexerComponentFactoryOption, indexerConfOption);
+        byte[] indexerConf = getIndexerConf(options, indexerComponentFactoryOption, indexerConfOption, connectionParams);
         if (indexerConf != null)
             builder.configuration(indexerConf);
 
@@ -201,7 +201,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         return builder;
     }
 
-    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption)
+    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption, Map<String, String> connectionParams)
             throws IOException {
         String componentFactory = readerOption.value(options);
 
@@ -220,7 +220,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         }
 
         try {
-            IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data), Maps.<String, String>newHashMap());
+            IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data), connectionParams);
         } catch (IndexerConfException e) {
             StringBuilder msg = new StringBuilder();
             msg.append("Failed to parse configuration ").append(fileName).append('\n');

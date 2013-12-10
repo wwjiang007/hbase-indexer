@@ -173,7 +173,7 @@ class HBaseIndexingOptions extends OptionsBridge {
     @VisibleForTesting
     void evaluateScan() {
         this.scans = Lists.newArrayList();
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexingSpecification.getIndexerComponentFactory(), new ByteArrayInputStream(hbaseIndexingSpecification.getConfiguration()), Maps.<String, String>newHashMap());
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexingSpecification.getIndexerComponentFactory(), new ByteArrayInputStream(hbaseIndexingSpecification.getConfiguration()), hbaseIndexingSpecification.getIndexConnectionParams());
         IndexerConf indexerConf = factory.createIndexerConf();
         applyMorphLineParams(indexerConf);
         HTableDescriptor[] tables = new HTableDescriptor[0];
@@ -425,16 +425,6 @@ class HBaseIndexingOptions extends OptionsBridge {
             }
         }
 
-        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexerComponentFactory, new ByteArrayInputStream(configuration), Maps.<String, String>newHashMap());
-        IndexerConf indexerConf = factory.createIndexerConf();
-        applyMorphLineParams(indexerConf);
-
-        if (hbaseTableName != null) {
-            tableName = hbaseTableName;
-        } else {
-            tableName = indexerConf.getTable();
-        }
-
         if (solrHomeDir != null) {
             indexConnectionParams.put("solr.mode", "classic");
             indexConnectionParams.put("solr.home", solrHomeDir.getAbsolutePath());
@@ -446,6 +436,17 @@ class HBaseIndexingOptions extends OptionsBridge {
             if (collection != null) {
                 indexConnectionParams.put("solr.collection", collection);
             }
+        }
+
+        ByteArrayInputStream is = new ByteArrayInputStream(configuration);
+        IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(hbaseIndexerComponentFactory, is, indexConnectionParams);
+        IndexerConf indexerConf = factory.createIndexerConf();
+        applyMorphLineParams(indexerConf);
+
+        if (hbaseTableName != null) {
+            tableName = hbaseTableName;
+        } else {
+            tableName = indexerConf.getTable();
         }
 
         if (hbaseIndexerName == null) {

@@ -396,7 +396,7 @@ public class IndexerSupervisor {
                     }
 
                     IndexerModelEvent event = eventQueue.take();
-                    log.debug(event.toString());
+                    log.error("Took " + event.toString());
                     if (event.getType() == INDEXER_ADDED || event.getType() == INDEXER_UPDATED) {
                         try {
                             IndexerDefinition indexerDef = indexerModel.getIndexer(event.getIndexerName());
@@ -417,6 +417,7 @@ public class IndexerSupervisor {
                     } else if (event.getType() == INDEXER_DELETED) {
                         stopIndexer(event.getIndexerName());
                     }
+                    log.error("Done processing " + event.toString());
                     eventCount.incrementAndGet();
                 } catch (InterruptedException e) {
                     log.info("IndexerWorker.EventWorker interrupted.");
