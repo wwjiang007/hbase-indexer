@@ -220,8 +220,6 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
           }
         }
 
-        indexerConf.setGlobalParams(params);
-        
         ResultToSolrMapper mapper = ResultToSolrMapperFactory.createResultToSolrMapper(indexName, indexerConf);
 
         try {

@@ -96,8 +96,6 @@ public class XmlIndexerConfWriter {
             }
         }
 
-        conf.setGlobalParams(params);
-
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer =  transformerFactory.newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");

@@ -111,8 +111,6 @@ class IndexerDryRun {
             }
         }
 
-        indexerConf.setGlobalParams(params);
-
         MorphlineClasspathUtil.setupJavaCompilerClasspath();
         
         ResultToSolrMapper resultToSolrMapper = ResultToSolrMapperFactory.createResultToSolrMapper(

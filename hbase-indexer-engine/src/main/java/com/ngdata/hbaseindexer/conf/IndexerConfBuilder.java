@@ -41,7 +41,7 @@ public class IndexerConfBuilder {
     private IndexerConf.MappingType mappingType = IndexerConf.MappingType.ROW;
     private List<FieldDefinition> fieldDefinitions = Lists.newArrayList();
     private List<DocumentExtractDefinition> documentExtractDefinitions = Lists.newArrayList();
-    private Map<String, String> globalParams;
+    private Map<String, String> globalParams = Maps.newHashMap();
 
     /**
      * Default constructor.
