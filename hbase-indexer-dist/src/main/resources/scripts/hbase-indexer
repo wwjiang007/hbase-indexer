@@ -42,13 +42,15 @@
 
 # Source function library.
 . /etc/init.d/functions
+# Hbase indexer settings
+. /etc/hbase-indexer/conf/hbase-indexer-env.sh
 
 HBASE_INDEXER_HOME=/usr/lib/hbase-indexer
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Indexer service for hbase"
 NAME=hbase-indexer
-DAEMON=${HBASE_INDEXER_HILE}/bin/$NAME
-DAEMON_ARGS="daemon"
+DAEMON=${HBASE_INDEXER_HOME}/bin/$NAME
+DAEMON_ARGS="--config /etc/hbase-indexer/conf daemon"
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 lockfile=/var/lock/subsys/${NAME}
