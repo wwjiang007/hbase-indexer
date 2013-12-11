@@ -102,7 +102,7 @@
               <group>Development/Libraries</group>
               <mappings>
                 <mapping>
-                  <directory>/usr/lib/hbase-indexer/</directory>
+                  <directory>/usr/lib/hbase-indexer</directory>
                   <filemode>755</filemode>
                   <username>root</username>
                   <groupname>root</groupname>
@@ -113,13 +113,25 @@
                   </sources>
                 </mapping>
                 <mapping>
-                  <directory>/etc/init.d/</directory>
+                  <directory>/etc/init.d</directory>
+                  <directoryIncluded>false</directoryIncluded>
                   <filemode>755</filemode>
                   <username>root</username>
                   <groupname>root</groupname>
                   <sources>
                     <source>
                       <location>${project.build.directory}/classes/scripts/hbase-indexer</location>
+                    </source>
+                  </sources>
+                </mapping>
+                <mapping>
+                  <directory>/etc/hbase-indexer/conf</directory>
+                  <filemode>755</filemode>
+                  <username>root</username>
+                  <groupname>root</groupname>
+                  <sources>
+                    <source>
+                      <location>${project.build.directory}/../../conf</location>
                     </source>
                   </sources>
                 </mapping>
