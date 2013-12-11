@@ -23,13 +23,13 @@
     <version.solr>4.4.0</version.solr>
     <version.guava>11.0.2</version.guava>
     <version.slf4j>1.7.2</version.slf4j>
-    <version.hbase94>0.94.6-cdh4.3.0</version.hbase94>
+    <version.hbase94>0.94.6-cdh4.4.0</version.hbase94>
     <version.hbase95>0.95.2-cdh5.0.0-SNAPSHOT</version.hbase95>
     <version.hadoop.hbase95>2.2.0-cdh5.0.0-SNAPSHOT</version.hadoop.hbase95>
-    <version.hadoop.mr1>2.0.0-mr1-cdh4.3.0</version.hadoop.mr1>
+    <version.hadoop.mr1>2.0.0-mr1-cdh4.4.0</version.hadoop.mr1>
     <version.hadoop.mr1.hbase95>2.2.0-mr1-cdh5.0.0-SNAPSHOT</version.hadoop.mr1.hbase95>
-    <version.hadoop>2.0.0-cdh4.3.0</version.hadoop>
-    <version.zookeeper>3.4.5-cdh4.3.0</version.zookeeper>
+    <version.hadoop>2.0.0-cdh4.4.0</version.hadoop>
+    <version.zookeeper>3.4.5-cdh4.4.0</version.zookeeper>
     <version.jackson>1.9.2</version.jackson>
     <version.httpclient>4.2.5</version.httpclient>
     <version.cdk>0.8.1</version.cdk>
@@ -393,8 +393,8 @@
         <version>1.17</version>
       </dependency>
       <dependency>
-        <groupId>com.sun.jersey.contribs</groupId>
-        <artifactId>jersey-spring</artifactId>
+        <groupId>com.sun.jersey</groupId>
+        <artifactId>jersey-servlet</artifactId>
         <version>1.17</version>
       </dependency>
       <dependency>
@@ -406,12 +406,6 @@
         <groupId>javax.ws.rs</groupId>
         <artifactId>jsr311-api</artifactId>
         <version>1.1.1</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.springframework</groupId>
-        <artifactId>spring-webmvc</artifactId>
-        <version>3.2.1.RELEASE</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
