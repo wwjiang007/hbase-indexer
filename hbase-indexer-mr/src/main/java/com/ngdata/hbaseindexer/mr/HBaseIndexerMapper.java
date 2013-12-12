@@ -192,14 +192,6 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         IndexerComponentFactory factory = IndexerComponentFactoryUtil.getComponentFactory(indexerComponentFactory, new ByteArrayInputStream(indexConfiguration.getBytes(Charsets.UTF_8)), indexConnectionParams);
         IndexerConf indexerConf = factory.createIndexerConf();
 
-        // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
-        // infrastructure to handle converting an in-memory model into XML (we can only interpret an
-        // XML doc into the internal model), so we need to do this here for now
-        if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {
-            LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
-            indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
-        }
-
         String morphlineFile = context.getConfiguration().get(MorphlineResultToSolrMapper.MORPHLINE_FILE_PARAM);
         Map<String, String> params = indexerConf.getGlobalParams();
         if (morphlineFile != null) {
@@ -221,6 +213,15 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         }
 
         ResultToSolrMapper mapper = factory.createMapper(indexName);
+
+        // TODO This would be better-placed in the top-level job setup -- however, there isn't currently any
+        // infrastructure to handle converting an in-memory model into XML (we can only interpret an
+        // XML doc into the internal model), so we need to do this here for now
+        if (indexerConf.getRowReadMode() != RowReadMode.NEVER) {
+            LOG.warn("Changing row read mode from " + indexerConf.getRowReadMode() + " to " + RowReadMode.NEVER);
+            indexerConf = new IndexerConfBuilder(indexerConf).rowReadMode(RowReadMode.NEVER).build();
+        }
+        indexerConf.setGlobalParams(params);
 
         try {
             indexer = createIndexer(indexName, context, indexerConf, tableName, mapper, indexConnectionParams);

@@ -15,8 +15,6 @@
  */
 package com.ngdata.hbaseindexer.morphline;
 
-import static com.ngdata.sep.impl.HBaseShims.newGet;
-
 import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
@@ -24,15 +22,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableSet;
 import java.util.TreeMap;
-
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrInputDocument;
-import org.codehaus.jackson.node.ObjectNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.cloudera.cdk.morphline.api.Command;
 import com.cloudera.cdk.morphline.api.MorphlineCompilationException;
@@ -54,6 +43,15 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static com.ngdata.sep.impl.HBaseShims.newGet;
 
 /**
  * Performs Result to Solr mapping using morphlines.
