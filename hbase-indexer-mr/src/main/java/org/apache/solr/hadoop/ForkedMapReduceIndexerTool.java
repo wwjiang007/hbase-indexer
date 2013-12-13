@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import com.cloudera.cdk.morphline.base.Fields;
+import org.kitesdk.morphline.base.Fields;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
