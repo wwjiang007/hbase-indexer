@@ -15,8 +15,6 @@
  */
 package com.ngdata.hbaseindexer.morphline;
 
-import static com.ngdata.sep.impl.HBaseShims.newGet;
-
 import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,6 +53,15 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrInputDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static com.ngdata.sep.impl.HBaseShims.newGet;
 
 /**
  * Performs Result to Solr mapping using morphlines.
@@ -86,8 +93,8 @@ final class LocalMorphlineResultToSolrMapper implements ResultToSolrMapper, Conf
     }
     
     @Override
-    public void configure(byte[] configBytes) {
-        Map<String, String> params = ConfigureUtil.jsonToMap(configBytes);
+    public void configure(Map<String, String> config) {
+        Map<String, String> params = config;
         if (LOG.isTraceEnabled()) {
             LOG.trace("CWD is {}", new File(".").getAbsolutePath());
             LOG.trace("Configuration:\n{}", Joiner.on("\n").join(new TreeMap(params).entrySet()));

@@ -463,6 +463,11 @@
             <artifactId>hadoop-core</artifactId>
             <version>${version.hadoop.mr1}</version>
           </dependency>
+          <dependency>
+            <groupId>org.kohsuke</groupId>
+            <artifactId>akuma</artifactId>
+            <version>1.9</version>
+          </dependency>
         </dependencies>
       </dependencyManagement>
 
@@ -495,7 +500,7 @@
           <dependency>
             <groupId>com.ngdata</groupId>
             <artifactId>hbase-sep-impl</artifactId>
-            <version>1.4-hbase0.95-SNAPSHOT</version>
+            <version>1.4-hbase0.95-ngdata-dev-SNAPSHOT</version>
           </dependency>
 
           <!-- We have to explicitly manage Hadoop dependencies here, since they are optional in HBase -->
