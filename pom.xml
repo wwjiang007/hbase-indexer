@@ -500,7 +500,7 @@
           <dependency>
             <groupId>com.ngdata</groupId>
             <artifactId>hbase-sep-impl</artifactId>
-            <version>1.4-hbase0.95-ngdata-dev-SNAPSHOT</version>
+            <version>1.4-hbase0.95-SNAPSHOT</version>
           </dependency>
 
           <!-- We have to explicitly manage Hadoop dependencies here, since they are optional in HBase -->
