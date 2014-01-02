@@ -217,16 +217,17 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
 
             data = ByteStreams.toByteArray(Files.newInputStreamSupplier(file).getInput());
+
+            try {
+                IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data), connectionParams);
+            } catch (IndexerConfException e) {
+                StringBuilder msg = new StringBuilder();
+                msg.append("Failed to parse configuration ").append(fileName).append('\n');
+                addExceptionMessages(e, msg);
+                throw new CliException(msg.toString());
+            }
         }
 
-        try {
-            IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data), connectionParams);
-        } catch (IndexerConfException e) {
-            StringBuilder msg = new StringBuilder();
-            msg.append("Failed to parse configuration ").append(fileName).append('\n');
-            addExceptionMessages(e, msg);
-            throw new CliException(msg.toString());
-        }
         return data;
     }
 
