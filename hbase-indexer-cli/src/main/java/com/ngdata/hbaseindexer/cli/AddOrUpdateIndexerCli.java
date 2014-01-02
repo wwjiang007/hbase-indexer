@@ -15,6 +15,10 @@
  */
 package com.ngdata.hbaseindexer.cli;
 
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
+import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -44,10 +48,6 @@ import joptsimple.ValueConversionException;
 import joptsimple.ValueConverter;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hbase.util.Pair;
-
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
-import static com.ngdata.hbaseindexer.model.api.IndexerDefinition.LifecycleState;
 
 /**
  * Base class for the {@link AddIndexerCli} and {@link UpdateIndexerCli}.
@@ -201,8 +201,9 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
         return builder;
     }
 
-    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption, Map<String, String> connectionParams)
-            throws IOException {
+    protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption,
+                                    Map<String, String> connectionParams)
+    throws IOException {
         String componentFactory = readerOption.value(options);
 
         String fileName = configOption.value(options);
@@ -217,15 +218,16 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
             }
 
             data = ByteStreams.toByteArray(Files.newInputStreamSupplier(file).getInput());
-        }
 
-        try {
-            IndexerComponentFactoryUtil.getComponentFactory(componentFactory, new ByteArrayInputStream(data), connectionParams);
-        } catch (IndexerConfException e) {
-            StringBuilder msg = new StringBuilder();
-            msg.append("Failed to parse configuration ").append(fileName).append('\n');
-            addExceptionMessages(e, msg);
-            throw new CliException(msg.toString());
+            try {
+                IndexerComponentFactoryUtil
+                        .getComponentFactory(componentFactory, new ByteArrayInputStream(data), connectionParams);
+            } catch (IndexerConfException e) {
+                StringBuilder msg = new StringBuilder();
+                msg.append("Failed to parse configuration ").append(fileName).append('\n');
+                addExceptionMessages(e, msg);
+                throw new CliException(msg.toString());
+            }
         }
         return data;
     }
