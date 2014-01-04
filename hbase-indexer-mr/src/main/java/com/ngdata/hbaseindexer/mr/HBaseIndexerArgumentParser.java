@@ -92,7 +92,7 @@ class HBaseIndexerArgumentParser {
                         "Solr shards expected by the user, using a mapper-only job. This phase is omitted if the number of shards is " +
                         "already equal to the number of shards expected by the user\n\n" +
                         "4) Go-live phase: This optional (parallel) phase merges the output shards of the previous phase into a set of " +
-                        "live customer-facing Solr servers in SolrCloud. If this phase is omitted you can expecitly point each Solr " +
+                        "live customer-facing Solr servers in SolrCloud. If this phase is omitted you can explicitly point each Solr " +
                         "server to one of the HDFS output shard directories\n\n" +
                         "Fault Tolerance: Mapper and reducer task attempts are retried on failure per the standard MapReduce semantics. " + 
                         "On program startup all data in the --output-dir is deleted if that output directory already exists and " +
@@ -244,7 +244,7 @@ class HBaseIndexerArgumentParser {
                 .action(new HelpArgumentAction() {
                     @Override
                     public void run(ArgumentParser parser, Argument arg, Map<String, Object> attrs, String flag, Object value) throws ArgumentParserException {
-                      parser.printHelp(new PrintWriter(System.out));
+                      parser.printHelp(new PrintWriter(System.out, true));
                       System.out.println();
                       System.out.print(ForkedToolRunnerHelpFormatter.getGenericCommandUsage());
                       System.out.println("Examples: \n\n" +
@@ -260,9 +260,11 @@ class HBaseIndexerArgumentParser {
                         "  --log4j src/test/resources/log4j.properties\n\n" + 
                         
                         "# (Re)index a table in GoLive mode using a local morphline-based indexer config file\n" +
+                        "# Also include extra library jar file containing JSON tweet Java parser:\n" +
                         "hadoop --config /etc/hadoop/conf \\\n" +
                         "  jar hbase-indexer-mr-*-job.jar \\\n" +
                         "  --conf /etc/hbase/conf/hbase-site.xml \\\n" +
+                        "  --libjars /path/to/kite-morphlines-twitter-0.10.0.jar \\\n" + 
                         "  -D 'mapred.child.java.opts=-Xmx500m' \\\n" + 
                         "  --hbase-indexer-file src/test/resources/morphline_indexer_without_zk.xml \\\n" +
                         "  --zk-host 127.0.0.1/solr \\\n" +

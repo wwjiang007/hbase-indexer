@@ -203,7 +203,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
 
     protected byte[] getIndexerConf(OptionSet options, OptionSpec<String> readerOption, OptionSpec<String> configOption,
                                     Map<String, String> connectionParams)
-    throws IOException {
+            throws IOException {
         String componentFactory = readerOption.value(options);
 
         String fileName = configOption.value(options);
@@ -229,6 +229,7 @@ public abstract class AddOrUpdateIndexerCli extends BaseIndexCli {
                 throw new CliException(msg.toString());
             }
         }
+
         return data;
     }
 

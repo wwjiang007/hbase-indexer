@@ -325,7 +325,7 @@ class HBaseIndexingOptions extends OptionsBridge {
 
         if (reducers == -2) {
             reduceTaskCount = shards;
-        } else {
+        } else if (reducers != -1) {
             reduceTaskCount = reducers;
         }
         reduceTaskCount = Math.max(reduceTaskCount, shards);
@@ -339,7 +339,7 @@ class HBaseIndexingOptions extends OptionsBridge {
             // N is the number of mtree merge iterations.
             // This helps to evenly spread docs among root shards and simplifies the impl of the mtree merge algorithm.
             int s = shards;
-            while (s < reducers) {
+            while (s < reduceTaskCount) {
                 s = s * fanout;
             }
             reduceTaskCount = s;

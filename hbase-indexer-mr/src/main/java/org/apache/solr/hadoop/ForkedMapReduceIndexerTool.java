@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import com.cloudera.cdk.morphline.base.Fields;
+import org.kitesdk.morphline.base.Fields;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
@@ -812,17 +812,17 @@ public class ForkedMapReduceIndexerTool extends Configured implements Tool {
 
         if (options.zkHost != null) {
             assert options.collection != null;
-      /*
-       * MapReduce partitioner that partitions the Mapper output such that each
-       * SolrInputDocument gets sent to the SolrCloud shard that it would have
-       * been sent to if the document were ingested via the standard SolrCloud
-       * Near Real Time (NRT) API.
-       * 
-       * In other words, this class implements the same partitioning semantics
-       * as the standard SolrCloud NRT API. This enables to mix batch updates
-       * from MapReduce ingestion with updates from standard NRT ingestion on
-       * the same SolrCloud cluster, using identical unique document keys.
-       */
+            /*
+             * MapReduce partitioner that partitions the Mapper output such that each
+             * SolrInputDocument gets sent to the SolrCloud shard that it would have
+             * been sent to if the document were ingested via the standard SolrCloud
+             * Near Real Time (NRT) API.
+             * 
+             * In other words, this class implements the same partitioning semantics
+             * as the standard SolrCloud NRT API. This enables to mix batch updates
+             * from MapReduce ingestion with updates from standard NRT ingestion on
+             * the same SolrCloud cluster, using identical unique document keys.
+             */
             if (job.getConfiguration().get(JobContext.PARTITIONER_CLASS_ATTR) == null) { // enable customization
                 job.setPartitionerClass(ForkedSolrCloudPartitioner.class);
             }
