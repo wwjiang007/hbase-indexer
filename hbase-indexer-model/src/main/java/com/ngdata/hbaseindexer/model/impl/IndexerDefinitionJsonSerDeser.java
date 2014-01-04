@@ -173,7 +173,7 @@ public class IndexerDefinitionJsonSerDeser {
         else {
             List<String> strings = new ArrayList<String>();
             for (JsonNode jsonNode : arrayNode) {
-                strings.add(jsonNode.asText());
+                strings.add(jsonNode.getValueAsText());
             }
 
             return strings.toArray(new String[strings.size()]);
