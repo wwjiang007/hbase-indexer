@@ -139,7 +139,6 @@ public class ListIndexersCli extends BaseIndexCli {
         ps.println("    + Submitted at: " + new DateTime(batchBuildInfo.getSubmitTime()).toString());
         Boolean finishedSuccessful = batchBuildInfo.isFinishedSuccessful();
         ps.println("    + State: " + (finishedSuccessful == null ? "pending..." : (finishedSuccessful ? "SUCCESS" : "FAILED")));
-        ps.println("    + Submitted at: " + new DateTime(batchBuildInfo.getSubmitTime()).toString());
         ps.println("    + Hadoop jobs: " + (batchBuildInfo.getMapReduceJobTrackingUrls().isEmpty() ? "(none)" : ""));
         for (Map.Entry<String, String> jobEntry : batchBuildInfo.getMapReduceJobTrackingUrls().entrySet()) {
             ps.println("    + Hadoop Job ID: " + jobEntry.getKey());

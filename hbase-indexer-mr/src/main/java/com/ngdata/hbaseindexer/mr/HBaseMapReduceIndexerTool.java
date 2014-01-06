@@ -29,10 +29,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.collect.Maps;
-import com.ngdata.hbaseindexer.SolrConnectionParams;
-
 import com.google.common.base.Charsets;
+import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -152,6 +150,10 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                 Text.class,
                 SolrInputDocumentWritable.class,
                 job);
+
+        // explicitely set hbase configuration on the job because the TableMapReduceUtil sets the hbase defaults in stead
+        job.getConfiguration().set("hbase.zookeeper.quorum", getConf().get("hbase.zookeeper.quorum"));
+        job.getConfiguration().set("hbase.zookeeper.property.clientPort", getConf().get("hbase.zookeeper.property.clientPort"));
 
         int mappers = new JobClient(job.getConfiguration()).getClusterStatus().getMaxMapTasks(); // MR1
         //mappers = job.getCluster().getClusterStatus().getMapSlotCapacity(); // Yarn only
