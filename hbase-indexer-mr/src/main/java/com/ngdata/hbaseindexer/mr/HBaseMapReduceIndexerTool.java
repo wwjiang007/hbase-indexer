@@ -38,6 +38,7 @@ import com.ngdata.hbaseindexer.morphline.MorphlineResultToSolrMapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobClient;
@@ -151,9 +152,9 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                 SolrInputDocumentWritable.class,
                 job);
 
-        // explicitely set hbase configuration on the job because the TableMapReduceUtil sets the hbase defaults in stead
-        job.getConfiguration().set("hbase.zookeeper.quorum", getConf().get("hbase.zookeeper.quorum"));
-        job.getConfiguration().set("hbase.zookeeper.property.clientPort", getConf().get("hbase.zookeeper.property.clientPort"));
+        // explicitely set hbase configuration on the job because the TableMapReduceUtil overwrites it with the hbase defaults
+        // (see HBASE-4297 which is not really fixed in hbase 0.94.6 on all code paths)
+        HBaseConfiguration.merge(job.getConfiguration(), getConf());
 
         int mappers = new JobClient(job.getConfiguration()).getClusterStatus().getMaxMapTasks(); // MR1
         //mappers = job.getCluster().getClusterStatus().getMapSlotCapacity(); // Yarn only
