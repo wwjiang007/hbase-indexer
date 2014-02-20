@@ -775,6 +775,138 @@ public class IndexerIT {
         checkLifecycleEvents(0, 0, 1, 0, indexerLifecycleListener);
     }
 
+    /**
+     * This test verifies that when two updates are applied to a row, of which the first one is an update
+     * that only contains irrelevant fields (fields that do not need to be indexed), that the second update
+     * is not ignored but indexed. There was a bug at some point (#39) that made this didn't work (knowing that
+     * usually when this test is run, both SEP events will be delivered as a single batch).
+     */
+    @Test
+    public void testMixedIrrelevantAndRelevantUpdates() throws Exception {
+        createTable("table1", "family1");
+
+        HTable table = new HTable(conf, "table1");
+
+        StringBuilder indexerConf = new StringBuilder();
+        indexerConf.append("<indexer table='table1'>");
+        indexerConf.append("  <field name='field1_s' value='family1:field1' type='string'/>");
+        indexerConf.append("</indexer>");
+
+        createIndexer1(indexerConf.toString());
+
+        SepTestUtil.waitOnReplicationPeerReady(peerId("indexer1"));
+
+        byte[] rowkey = new byte[] { 0, 0, 0, 0 };
+
+        // First do a row update whereby we only set irrelevant fields (fields that do not need to be indexed)
+        Put put = new Put(rowkey);
+        put.add(b("family1"), b("irrelevant_field"), b("value1"));
+        table.put(put);
+
+        // Then update same row and set a field that does need to be indexed
+        // (It is not per se important that it is the same row, but since the SEP splits events over
+        // multiple threads, partitioned on row key, it is easiest to just do an update on the same row)
+        put = new Put(rowkey);
+        put.add(b("family1"), b("field1"), b("value1"));
+        table.put(put);
+
+        SepTestUtil.waitOnReplication(conf, 60000L);
+        collection1.commit();
+
+        QueryResponse response = collection1.query(new SolrQuery("*:*"));
+        assertEquals(1, response.getResults().size());
+        SolrDocument doc = response.getResults().get(0);
+        assertEquals("#0;#0;#0;#0;", doc.getFirstValue("id").toString());
+
+        table.close();
+    }
+
+    /**
+     * A variant of {@link #testMixedIrrelevantAndRelevantUpdates} which triggers the same situation
+     * using updates to different rows instead of the same. Note that we need to make changes to a number
+     * of rows larger than the number of SEP threads.
+     */
+    @Test
+    public void testManyMixedIrrelevantAndRelevantUpdates() throws Exception {
+        createTable("table1", "family1");
+
+        HTable table = new HTable(conf, "table1");
+
+        StringBuilder indexerConf = new StringBuilder();
+        indexerConf.append("<indexer table='table1'>");
+        indexerConf.append("  <field name='field1_s' value='family1:field1' type='string'/>");
+        indexerConf.append("</indexer>");
+
+        createIndexer1(indexerConf.toString());
+
+        SepTestUtil.waitOnReplicationPeerReady(peerId("indexer1"));
+
+        int expectedRows = 0;
+        List<Put> puts = Lists.newArrayList();
+        for (int i = 0; i < 100; i++) {
+            Put put = new Put(Bytes.toBytes(i));
+            put.add(b("family1"), b("irrelevant_field"), b("value1"));
+            if (Math.random() >= 0.5d) {
+                put.add(b("family1"), b("field1"), b("value1"));
+                expectedRows++;
+            }
+            puts.add(put);
+        }
+        table.put(puts);
+
+        SepTestUtil.waitOnReplication(conf, 60000L);
+        collection1.commit();
+
+        SolrQuery params = new SolrQuery("*:*");
+        params.setRows(100);
+        QueryResponse response = collection1.query(params);
+        assertEquals(expectedRows, response.getResults().size());
+
+        table.close();
+    }
+
+    /**
+     * A variant of {@link #testMixedIrrelevantAndRelevantUpdates} using multiput.
+     */
+    @Test
+    public void testMixedIrrelevantAndRelevantUpdatesInSameMultiput() throws Exception {
+        createTable("table1", "family1");
+
+        HTable table = new HTable(conf, "table1");
+
+        StringBuilder indexerConf = new StringBuilder();
+        indexerConf.append("<indexer table='table1'>");
+        indexerConf.append("  <field name='field1_s' value='family1:field1' type='string'/>");
+        indexerConf.append("</indexer>");
+
+        createIndexer1(indexerConf.toString());
+
+        SepTestUtil.waitOnReplicationPeerReady(peerId("indexer1"));
+
+        byte[] rowkey = new byte[] { 0, 0, 0, 0 };
+
+        List<Put> puts = Lists.newArrayList();
+        Put put = new Put(rowkey);
+        put.add(b("family1"), b("irrelevant_field"), b("value1"));
+        puts.add(put);
+
+        put = new Put(rowkey);
+        put.add(b("family1"), b("field1"), b("value1"));
+        puts.add(put);
+
+        table.put(puts);
+
+        SepTestUtil.waitOnReplication(conf, 60000L);
+        collection1.commit();
+
+        QueryResponse response = collection1.query(new SolrQuery("*:*"));
+        assertEquals(1, response.getResults().size());
+        SolrDocument doc = response.getResults().get(0);
+        assertEquals("#0;#0;#0;#0;", doc.getFirstValue("id").toString());
+
+        table.close();
+    }
+
     private void checkLifecycleEvents(int subscribes, int unsubscribes, int deletes, int builds,
                                       IndexerLifecycleListener listener) {
         Mockito.verify(listener, Mockito.times(subscribes)).onSubscribe(Mockito.any(IndexerDefinition.class));

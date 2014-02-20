@@ -307,7 +307,7 @@ public abstract class Indexer {
                 }
 
                 if (!relevant) {
-                    break;
+                    continue;
                 }
                 if (uniqueKeyFormatter instanceof UniqueTableKeyFormatter) {
                     idToEvent.put(((UniqueTableKeyFormatter) uniqueKeyFormatter).formatRow(rowData.getRow(),
