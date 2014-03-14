@@ -844,7 +844,7 @@ public class IndexerIT {
         int expectedRows = 0;
         List<Put> puts = Lists.newArrayList();
         for (int i = 0; i < 100; i++) {
-            Put put = new Put(Bytes.toBytes(i));
+            Put put = new Put(Bytes.toBytes(String.valueOf(i)));
             put.add(b("family1"), b("irrelevant_field"), b("value1"));
             if (Math.random() >= 0.5d) {
                 put.add(b("family1"), b("field1"), b("value1"));
