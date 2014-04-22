@@ -141,8 +141,8 @@ public class SepConsumer extends BaseHRegionServer {
           //hbaseConf.getInt("hbase.regionserver.handler.count", 10),
           //hbaseConf.getInt("hbase.regionserver.metahandler.count", 10),
           hbaseConf, 
-          new FifoRpcScheduler(hbaseConf, hbaseConf.getInt("hbase.regionserver.handler.count", 10)));  
-          /*
+          //new FifoRpcScheduler(hbaseConf, hbaseConf.getInt("hbase.regionserver.handler.count", 10)));  
+          
           new SimpleRpcScheduler(
             hbaseConf,
             hbaseConf.getInt(HConstants.REGION_SERVER_HANDLER_COUNT, HConstants.DEFAULT_REGION_SERVER_HANDLER_COUNT),
@@ -151,7 +151,7 @@ public class SepConsumer extends BaseHRegionServer {
             this,
             HConstants.QOS_THRESHOLD)
           );
-          */
+          
         this.serverName = new ServerName(hostName, rpcServer.getListenerAddress().getPort(), System.currentTimeMillis());
         this.zkWatcher = new ZooKeeperWatcher(hbaseConf, this.serverName.toString(), null);
 
