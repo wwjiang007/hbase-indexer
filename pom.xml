@@ -37,6 +37,7 @@
     <version.httpclient>4.2.5</version.httpclient>
     <version.kite>0.13.0</version.kite>
     <version.search>1.2.0</version.search>
+    <version.search.hbase98>1.0.0-cdh5.0.0</version.search.hbase98>
     <version.jersey>1.17</version.jersey>
 
     <!-- Tells maven plugins what file encoding to use -->
@@ -600,6 +601,12 @@
             <artifactId>hbase-sep-impl</artifactId>
             <version>1.5-hbase0.98-SNAPSHOT</version>
           </dependency>
+
+         <dependency>
+           <groupId>com.cloudera.search</groupId>
+           <artifactId>search-mr</artifactId>
+           <version>${version.search.hbase98}</version>
+         </dependency>
 
           <!-- We have to explicitly manage Hadoop dependencies here, since they are optional in HBase -->
           <dependency>
