@@ -36,7 +36,7 @@
     <version.jackson>1.9.2</version.jackson>
     <version.httpclient>4.2.5</version.httpclient>
     <version.kite>0.13.0</version.kite>
-    <version.search>1.0.0-cdh5.0.0</version.search>
+    <version.search>1.2.0</version.search>
     <version.jersey>1.17</version.jersey>
 
     <!-- Tells maven plugins what file encoding to use -->
