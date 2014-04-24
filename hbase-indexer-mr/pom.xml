@@ -52,12 +52,6 @@
     <dependency>
       <groupId>com.cloudera.search</groupId>
       <artifactId>search-mr</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>com.cloudera.cdk</groupId>
-          <artifactId>cdk-morphlines-all</artifactId> 
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
