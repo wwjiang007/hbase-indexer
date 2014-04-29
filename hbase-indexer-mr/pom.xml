@@ -29,11 +29,11 @@
     <relativePath>..</relativePath>
   </parent>
 
+  <properties>
+    <hadoop.version>${version.hadoop.mr1.hbase98}</hadoop.version>
+  </properties>
+
   <dependencies>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-core</artifactId>
-    </dependency>
     <dependency>
       <groupId>com.ngdata</groupId>
       <artifactId>hbase-indexer-engine</artifactId>
@@ -94,29 +94,19 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-hdfs</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-servlet</artifactId>
     </dependency>    
   </dependencies>
 
   <profiles>
+    <profile>
+      <id>yarn</id>
+      <properties>
+        <hadoop.version>${version.hadoop.hbase98}</hadoop.version>
+      </properties>
+    </profile>
+    
     <profile>
       <id>0.94</id>
       <activation>
@@ -131,6 +121,10 @@
 
       <dependencies>
         <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+        </dependency>
+        <dependency>
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase</artifactId>
         </dependency>
@@ -139,6 +133,23 @@
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase</artifactId>
           <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-test</artifactId>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-hdfs</artifactId>
+          <classifier>tests</classifier>
           <scope>test</scope>
         </dependency>
       </dependencies>
@@ -197,6 +208,18 @@
       </properties>
 
       <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-minicluster</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>test</scope>
+        </dependency>
         <dependency>
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-server</artifactId>
