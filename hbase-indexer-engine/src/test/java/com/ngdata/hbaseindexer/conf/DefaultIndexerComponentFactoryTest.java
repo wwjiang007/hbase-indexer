@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -47,7 +48,7 @@ public class DefaultIndexerComponentFactoryTest {
     }
 
     private InputStream asStream(String data) {
-        return new ByteArrayInputStream(data.getBytes());
+        return new ByteArrayInputStream(data.getBytes(Charsets.UTF_8));
     }
 
     @Test

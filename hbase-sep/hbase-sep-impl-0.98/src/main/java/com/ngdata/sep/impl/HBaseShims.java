@@ -19,6 +19,7 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.zookeeper.EmptyWatcher;
 import org.apache.hadoop.hbase.regionserver.wal.HLogUtil;
 
@@ -26,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HBaseShims {
-  public static Get newGet() { return new Get(" ".getBytes()); }
+  public static Get newGet() { return new Get(Bytes.toBytes(" ")); }
   public static Result newResult(List<KeyValue> list) { return Result.create(new ArrayList<Cell>(list)); }
   public static EmptyWatcher getEmptyWatcherInstance() { return EmptyWatcher.instance; }
   public static String getHLogDirectoryName(String serverName) { return HLogUtil.getHLogDirectoryName(serverName); }

@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HBaseShims {
-  public static Get newGet() { return new Get(" ".getBytes()); }
+  public static Get newGet() { return new Get(Bytes.toBytes(" ")); }
   public static Result newResult(List<KeyValue> list) { return Result.create(new ArrayList<Cell>(list)); }
   public static EmptyWatcher getEmptyWatcherInstance() { return EmptyWatcher.instance; }
   public static String getHLogDirectoryName(String serverName) { return HLogUtil.getHLogDirectoryName(serverName); }

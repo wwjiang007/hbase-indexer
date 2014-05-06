@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.ngdata.hbaseindexer.model.api.BatchBuildInfo;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
@@ -54,7 +55,7 @@ public class IndexerDefinitionJsonSerDeserTest {
                 .batchIndexingState(BatchIndexingState.BUILDING)
                 .incrementalIndexingState(IncrementalIndexingState.SUBSCRIBE_DO_NOT_CONSUME)
                 .indexerComponentFactory("testReader")
-                .configuration("config1".getBytes())
+                .configuration("config1".getBytes(Charsets.UTF_8))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("p1", "v1", "p2", "v2"))
                 .subscriptionId("my-subscription")
@@ -77,7 +78,7 @@ public class IndexerDefinitionJsonSerDeserTest {
         assertEquals(BatchIndexingState.BUILDING, indexer2.getBatchIndexingState());
         assertEquals(IncrementalIndexingState.SUBSCRIBE_DO_NOT_CONSUME, indexer2.getIncrementalIndexingState());
         assertEquals("testReader", indexer2.getIndexerComponentFactory());
-        assertArrayEquals("config1".getBytes(), indexer2.getConfiguration());
+        assertArrayEquals("config1".getBytes(Charsets.UTF_8), indexer2.getConfiguration());
         assertEquals("solr", indexer.getConnectionType());
         assertEquals("v1", indexer.getConnectionParams().get("p1"));
         assertEquals("v2", indexer.getConnectionParams().get("p2"));

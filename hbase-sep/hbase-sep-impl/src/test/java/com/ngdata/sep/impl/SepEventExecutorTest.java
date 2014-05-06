@@ -32,6 +32,7 @@ import com.google.common.collect.Lists;
 import com.ngdata.sep.EventListener;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.util.concurrent.WaitPolicy;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -62,7 +63,7 @@ public class SepEventExecutorTest {
 
     private SepEvent createSepEvent(int row) {
         SepEvent sepEvent = mock(SepEvent.class);
-        when(sepEvent.getRow()).thenReturn(String.valueOf(row).getBytes());
+        when(sepEvent.getRow()).thenReturn(Bytes.toBytes(String.valueOf(row)));
         return sepEvent;
     }
     

@@ -84,7 +84,7 @@ public class ByteArrayValueMappersTest {
     @Test
     public void testGetValueMapper_CustomMapperClass() {
         ByteArrayValueMapper mapper = ByteArrayValueMappers.getMapper(MockValueMapper.class.getName());
-        assertEquals(Lists.newArrayList("A", "B", "C"), mapper.map("dummy value".getBytes()));
+        assertEquals(Lists.newArrayList("A", "B", "C"), mapper.map(Bytes.toBytes("dummy value")));
     }
 
     @Test(expected = IllegalArgumentException.class)

@@ -200,10 +200,11 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration("<indexer table='table1'><field name='field1_s' value='family1:qualifier1'/></indexer>".getBytes())
+                .configuration(
+                        Bytes.toBytes("<indexer table='table1'><field name='field1_s' value='family1:qualifier1'/></indexer>"))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
-                        "solr.collection", "collection1"))
+                                                  "solr.collection", "collection1"))
                 .build();
 
         indexerModel.addIndexer(indexerDef);
@@ -234,7 +235,9 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration("<indexer table='table1'><field name='field1_s' value='family1:qualifier1'/></indexer>".getBytes())
+                .configuration(
+                        Bytes.toBytes(("<indexer table='table1'><field name='field1_s' " +
+                                          "value='family1:qualifier1'/></indexer>")))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
                         "solr.collection", "collection1"))
@@ -264,10 +267,10 @@ public class IndexerIT {
         String lock = indexerModel.lockIndexer("indexer1");
         indexerDef = new IndexerDefinitionBuilder()
                 .startFrom(indexerModel.getFreshIndexer("indexer1"))
-                .configuration(("<indexer table='table1'>" +
+                .configuration(Bytes.toBytes("<indexer table='table1'>" +
                         "<field name='field1_s' value='family1:qualifier1'/>" +
                         "<field name='field2_s' value='family1:qualifier2'/>" +
-                        "</indexer>").getBytes())
+                        "</indexer>"))
                 .build();
         indexerModel.updateIndexer(indexerDef, lock);
         indexerModel.unlockIndexer(lock);
@@ -297,9 +300,9 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration(("<indexer table='table1'>" +
+                .configuration(Bytes.toBytes("<indexer table='table1'>" +
                         "<field name='field1_s' value='family1:qualifier1'/>" +
-                        "</indexer>").getBytes())
+                        "</indexer>"))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
                         "solr.collection", "collection1"))
@@ -309,9 +312,9 @@ public class IndexerIT {
 
         indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer2")
-                .configuration(("<indexer table='table2'>" +
+                .configuration(Bytes.toBytes("<indexer table='table2'>" +
                         "<field name='field1_s' value='family1:qualifier1'/>" +
-                        "</indexer>").getBytes())
+                        "</indexer>"))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
                         "solr.collection", "collection2"))
@@ -353,9 +356,9 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration(("<indexer table='table1'>" +
+                .configuration(Bytes.toBytes("<indexer table='table1'>" +
                         "<field name='field1_s' value='family1:qualifier1'/>" +
-                        "</indexer>").getBytes())
+                        "</indexer>"))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
                         "solr.collection", "collection1"))
@@ -429,9 +432,9 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration(("<indexer table='table1'>" +
+                .configuration(Bytes.toBytes("<indexer table='table1'>" +
                         "<field name='field1_s' value='family1:qualifier1'/>" +
-                        "</indexer>").getBytes())
+                        "</indexer>"))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
                         "solr.collection", "collection1"))
@@ -495,9 +498,9 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration(("<indexer table='table1'>" +
+                .configuration(Bytes.toBytes("<indexer table='table1'>" +
                         "<field name='field1_s' value='family1:qualifier1'/>" +
-                        "</indexer>").getBytes())
+                        "</indexer>"))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
                         "solr.collection", "collection1"))
@@ -920,10 +923,10 @@ public class IndexerIT {
         WriteableIndexerModel indexerModel = main.getIndexerModel();
         IndexerDefinition indexerDef = new IndexerDefinitionBuilder()
                 .name("indexer1")
-                .configuration(indexerConf.toString().getBytes())
+                .configuration(Bytes.toBytes(indexerConf.toString()))
                 .connectionType("solr")
                 .connectionParams(ImmutableMap.of("solr.zk", solrTestingUtility.getZkConnectString(),
-                        "solr.collection", "collection1"))
+                                                  "solr.collection", "collection1"))
                 .build();
         indexerModel.addIndexer(indexerDef);
     }

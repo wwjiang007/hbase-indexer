@@ -81,7 +81,7 @@ public class DefaultResultToSolrMapperTest {
                 Collections.<DocumentExtractDefinition> emptyList());
 
         KeyValue kvA = new KeyValue(ROW, COLUMN_FAMILY_A, QUALIFIER_A, Bytes.toBytes(42));
-        KeyValue kvB = new KeyValue(ROW, COLUMN_FAMILY_B, QUALIFIER_B, "dummy value".getBytes());
+        KeyValue kvB = new KeyValue(ROW, COLUMN_FAMILY_B, QUALIFIER_B, Bytes.toBytes("dummy value"));
         Result result = newResult(Lists.newArrayList(kvA, kvB));
 
         resultMapper.map(result, solrUpdateWriter);

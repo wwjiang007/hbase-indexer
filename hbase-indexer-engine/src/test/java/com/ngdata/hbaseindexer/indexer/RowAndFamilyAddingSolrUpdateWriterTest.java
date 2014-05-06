@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import com.ngdata.hbaseindexer.parse.SolrUpdateWriter;
 import com.ngdata.hbaseindexer.uniquekey.UniqueKeyFormatter;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,7 +73,7 @@ public class RowAndFamilyAddingSolrUpdateWriterTest {
         RowAndFamilyAddingSolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter("_row_", null,
                 uniqueKeyFormatter, keyValue, delegateWriter);
         
-        byte[] rowBytes = "_row_".getBytes();
+        byte[] rowBytes = Bytes.toBytes("_row_");
         
         doReturn(rowBytes).when(keyValue).getRow();
         doReturn("_rowkey_").when(uniqueKeyFormatter).formatRow(rowBytes);
@@ -86,7 +87,7 @@ public class RowAndFamilyAddingSolrUpdateWriterTest {
     public void testDeleteById() {
         RowAndFamilyAddingSolrUpdateWriter updateWriter = new RowAndFamilyAddingSolrUpdateWriter("_row_", null,
                 uniqueKeyFormatter, keyValue, delegateWriter);
-        byte[] rowBytes = "_row_".getBytes();
+        byte[] rowBytes = Bytes.toBytes("_row_");
         doReturn("_rowkey_").when(uniqueKeyFormatter).formatRow(rowBytes);
         updateWriter.deleteById(uniqueKeyFormatter.formatRow(rowBytes));
 

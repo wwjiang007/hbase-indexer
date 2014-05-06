@@ -24,6 +24,7 @@ import static org.mockito.Mockito.spy;
 import java.io.IOException;
 import java.util.List;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
@@ -33,6 +34,7 @@ import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.sep.SepEvent;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValue.Type;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,13 +60,14 @@ public class ColumnBasedIndexerTest {
 
     private RowData createEventRowData(String row, KeyValue... keyValues) {
         return new SepEventRowData(
-                new SepEvent(TABLE_NAME.getBytes(),
-                        row.getBytes(), Lists.newArrayList(keyValues), null));
+                new SepEvent(TABLE_NAME.getBytes(Charsets.UTF_8),
+                        row.getBytes(Charsets.UTF_8), Lists.newArrayList(keyValues), null));
     }
 
     @Test
     public void testCalculateIndexUpdates_AddDocument() throws IOException {
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        KeyValue toAdd = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                        Bytes.toBytes("_qual_"), Bytes.toBytes("value"));
         RowData rowData = createEventRowData("_row_", toAdd);
 
         indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
@@ -77,7 +80,9 @@ public class ColumnBasedIndexerTest {
 
     @Test
     public void testCalculateIndexUpdates_DeleteDocument() throws IOException {
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.DeleteColumn);
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"),
+                                         0L, Type.DeleteColumn);
         RowData rowData = createEventRowData("_row_", toDelete);
 
         indexer.calculateIndexUpdates(ImmutableList.of(rowData), updateCollector);
@@ -96,8 +101,8 @@ public class ColumnBasedIndexerTest {
         doReturn(ROW_FIELD).when(indexerConf).getRowField();
         doReturn(FAMILY_FIELD).when(indexerConf).getColumnFamilyField();
 
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L,
-                Type.DeleteFamily);
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"), 0L, Type.DeleteFamily);
         RowData rowData = createEventRowData("_row_", toDelete);
 
         indexer.calculateIndexUpdates(Lists.newArrayList(rowData), updateCollector);
@@ -114,7 +119,9 @@ public class ColumnBasedIndexerTest {
         
         doReturn(ROW_FIELD).when(indexerConf).getRowField();
         
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.Delete);
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"),
+                                         0L, Type.Delete);
         RowData eventRowData = createEventRowData("_row_", toDelete);
         
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
@@ -127,7 +134,10 @@ public class ColumnBasedIndexerTest {
     // Deleting by family can only work when a family field is defined in the indexer conf.
     @Test
     public void testCalculateIndexUpdates_DeleteFamily_NoFamilyFieldDefinedForIndexer() throws IOException {
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.DeleteFamily);
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"),
+                                         0L,
+                                         Type.DeleteFamily);
         RowData eventRowData = createEventRowData("_row_", toDelete);
         
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
@@ -140,7 +150,9 @@ public class ColumnBasedIndexerTest {
     // Deleting all values for a row can only work when a row field is defined in the indexer conf
     @Test
     public void testCalculateIndexUpdates_DeleteRow_NoRowFieldDefinedForIndexer() throws IOException {
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.Delete);
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"),
+                                         0L, Type.Delete);
         RowData eventRowData = createEventRowData("_row_", toDelete);
         
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
@@ -152,8 +164,12 @@ public class ColumnBasedIndexerTest {
 
     @Test
     public void testCalculateIndexUpdates_UpdateAndDeleteCombinedForSameCell_DeleteFirst() throws IOException {
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.Delete);
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"),
+                                         0L, Type.Delete);
+        KeyValue toAdd = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                      Bytes.toBytes("_qual_"),
+                                      Bytes.toBytes("value"));
         RowData deleteEventRowData = createEventRowData("_row_", toDelete);
         RowData addEventRowData = createEventRowData("_row_", toAdd);
 
@@ -168,8 +184,12 @@ public class ColumnBasedIndexerTest {
 
     @Test
     public void testCalculateIndexUpdates_UpdateAndDeleteCombinedForSameCell_UpdateFirst() throws IOException {
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
-        KeyValue toDelete = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), 0L, Type.DeleteColumn);
+        KeyValue toAdd = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                      Bytes.toBytes("_qual_"),
+                                      Bytes.toBytes("value"));
+        KeyValue toDelete = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                         Bytes.toBytes("_qual_"),
+                                         0L, Type.DeleteColumn);
         RowData addEventRowData = createEventRowData("_row_", toAdd);
         RowData deleteEventRowData = createEventRowData("_row_", toDelete);
 
@@ -184,7 +204,9 @@ public class ColumnBasedIndexerTest {
         final String CUSTOM_ROW_FIELD = "custom-row-field";
         doReturn(CUSTOM_ROW_FIELD).when(indexerConf).getRowField();
         
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        KeyValue toAdd = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                      Bytes.toBytes("_qual_"),
+                                      Bytes.toBytes("value"));
         RowData eventRowData = createEventRowData("_row_", toAdd);
 
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
@@ -202,7 +224,9 @@ public class ColumnBasedIndexerTest {
         final String CUSTOM_FAMILY_FIELD = "custom-row-field";
         doReturn(CUSTOM_FAMILY_FIELD).when(indexerConf).getColumnFamilyField();
         
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        KeyValue toAdd = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                      Bytes.toBytes("_qual_"),
+                                      Bytes.toBytes("value"));
         RowData eventRowData = createEventRowData("_row_", toAdd);
 
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
@@ -219,7 +243,9 @@ public class ColumnBasedIndexerTest {
         final String CUSTOM_TABLE_FIELD = "custom-table-field";
         doReturn(CUSTOM_TABLE_FIELD).when(indexerConf).getTableNameField();
         
-        KeyValue toAdd = new KeyValue("_row_".getBytes(), "_cf_".getBytes(), "_qual_".getBytes(), "value".getBytes());
+        KeyValue toAdd = new KeyValue(Bytes.toBytes("_row_"), Bytes.toBytes("_cf_"),
+                                      Bytes.toBytes("_qual_"),
+                                      Bytes.toBytes("value"));
         RowData eventRowData = createEventRowData("_row_", toAdd);
 
         indexer.calculateIndexUpdates(ImmutableList.of(eventRowData), updateCollector);
