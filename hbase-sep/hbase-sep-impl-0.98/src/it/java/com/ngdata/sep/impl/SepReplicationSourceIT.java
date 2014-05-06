@@ -17,31 +17,77 @@ package com.ngdata.sep.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.util.NavigableMap;
+import java.util.UUID;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.ngdata.sep.WALEditFilter;
 import com.ngdata.sep.WALEditFilterProvider;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.Stoppable;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.regionserver.wal.HLog;
+import org.apache.hadoop.hbase.regionserver.wal.HLogKey;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
+import org.apache.hadoop.hbase.replication.ReplicationPeers;
+import org.apache.hadoop.hbase.replication.ReplicationQueues;
+import org.apache.hadoop.hbase.replication.regionserver.ReplicationSourceManager;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-//@org.junit.Ignore
-public class SepReplicationSourceTest {
+public class SepReplicationSourceIT {
+
+    private static Configuration clusterConf;
+    private static HBaseTestingUtility hbaseTestUtil;
 
     private SepReplicationSource sepReplicationSource;
 
+
+    @BeforeClass
+    public static void setUpBeforeClass() throws Exception {
+        clusterConf = HBaseConfiguration.create();
+        clusterConf.setBoolean(HConstants.REPLICATION_ENABLE_KEY, true);
+        clusterConf.setLong("replication.source.sleepforretries", 50);
+        clusterConf.set("replication.replicationsource.implementation", SepReplicationSource.class.getName());
+        clusterConf.setInt("hbase.master.info.port", -1);
+        clusterConf.setInt("hbase.regionserver.info.port", -1);
+
+        hbaseTestUtil = new HBaseTestingUtility(clusterConf);
+
+        hbaseTestUtil.startMiniZKCluster(1);
+        hbaseTestUtil.startMiniCluster(1);
+    }
+
+    @AfterClass
+    public static void tearDownAfterClass() throws Exception {
+        hbaseTestUtil.shutdownMiniCluster();
+    }
+
     @Before
-    public void setUp() {
+    public void setUp() throws IOException {
         sepReplicationSource = new SepReplicationSource();
+        Configuration conf = hbaseTestUtil.getConfiguration();
+        ReplicationPeers replicationPeers = mock(ReplicationPeers.class);
+        when(replicationPeers.getTableCFs(anyString())).thenReturn(null);
+        sepReplicationSource.init(conf, FileSystem.get(conf), mock(ReplicationSourceManager.class),
+                                  mock(ReplicationQueues.class), replicationPeers,
+                                  mock(Stoppable.class), "/hbase.replication", UUID.randomUUID());
     }
 
     @Test
@@ -72,37 +118,35 @@ public class SepReplicationSourceTest {
     }
 
     @Test
-    @org.junit.Ignore
     public void testRemoveNonReplicableEdits_CustomFilter() {
         WALEditFilter editFilter = mock(WALEditFilter.class);
         sepReplicationSource.setWALEditFilter(editFilter);
 
-        HLog.Entry entry = new HLog.Entry();
-        KeyValue keyValue = new KeyValue(Bytes.toBytes("row"), Bytes.toBytes("cf"), Bytes.toBytes("qual"),
-                Bytes.toBytes("value"));
-        NavigableMap<byte[], Integer> scopes = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
-        scopes.put(Bytes.toBytes("cf"), 1);
-        entry.getKey().setScopes(scopes);
-        entry.getEdit().add(keyValue);
+        HLog.Entry entry = buildLogEntry();
 
         sepReplicationSource.removeNonReplicableEdits(entry);
 
         verify(editFilter).apply(entry);
     }
 
+    private HLog.Entry buildLogEntry() {
+        KeyValue keyValue = new KeyValue(Bytes.toBytes("row"), Bytes.toBytes("cf"),
+                                         Bytes.toBytes("qual"), Bytes.toBytes("value"));
+        HLogKey logKey = new HLogKey(Bytes.toBytes("regionName"), TableName.valueOf("table"),
+                                     1L, 0L, UUID.randomUUID());
+        WALEdit walEdit = new WALEdit();
+        walEdit.add(keyValue);
+        NavigableMap<byte[], Integer> scopes = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
+        scopes.put(Bytes.toBytes("cf"), 1);
+        logKey.setScopes(scopes);
+        return new HLog.Entry(logKey, walEdit);
+    }
+
     @Test
-    @org.junit.Ignore
     public void testRemoveNonReplicableEdits_NoCustomFilter() {
         sepReplicationSource.setWALEditFilter(null);
 
-        HLog.Entry entry = new HLog.Entry();
-        KeyValue keyValue = new KeyValue(Bytes.toBytes("row"), Bytes.toBytes("cf"), Bytes.toBytes("qual"),
-                Bytes.toBytes("value"));
-        NavigableMap<byte[], Integer> scopes = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
-        scopes.put(Bytes.toBytes("cf"), 1);
-        entry.getKey().setScopes(scopes);
-        entry.getEdit().add(keyValue);
-
+        HLog.Entry entry = buildLogEntry();
         sepReplicationSource.removeNonReplicableEdits(entry);
 
         assertEquals(1, entry.getEdit().size());
