@@ -422,6 +422,11 @@
         <artifactId>joda-time</artifactId>
         <version>${version.joda-time}</version>
       </dependency>
+      <dependency>
+        <groupId>org.kohsuke</groupId>
+        <artifactId>akuma</artifactId>
+        <version>1.9</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -477,11 +482,6 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-core</artifactId>
             <version>${version.hadoop.mr1}</version>
-          </dependency>
-          <dependency>
-            <groupId>org.kohsuke</groupId>
-            <artifactId>akuma</artifactId>
-            <version>1.9</version>
           </dependency>
         </dependencies>
       </dependencyManagement>
@@ -649,11 +649,6 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-core</artifactId>
             <version>${version.hadoop.mr1.hbase98}</version>
-          </dependency>
-          <dependency>
-            <groupId>org.kohsuke</groupId>
-            <artifactId>akuma</artifactId>
-            <version>1.9</version>
           </dependency>
           
           <dependency>
