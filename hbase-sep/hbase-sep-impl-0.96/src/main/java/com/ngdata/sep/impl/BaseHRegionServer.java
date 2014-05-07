@@ -86,11 +86,11 @@ public class BaseHRegionServer implements AdminProtos.AdminService.BlockingInter
   }
 
   @Override
-  public ClientProtos.MultiResponse replay(RpcController rpcController, ClientProtos.MultiRequest multiRequest) throws ServiceException {
-    throw new UnsupportedOperationException("Not implemented");
+  public AdminProtos.ReplicateWALEntryResponse replay(RpcController rpcController, AdminProtos.ReplicateWALEntryRequest replicateWALEntryRequest) throws ServiceException {
+    throw new UnsupportedOperationException("Not yet implemented");
   }
 
-  @Override
+    @Override
   public AdminProtos.RollWALWriterResponse rollWALWriter(RpcController rpcController, AdminProtos.RollWALWriterRequest rollWALWriterRequest) throws ServiceException {
     throw new UnsupportedOperationException("Not implemented");
   }

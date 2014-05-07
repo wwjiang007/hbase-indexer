@@ -156,17 +156,17 @@
     </profile>
 
     <profile>
-      <id>0.95</id>
+      <id>0.96</id>
       <activation>
         <property>
           <name>hbase.api</name>
-          <value>0.95</value>
+          <value>0.96</value>
         </property>
       </activation>
 
 
       <properties>
-        <log4j.properties.file>log4j-0.95.properties</log4j.properties.file>
+        <log4j.properties.file>log4j-0.96.properties</log4j.properties.file>
       </properties>
 
       <dependencies>
@@ -176,21 +176,38 @@
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
-
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-test</artifactId>
+          <scope>test</scope>
+        </dependency>
         <dependency>
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-hadoop2-compat</artifactId>
           <type>test-jar</type>
           <scope>test</scope>
-          <version>${version.hbase95}</version>
+          <version>${version.hbase96}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-hadoop-compat</artifactId>
           <type>test-jar</type>
           <scope>test</scope>
-          <version>${version.hbase95}</version>
+          <version>${version.hbase96}</version>
         </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-hdfs</artifactId>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+
       </dependencies>  
     </profile>
     
