@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.TableName;
 /**
  * Some utility methods that can be useful when writing test cases that involve the SEP.
  *
- * This class is specifc to HBase 0.95 implementation.
+ * This class is specifc to HBase 0.98 implementation.
  */
 public class SepTestUtil extends SepTestUtilCommon {
     private static final String MBEAN_NAME = "Hadoop:service=HBase,name=RegionServer,sub=Replication";

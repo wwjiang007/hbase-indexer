@@ -20,8 +20,8 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.ngdata</groupId>
   <artifactId>hbase-sep-impl</artifactId>
-  <version>1.5-hbase0.95-SNAPSHOT</version>
-  <name>HBase Side-Effect Processor: impl for HBase 0.95</name>
+  <version>1.5-hbase0.96-SNAPSHOT</version>
+  <name>HBase Side-Effect Processor: impl for HBase 0.96</name>
 
   <parent>
     <groupId>com.ngdata</groupId>
@@ -107,5 +107,12 @@
       <artifactId>hadoop-minicluster</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.sun.jersey</groupId>
+      <artifactId>jersey-servlet</artifactId>
+      <scope>test</scope>
+    </dependency>    
+
   </dependencies>
 </project>
