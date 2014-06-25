@@ -100,6 +100,8 @@
               <name>hbase-indexer</name>
               <copyright>Copyright 2013 NGDATA nv</copyright>
               <group>Development/Libraries</group>
+              <needarch>noarch</needarch>
+              <targetOS>linux</targetOS>
               <mappings>
                 <mapping>
                   <directory>/usr/lib/hbase-indexer</directory>
