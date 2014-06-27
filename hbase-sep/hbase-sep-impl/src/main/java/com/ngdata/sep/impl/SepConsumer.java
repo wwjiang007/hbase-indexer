@@ -15,17 +15,6 @@
  */
 package com.ngdata.sep.impl;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
-import com.ngdata.sep.util.concurrent.WaitPolicy;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -35,6 +24,7 @@ import com.ngdata.sep.EventListener;
 import com.ngdata.sep.PayloadExtractor;
 import com.ngdata.sep.SepEvent;
 import com.ngdata.sep.SepModel;
+import com.ngdata.sep.util.concurrent.WaitPolicy;
 import com.ngdata.sep.util.io.Closer;
 import com.ngdata.sep.util.zookeeper.ZooKeeperItf;
 import org.apache.commons.logging.Log;
@@ -50,6 +40,15 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * SepConsumer consumes the events for a certain SEP subscription and dispatches
@@ -158,6 +157,9 @@ public class SepConsumer extends BaseHRegionServer {
             }
         }
         sepMetrics.shutdown();
+        for (ThreadPoolExecutor executor : executors) {
+            executor.shutdown();
+        }
     }
 
     public boolean isRunning() {
