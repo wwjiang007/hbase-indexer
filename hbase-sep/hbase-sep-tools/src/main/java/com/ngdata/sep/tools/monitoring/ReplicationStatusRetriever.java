@@ -20,6 +20,7 @@ import com.ngdata.sep.impl.HBaseShims;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
@@ -50,6 +51,7 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FSUtils;
+import org.apache.hadoop.hbase.zookeeper.ZKUtil;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -135,6 +137,44 @@ public class ReplicationStatusRetriever {
       return serverName;
     }
 
+    private long parseHLogPositionFrom(byte[] data) {
+      Method method;
+      try {
+        // this method is available for hbase-0.96 and above
+        method = ZKUtil.class.getMethod("parseHLogPositionFrom", byte[].class);
+        Preconditions.checkNotNull(method);
+      } catch (SecurityException e) {
+        method = null;
+      } catch (NoSuchMethodException e) {
+        method = null;
+      }
+      
+      long position;
+      if (method != null) {
+        // this is correct for hbase-0.96 and above 
+        try {
+          // i.e. position = ZKUtil.parseHLogPositionFrom(data);
+          position = (Long) method.invoke(null, data);
+        } catch (IllegalArgumentException e) {
+          throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+          throw new RuntimeException(e);
+        }
+      } else {
+        // this is correct for hbase-0.94 and below
+        try {
+          position = Long.parseLong(new String(data, "UTF-8"));
+        } catch (NumberFormatException e) {
+          throw new RuntimeException(e);
+        } catch (UnsupportedEncodingException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      return position;
+    }
+
     private byte[] readUrl(String url) throws IOException {
         DefaultHttpClient httpclient = new DefaultHttpClient();
         HttpGet httpGet = new HttpGet(url);
@@ -203,7 +243,7 @@ public class ReplicationStatusRetriever {
                         long position = -1;
                         if (data != null && data.length > 0) {
                             data = removeMetaData(data);
-                            position = Long.parseLong(new String(data, "UTF-8"));
+                            position = parseHLogPositionFrom(data);
                         }
 
                         HLogInfo hlogInfo = new HLogInfo(log);
@@ -219,7 +259,7 @@ public class ReplicationStatusRetriever {
 
         return new ReplicationStatus(statusByPeerAndServer);
     }
-
+    
     public void addStatusFromJmx(ReplicationStatus replicationStatus) throws Exception {
         JmxConnections jmxConnections = new JmxConnections();
 
