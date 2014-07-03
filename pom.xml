@@ -48,7 +48,7 @@
   <groupId>com.ngdata</groupId>
   <artifactId>hbase-indexer</artifactId>
   <packaging>pom</packaging>
-  <version>1.6-SNAPSHOT</version>
+  <version>1.6-r20140703</version>
   <name>HBase Indexer</name>
 
   <url>http://www.ngdata.com/</url>
@@ -66,7 +66,7 @@
     <connection>scm:git:git@github.com:NGDATA/hbase-indexer.git</connection>
     <url>scm:git:git@github.com:NGDATA/hbase-indexer.git</url>
     <developerConnection>scm:git:git@github.com:NGDATA/hbase-indexer.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>hbase-indexer-1.6-r20140703</tag>
   </scm>
 
   <modules>
@@ -445,7 +445,7 @@
           <dependency>
             <groupId>com.ngdata</groupId>
             <artifactId>hbase-sep-impl</artifactId>
-            <version>1.6-hbase0.94-SNAPSHOT</version>
+            <version>1.6-r20140703</version>
           </dependency>
 
           <!-- We have to explicitly manage Hadoop dependencies here, since they are optional in HBase -->
