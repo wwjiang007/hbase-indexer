@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>hbase-indexer-common</artifactId>
@@ -26,7 +25,7 @@
   <parent>
     <groupId>com.ngdata</groupId>
     <artifactId>hbase-indexer</artifactId>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.1.1</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -105,10 +104,10 @@
             <phase>generate-sources</phase>
             <configuration>
               <target>
-                <property name="generated.sources" location="${project.build.directory}/generated-sources"/>
+                <property name="generated.sources" location="${project.build.directory}/generated-sources" />
 
                 <exec executable="sh">
-                  <arg line="${basedir}/src/saveVersion.sh ${project.version} ${generated.sources}/java ${project.basedir}/.."/>
+                  <arg line="${basedir}/src/saveVersion.sh ${project.version} ${generated.sources}/java ${project.basedir}/.." />
                 </exec>
               </target>
             </configuration>
@@ -150,7 +149,7 @@
             </goals>
             <configuration>
               <tasks>
-                <mkdir dir="${basedir}/target/classes/com/ngdata/hbaseindexer/util/solr/"/>
+                <mkdir dir="${basedir}/target/classes/com/ngdata/hbaseindexer/util/solr/" />
                 <echo file="${basedir}/target/classes/com/ngdata/hbaseindexer/util/solr/solr.properties" encoding="utf8">
                   solr.version=${version.solr}
                 </echo>
