@@ -320,15 +320,20 @@
 
   <distributionManagement>
     <repository>
-      <id>org.lilyproject.maven-deploy</id>
-      <name>Lily deploy repository</name>
-      <url>scp://lilyproject.org/var/www/lilyproject.org/maven/maven2/deploy</url>
+      <id>ngdata.oss-releases</id>
+      <name>NGDATA OSS Releases</name>
+      <url>http://mvnrepo.ngdata.com/content/repositories/oss-releases</url>
     </repository>
     <snapshotRepository>
-      <id>org.lilyproject.maven-snapshot</id>
-      <name>Lily dev repository</name>
-      <url>scp://lilyproject.org/var/www/lilyproject.org/maven/maven2/dev</url>
+      <id>ngdata.snapshots</id>
+      <name>NGDATA Snapshots</name>
+      <url>http://mvnrepo.ngdata.com/content/repositories/snapshots</url>
     </snapshotRepository>
+    <site>
+      <id>org.lilyproject.website</id>
+      <name>Lily maven website</name>
+      <url>scp://lilyproject.org/var/www/lilyproject.org/maven-site/${project.version}/</url>
+    </site>
   </distributionManagement>
 
   <build>
