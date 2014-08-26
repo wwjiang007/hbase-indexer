@@ -159,4 +159,8 @@ public class BaseHRegionServer implements AdminProtos.AdminService.BlockingInter
     return org.apache.hadoop.hbase.HConstants.NORMAL_QOS;
   }
 
+  @Override
+  public long getDeadline(org.apache.hadoop.hbase.protobuf.generated.RPCProtos.RequestHeader header, com.google.protobuf.Message param) {
+    return 0;
+  }
 }
