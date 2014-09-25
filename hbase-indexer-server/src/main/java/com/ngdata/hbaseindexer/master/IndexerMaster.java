@@ -22,11 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.PostConstruct;
@@ -36,23 +32,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.ngdata.hbaseindexer.ConfKeys;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
-import com.ngdata.hbaseindexer.model.api.BatchBuildInfo;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
+import com.ngdata.hbaseindexer.model.api.*;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.BatchIndexingState;
 import com.ngdata.hbaseindexer.model.api.IndexerDefinition.IncrementalIndexingState;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.api.IndexerLifecycleListener;
-import com.ngdata.hbaseindexer.model.api.IndexerModelEvent;
-import com.ngdata.hbaseindexer.model.api.IndexerModelListener;
-import com.ngdata.hbaseindexer.model.api.IndexerNotFoundException;
-import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
 import com.ngdata.hbaseindexer.mr.HBaseMapReduceIndexerTool;
 import com.ngdata.hbaseindexer.mr.JobProcessCallback;
 import com.ngdata.hbaseindexer.util.solr.SolrConnectionParamUtil;
@@ -66,9 +53,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.mapred.JobClient;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.RunningJob;
+import org.apache.hadoop.mapred.*;
 import org.apache.zookeeper.KeeperException;
 
 /**
@@ -103,6 +88,10 @@ public class IndexerMaster {
 
     private SepModel sepModel;
 
+    private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+
+    private int batchStatePollInterval = 60000;
+
     /**
      * Total number of IndexerModel events processed (useful in test cases).
      */
@@ -117,6 +106,8 @@ public class IndexerMaster {
         this.hbaseConf = hbaseConf;
         this.zkConnectString = zkConnectString;
         this.sepModel = sepModel;
+
+        this.batchStatePollInterval = hbaseConf.getInt("hbaseindexer.batch.poll.interval", 60000);
 
         registerLifecycleListeners();
     }
@@ -149,6 +140,9 @@ public class IndexerMaster {
         leaderElection = new LeaderElection(zk, "Indexer Master",
                 hbaseConf.get(ConfKeys.ZK_ROOT_NODE) + "/masters",
                 new MyLeaderElectionCallback());
+
+        executor.schedule(new BatchStateUpdater(indexerModel, jobClient, executor, batchStatePollInterval),
+                batchStatePollInterval, TimeUnit.MILLISECONDS);
     }
 
     @PreDestroy
@@ -158,6 +152,19 @@ public class IndexerMaster {
                 leaderElection.stop();
         } catch (InterruptedException e) {
             log.info("Interrupted while shutting down leader election.");
+        }
+
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    log.error("Could not shut down executor service");
+                }
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
 
         Closer.close(jobClient);
@@ -296,21 +303,6 @@ public class IndexerMaster {
                         }
                     });
 
-                    Futures.addCallback(future, new FutureCallback<Integer>() {
-                        @Override
-                        public void onSuccess(Integer exitCode) {
-                            markBatchBuildCompleted(indexerName, exitCode == 0);
-                            executor.shutdownNow();
-                        }
-
-                        @Override
-                        public void onFailure(Throwable throwable) {
-                            log.error("batch index build failed", throwable);
-                            markBatchBuildCompleted(indexerName, false);
-                            executor.shutdownNow();
-                        }
-                    });
-
                     BatchBuildInfo jobInfo = new BatchBuildInfo(System.currentTimeMillis(), null, null, batchArguments);
                     updatedIndexer
                             .activeBatchBuildInfo(jobInfo)
@@ -320,6 +312,9 @@ public class IndexerMaster {
 
                     indexerModel.updateIndexerInternal(updatedIndexer.build());
 
+                    this.executor.schedule(new BatchStateUpdater(indexerModel, jobClient, this.executor,
+                            batchStatePollInterval), batchStatePollInterval, TimeUnit.MILLISECONDS);
+
                     log.info("Started batch index build for index " + indexerName);
 
                 }
@@ -328,46 +323,6 @@ public class IndexerMaster {
             }
         } catch (Throwable t) {
             log.error("Error trying to start index build job for index " + indexerName, t);
-        }
-    }
-
-    private void markBatchBuildCompleted(String indexerName, boolean success) {
-        try {
-            // Lock internal bypasses the index-in-delete-state check, which does not matter (and might cause
-            // failure) in our case.
-            String lock = indexerModel.lockIndexerInternal(indexerName, false);
-            try {
-                // Read current situation of record and assure it is still actual
-                IndexerDefinition indexer = indexerModel.getFreshIndexer(indexerName);
-
-                BatchBuildInfo activeJobInfo = indexer.getActiveBatchBuildInfo();
-
-                if (activeJobInfo == null) {
-                    // This might happen if we got some older update event on the indexer right after we
-                    // marked this job as finished.
-                    log.warn("Unexpected situation: indexer batch build completed but indexer does not have an active" +
-                            " build job. Index: " + indexer.getName() + ". Ignoring this event.");
-                    return;
-                }
-
-                BatchBuildInfo batchBuildInfo = new BatchBuildInfo(activeJobInfo);
-                batchBuildInfo = batchBuildInfo.finishedSuccessfully(success);
-
-                indexer = new IndexerDefinitionBuilder()
-                        .startFrom(indexer)
-                        .lastBatchBuildInfo(batchBuildInfo)
-                        .activeBatchBuildInfo(null)
-                        .batchIndexingState(BatchIndexingState.INACTIVE)
-                        .build();
-
-                indexerModel.updateIndexerInternal(indexer);
-
-                log.info("Marked indexer batch build as finished for indexer " + indexerName);
-            } finally {
-                indexerModel.unlockIndexer(lock, true);
-            }
-        } catch (Throwable t) {
-            log.error("Error trying to mark index batch build as finished for indexer " + indexerName, t);
         }
     }
 
@@ -637,4 +592,5 @@ public class IndexerMaster {
             }
         }
     }
+
 }
