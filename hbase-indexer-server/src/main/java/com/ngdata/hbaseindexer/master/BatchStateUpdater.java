@@ -13,7 +13,10 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-
+/**
+ * Checks the state of a batch reindex mr job. When a job is running it will reschedual a check after a given poll
+ * interval. If a job has stopped the indexer definition will be updated to reflect that the job has been completed
+ */
 public class BatchStateUpdater implements Runnable {
     private WriteableIndexerModel indexerModel;
     private JobClient jobClient;
