@@ -99,7 +99,6 @@ public class BatchStateUpdaterTest {
     }
 
     @Test
-
     public void testRun_MultiIndex() throws Exception {
         String jobId1 = "job_201407251005_0001";
         String jobId2 = "job_201407251005_0002";
@@ -166,6 +165,4 @@ public class BatchStateUpdaterTest {
             batchStateUpdater.run();
         }
     }
-
-
 }
