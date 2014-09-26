@@ -28,11 +28,12 @@ public class BatchStateUpdaterTest {
     WriteableIndexerModel model;
     JobClient jobClient;
     List<IndexerDefinition> indexerDefinitionList;
-    ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(5);
+    ScheduledThreadPoolExecutor executorService;
 
 
     @Before
     public void setUp() throws Exception {
+        executorService = new ScheduledThreadPoolExecutor(5);
         indexerDefinitionList = Lists.newArrayList();
         model = mock(WriteableIndexerModel.class);
         when(model.getIndexers()).thenReturn(indexerDefinitionList);
