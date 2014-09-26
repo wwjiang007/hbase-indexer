@@ -1,9 +1,6 @@
 package com.ngdata.hbaseindexer.master;
 
-import com.ngdata.hbaseindexer.model.api.BatchBuildInfo;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinition;
-import com.ngdata.hbaseindexer.model.api.IndexerDefinitionBuilder;
-import com.ngdata.hbaseindexer.model.api.WriteableIndexerModel;
+import com.ngdata.hbaseindexer.model.api.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.mapred.JobClient;
@@ -22,19 +19,27 @@ public class BatchStateUpdater implements Runnable {
     private JobClient jobClient;
     private ScheduledExecutorService executor;
     private int pollInterval;
+    private String indexerName;
     private Log log = LogFactory.getLog(BatchStateUpdater.class);
 
-    protected BatchStateUpdater(WriteableIndexerModel indexerModel, JobClient jobClient,
+    protected BatchStateUpdater(String indexerName, WriteableIndexerModel indexerModel, JobClient jobClient,
                       ScheduledExecutorService executor, int pollInterval) {
         this.indexerModel = indexerModel;
         this.jobClient = jobClient;
         this.executor = executor;
         this.pollInterval = pollInterval;
+        this.indexerName = indexerName;
     }
 
     @Override
     public void run() {
-        for (IndexerDefinition indexerDefinition : indexerModel.getIndexers()) {
+        IndexerDefinition indexerDefinition = null;
+        try {
+            indexerDefinition = indexerModel.getIndexer(indexerName);
+        } catch (IndexerNotFoundException e) {
+            log.info("Could not find index " + indexerName + " while checking batch rebuild status.",e);
+        }
+        if (indexerDefinition != null) {
             log.debug("Checking batch state for " + indexerDefinition.getName());
             BatchBuildInfo batchBuildInfo = indexerDefinition.getActiveBatchBuildInfo();
             if (batchBuildInfo != null) {
@@ -43,7 +48,7 @@ public class BatchStateUpdater implements Runnable {
                 boolean batchDone = true;
                 boolean overAllSuccess = true;
                 for (String jobId : jobs) {
-                    RunningJob job = null;
+                    RunningJob job;
                     try {
                         job = jobClient.getJob(JobID.forName(jobId));
                     } catch (IOException e) {
@@ -53,7 +58,7 @@ public class BatchStateUpdater implements Runnable {
                         break;
                     }
                     if (job != null) {
-                        int jobState = 0;
+                        int jobState;
                         try {
                             jobState = job.getJobState();
                         } catch (IOException e) {

@@ -32,7 +32,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.ngdata.hbaseindexer.ConfKeys;
@@ -141,8 +140,11 @@ public class IndexerMaster {
                 hbaseConf.get(ConfKeys.ZK_ROOT_NODE) + "/masters",
                 new MyLeaderElectionCallback());
 
-        executor.schedule(new BatchStateUpdater(indexerModel, jobClient, executor, batchStatePollInterval),
-                batchStatePollInterval, TimeUnit.MILLISECONDS);
+        for (IndexerDefinition indexerDefinition : indexerModel.getIndexers()) {
+            executor.schedule(new BatchStateUpdater(indexerDefinition.getName(), indexerModel, jobClient, executor,
+                            batchStatePollInterval), batchStatePollInterval, TimeUnit.MILLISECONDS);
+        }
+
     }
 
     @PreDestroy
@@ -294,7 +296,7 @@ public class IndexerMaster {
                 if (needsBatchBuildStart(indexer)) {
                     final ListeningExecutorService executor =
                             MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
-                    ListenableFuture<Integer> future = executor.submit(new Callable<Integer>() {
+                    executor.submit(new Callable<Integer>() {
                         @Override
                         public Integer call() throws Exception {
                             HBaseMapReduceIndexerTool tool = new HBaseMapReduceIndexerTool();
@@ -312,7 +314,7 @@ public class IndexerMaster {
 
                     indexerModel.updateIndexerInternal(updatedIndexer.build());
 
-                    this.executor.schedule(new BatchStateUpdater(indexerModel, jobClient, this.executor,
+                    this.executor.schedule(new BatchStateUpdater(indexerName, indexerModel, jobClient, this.executor,
                             batchStatePollInterval), batchStatePollInterval, TimeUnit.MILLISECONDS);
 
                     log.info("Started batch index build for index " + indexerName);
@@ -378,7 +380,7 @@ public class IndexerMaster {
                     JobClient jobClient = getJobClient();
                     Set<String> jobs = indexer.getActiveBatchBuildInfo().getMapReduceJobTrackingUrls().keySet();
                     for (String jobId : jobs) {
-                        RunningJob job = jobClient.getJob(jobId);
+                        RunningJob job = jobClient.getJob(JobID.forName(jobId));
                         if (job != null) {
                             job.killJob();
                             log.info("Kill indexer build job for indexer " + indexerName + ", job ID =  " + jobId);
