@@ -118,7 +118,7 @@ public class Main {
 
         sepModel = new SepModelImpl(zk, conf);
 
-        indexerMaster = new IndexerMaster(zk, indexerModel, null, conf, zkConnectString,
+        indexerMaster = new IndexerMaster(zk, indexerModel, conf, conf, zkConnectString,
                 sepModel);
         indexerMaster.start();
 

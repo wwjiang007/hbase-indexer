@@ -141,7 +141,7 @@ public class IndexerMaster {
                 new MyLeaderElectionCallback());
 
         for (IndexerDefinition indexerDefinition : indexerModel.getIndexers()) {
-            executor.schedule(new BatchStateUpdater(indexerDefinition.getName(), indexerModel, jobClient, executor,
+            executor.schedule(new BatchStateUpdater(indexerDefinition.getName(), indexerModel, getJobClient(), executor,
                             batchStatePollInterval), batchStatePollInterval, TimeUnit.MILLISECONDS);
         }
 
@@ -314,7 +314,7 @@ public class IndexerMaster {
 
                     indexerModel.updateIndexerInternal(updatedIndexer.build());
 
-                    this.executor.schedule(new BatchStateUpdater(indexerName, indexerModel, jobClient, this.executor,
+                    this.executor.schedule(new BatchStateUpdater(indexerName, indexerModel, getJobClient(), this.executor,
                             batchStatePollInterval), batchStatePollInterval, TimeUnit.MILLISECONDS);
 
                     log.info("Started batch index build for index " + indexerName);
