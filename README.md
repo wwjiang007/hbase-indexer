@@ -16,3 +16,15 @@ by hooking into HBase replication, see [the SEP readme](hbase-sep/README.md).
 
 A standalone utility to monitor HBase replication progress,
 see [the SEP-tools readme](hbase-sep/hbase-sep-tools/README.md).
+
+
+## Building
+
+You can build the full hbase-indexer project as follows:
+
+    mvn clean install -DskipTests
+
+The default build is linked to HBase 0.94. In order to build for HBase 0.98,
+run the following command:
+
+    mvn clean install -DskipTests -Dhbase.api=0.98
