@@ -89,7 +89,8 @@ public abstract class BaseIndexCli extends BaseCli {
     }
 
     private void connectWithZooKeeper() throws IOException, KeeperException, InterruptedException {
-        zk = new StateWatchingZooKeeper(zkConnectionString, 30000);
+        int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(conf);
+        zk = new StateWatchingZooKeeper(zkConnectionString, zkSessionTimeout);
 
         final String zkRoot = conf.get("hbaseindexer.zookeeper.znode.parent");
 
