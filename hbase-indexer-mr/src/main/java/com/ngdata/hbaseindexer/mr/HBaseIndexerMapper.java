@@ -56,6 +56,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.ngdata.hbaseindexer.HBaseIndexerConfiguration;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerConf;
 import com.ngdata.hbaseindexer.conf.IndexerConf.RowReadMode;
@@ -267,6 +268,9 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
             throw new IllegalStateException("No collection name defined");
         }
         CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
+        int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(context.getConfiguration());
+        solrServer.setZkClientTimeout(zkSessionTimeout);
+        solrServer.setZkConnectTimeout(zkSessionTimeout);      
         solrServer.setDefaultCollection(collectionName);
 
         return new DirectSolrInputDocumentWriter(context.getConfiguration().get(INDEX_NAME_CONF_KEY), solrServer);

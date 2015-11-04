@@ -33,14 +33,16 @@ import org.apache.solr.client.solrj.impl.HttpSolrServer;
  * Create cloud or classic {@link SolrServer} instances from a map of solr connection parameters.
  */
 public class SolrServerFactory {
-    public static SolrServer createCloudSolrServer(Map<String, String> connectionParameters) throws MalformedURLException {
+    public static SolrServer createCloudSolrServer(Map<String, String> connectionParameters, int zkSessionTimeout) throws MalformedURLException {
         String solrZk = connectionParameters.get(SolrConnectionParams.ZOOKEEPER);
         CloudSolrServer solr = new CloudSolrServer(solrZk);
+        solr.setZkClientTimeout(zkSessionTimeout);
+        solr.setZkConnectTimeout(zkSessionTimeout);      
         String collection = connectionParameters.get(SolrConnectionParams.COLLECTION);
         solr.setDefaultCollection(collection);
         return solr;
     }
-
+    
     public static List<SolrServer> createHttpSolrServers(Map<String, String> connectionParams, HttpClient httpClient) {
         List<SolrServer> result = Lists.newArrayList();
         for (String shard : SolrConnectionParamUtil.getShards(connectionParams)) {

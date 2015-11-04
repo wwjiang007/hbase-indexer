@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Charsets;
+import com.ngdata.hbaseindexer.HBaseIndexerConfiguration;
 import com.ngdata.hbaseindexer.SolrConnectionParams;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
@@ -167,6 +168,9 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
 
         if (hbaseIndexingOpts.isDirectWrite()) {
             CloudSolrServer solrServer = new CloudSolrServer(hbaseIndexingOpts.zkHost);
+            int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(conf);
+            solrServer.setZkClientTimeout(zkSessionTimeout);
+            solrServer.setZkConnectTimeout(zkSessionTimeout);      
             solrServer.setDefaultCollection(hbaseIndexingOpts.collection);
 
             if (hbaseIndexingOpts.clearIndex) {
@@ -242,6 +246,9 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
             String indexZkHost = indexConnectionParams.get(SolrConnectionParams.ZOOKEEPER);
             String collectionName = indexConnectionParams.get(SolrConnectionParams.COLLECTION);
             CloudSolrServer solrServer = new CloudSolrServer(indexZkHost);
+            int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(getConf());
+            solrServer.setZkClientTimeout(zkSessionTimeout);
+            solrServer.setZkConnectTimeout(zkSessionTimeout);      
             solrServer.setDefaultCollection(collectionName);
             return Collections.singleton((SolrServer) solrServer);
         } else if (solrMode.equals("classic")) {

@@ -107,7 +107,7 @@ public class Main {
         log.debug("Using hostname " + hostname);
 
         String zkConnectString = conf.get(ConfKeys.ZK_CONNECT_STRING);
-        int zkSessionTimeout = conf.getInt(ConfKeys.ZK_SESSION_TIMEOUT, 30000);
+        int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(conf);
         zk = new StateWatchingZooKeeper(zkConnectString, zkSessionTimeout);
 
         tablePool = new HTablePool(conf, 10 /* TODO configurable */);
