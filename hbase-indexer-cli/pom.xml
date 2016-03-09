@@ -26,7 +26,6 @@
     <groupId>com.ngdata</groupId>
     <artifactId>hbase-indexer</artifactId>
     <version>1.6-SNAPSHOT</version>
-    <relativePath>..</relativePath>
   </parent>
 
   <dependencies>
