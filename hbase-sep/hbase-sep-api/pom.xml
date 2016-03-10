@@ -24,7 +24,7 @@
   <parent>
     <groupId>com.ngdata</groupId>
     <artifactId>hbase-sep</artifactId>
-    <version>1.6-SNAPSHOT</version>
+    <version>1.6-apache-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
