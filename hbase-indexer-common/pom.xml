@@ -60,9 +60,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.solr</groupId>
-      <artifactId>solr</artifactId>
-      <version>${version.solr}</version>
-      <type>war</type>
+      <artifactId>solr-test-framework</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
