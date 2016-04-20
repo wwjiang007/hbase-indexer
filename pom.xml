@@ -189,6 +189,16 @@
         <groupId>org.apache.solr</groupId>
         <artifactId>solr-test-framework</artifactId>
         <version>${version.solr}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-commons</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.solr</groupId>
@@ -198,6 +208,14 @@
           <exclusion>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-commons</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -215,6 +233,14 @@
             <groupId>com.ibm.icu</groupId>
             <artifactId>icu4j</artifactId>
             <!-- nothing in solr-cell is using this -->
+          </exclusion>
+          <exclusion>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-commons</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -473,6 +499,16 @@
       <dependency>
         <groupId>com.sun.jersey</groupId>
         <artifactId>jersey-json</artifactId>
+        <version>${version.jersey}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.jersey</groupId>
+        <artifactId>jersey-client</artifactId>
+        <version>${version.jersey}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.sun.jersey.contribs</groupId>
+        <artifactId>jersey-guice</artifactId>
         <version>${version.jersey}</version>
       </dependency>
       <dependency>
