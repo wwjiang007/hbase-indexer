@@ -39,7 +39,7 @@
   <groupId>com.ngdata</groupId>
   <artifactId>hbase-indexer</artifactId>
   <packaging>pom</packaging>
-  <version>hbase-indexer-1.6-ngdata</version>
+  <version>hbase-indexer-1.7-SNAPSHOT</version>
   <name>HBase Indexer</name>
 
   <url>http://www.ngdata.com/</url>
@@ -57,7 +57,7 @@
     <connection>scm:git:git@github.com:NGDATA/hbase-indexer.git</connection>
     <url>scm:git:git@github.com:NGDATA/hbase-indexer.git</url>
     <developerConnection>scm:git:git@github.com:NGDATA/hbase-indexer.git</developerConnection>
-    <tag>hbase-indexer-hbase-indexer-1.6-ngdata</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <modules>
@@ -79,27 +79,27 @@
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-server</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-engine</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-morphlines</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-mr</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-mr</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
         <classifier>job</classifier>
         <exclusions>
           <exclusion>
@@ -131,42 +131,42 @@
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-common</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-model</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-cli</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-demo</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-indexer-all</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-sep-api</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-sep-impl</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>com.ngdata</groupId>
         <artifactId>hbase-sep-tools</artifactId>
-        <version>hbase-indexer-1.6-ngdata</version>
+        <version>hbase-indexer-1.7-SNAPSHOT</version>
       </dependency>
       <dependency>
         <groupId>org.kitesdk</groupId>
