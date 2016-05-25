@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.ngdata</groupId>
     <artifactId>hbase-sep</artifactId>
-    <version>1.6-apache-SNAPSHOT</version>
+    <version>hbase-indexer-1.6-ngdata</version>
     <relativePath>../</relativePath>
   </parent>
 
