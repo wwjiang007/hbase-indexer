@@ -46,6 +46,10 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.solr</groupId>
+      <artifactId>solr-map-reduce</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
       <type>test-jar</type>
@@ -64,10 +68,6 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <type>test-jar</type>
-    </dependency>
-    <dependency>
-      <groupId>com.cloudera.search</groupId>
-      <artifactId>search-mr</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
