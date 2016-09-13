@@ -200,7 +200,7 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
                         hbaseIndexingOpts.maxSegments});
 
         if (hbaseIndexingOpts.isDirectWrite()) {
-            CloudSolrClient solrServer = new CloudSolrClient(hbaseIndexingOpts.zkHost);
+            CloudSolrClient solrServer = new CloudSolrClient.Builder().withZkHost(hbaseIndexingOpts.zkHost).build();
             int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(conf);
             solrServer.setZkClientTimeout(zkSessionTimeout);
             solrServer.setZkConnectTimeout(zkSessionTimeout);
@@ -279,14 +279,14 @@ public class HBaseMapReduceIndexerTool extends Configured implements Tool {
 			   throw new RuntimeException(e);
 			}
         }
-    }
+    } 
 
     private Set<SolrClient> createSolrClients(Map<String, String> indexConnectionParams) throws MalformedURLException {
         String solrMode = getSolrMode(indexConnectionParams);
         if (solrMode.equals("cloud")) {
             String indexZkHost = indexConnectionParams.get(SolrConnectionParams.ZOOKEEPER);
             String collectionName = indexConnectionParams.get(SolrConnectionParams.COLLECTION);
-            CloudSolrClient solrServer = new CloudSolrClient(indexZkHost);
+            CloudSolrClient solrServer = new CloudSolrClient.Builder().withZkHost(indexZkHost).build();
             int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(getConf());
             solrServer.setZkClientTimeout(zkSessionTimeout);
             solrServer.setZkConnectTimeout(zkSessionTimeout);

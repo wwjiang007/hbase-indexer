@@ -32,7 +32,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Maps;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactory;
 import com.ngdata.hbaseindexer.conf.IndexerComponentFactoryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -64,7 +63,6 @@ import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
 import com.ngdata.hbaseindexer.indexer.DirectSolrClassicInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.DirectSolrInputDocumentWriter;
 import com.ngdata.hbaseindexer.indexer.Indexer;
-import com.ngdata.hbaseindexer.indexer.ResultToSolrMapperFactory;
 import com.ngdata.hbaseindexer.indexer.ResultWrappingRowData;
 import com.ngdata.hbaseindexer.indexer.RowData;
 import com.ngdata.hbaseindexer.indexer.Sharder;
@@ -267,7 +265,7 @@ public class HBaseIndexerMapper extends TableMapper<Text, SolrInputDocumentWrita
         if (collectionName == null) {
             throw new IllegalStateException("No collection name defined");
         }
-        CloudSolrClient solrServer = new CloudSolrClient(indexZkHost);
+        CloudSolrClient solrServer = new CloudSolrClient.Builder().withZkHost(indexZkHost).build();
         int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(context.getConfiguration());
         solrServer.setZkClientTimeout(zkSessionTimeout);
         solrServer.setZkConnectTimeout(zkSessionTimeout);      
