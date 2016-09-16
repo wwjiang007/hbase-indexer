@@ -32,9 +32,11 @@ import com.ngdata.hbaseindexer.conf.IndexerConfBuilder;
 import com.ngdata.hbaseindexer.indexer.Indexer.RowBasedIndexer;
 import com.ngdata.hbaseindexer.parse.ResultToSolrMapper;
 import com.ngdata.sep.SepEvent;
+
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.KeyValue.Type;
-import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.solr.common.SolrInputDocument;
 import org.junit.Before;
@@ -45,7 +47,7 @@ public class RowBasedIndexerTest {
     private static final String TABLE_NAME = "TABLE_A";
     
     private IndexerConf indexerConf;
-    private HTablePool tablePool;
+    private Connection tablePool;
     private SolrInputDocumentWriter solrWriter;
     private SolrUpdateCollector updateCollector;
     private RowBasedIndexer indexer;
@@ -56,7 +58,7 @@ public class RowBasedIndexerTest {
         indexerConf = spy(new IndexerConfBuilder().table(TABLE_NAME).mappingType(MappingType.ROW).build());
         ResultToSolrMapper mapper = IndexingEventListenerTest.createHbaseToSolrMapper(true);
         
-        tablePool = mock(HTablePool.class);
+        tablePool = mock(Connection.class);
         solrWriter = mock(DirectSolrInputDocumentWriter.class);
         
         updateCollector = new SolrUpdateCollector(10);
@@ -64,7 +66,7 @@ public class RowBasedIndexerTest {
         indexer = new RowBasedIndexer("row-based", indexerConf, TABLE_NAME, mapper, tablePool, null, solrWriter);
     }
     
-    private RowData createEventRowData(String row, KeyValue... keyValues) {
+    private RowData createEventRowData(String row, Cell... keyValues) {
         return new SepEventRowData(
                 new SepEvent(Bytes.toBytes(TABLE_NAME),
                        Bytes.toBytes(row), Lists.newArrayList(keyValues), null));

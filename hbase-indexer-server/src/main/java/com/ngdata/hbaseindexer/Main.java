@@ -33,7 +33,8 @@ import com.yammer.metrics.reporting.GangliaReporter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.util.Strings;
 import org.apache.hadoop.net.DNS;
 import org.mortbay.jetty.Connector;
@@ -46,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 
 public class Main {
     private final static Log log = LogFactory.getLog(Main.class);
-    private HTablePool tablePool;
+    private Connection tablePool;
     private WriteableIndexerModel indexerModel;
     private SepModel sepModel;
     private IndexerMaster indexerMaster;
@@ -110,7 +111,7 @@ public class Main {
         int zkSessionTimeout = HBaseIndexerConfiguration.getSessionTimeout(conf);
         zk = new StateWatchingZooKeeper(zkConnectString, zkSessionTimeout);
 
-        tablePool = new HTablePool(conf, 10 /* TODO configurable */);
+        tablePool = ConnectionFactory.createConnection(conf);
 
         String zkRoot = conf.get(ConfKeys.ZK_ROOT_NODE);
 
